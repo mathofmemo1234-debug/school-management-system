@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { auth, db } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
@@ -95,8 +95,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
       if (user) {
+        setCurrentUser(user);
         if (!initializedRef.current) {
           initializedRef.current = true;
           const cachedRole = localStorage.getItem('userRole');
@@ -115,7 +115,23 @@ export function AuthProvider({ children }) {
           setLoading(false);
         }
       } else {
-        // When user is not authenticated or logged out
+        // Check if there is an active local verified session
+        const cachedRole = localStorage.getItem('userRole');
+        const cachedData = (() => { try { return JSON.parse(localStorage.getItem('userData') || 'null'); } catch { return null; } })();
+        if (cachedRole && cachedData) {
+          const sessionUser = {
+            email: cachedData.email || (cachedData.nationalId ? `${cachedData.nationalId}@school.local` : 'user@school.local'),
+            uid: cachedData.uid || cachedData.id || `session_${cachedRole}`,
+            displayName: cachedData.name || 'مستخدم'
+          };
+          setCurrentUser(sessionUser);
+          setUserRole(cachedRole);
+          setUserData(cachedData);
+          setLoading(false);
+          return;
+        }
+
+        // Otherwise, completely cleared
         setCurrentUser(null);
         setUserRole(null);
         setUserData(null);
@@ -163,6 +179,21 @@ export function AuthProvider({ children }) {
     localStorage.setItem('userData', JSON.stringify(superData));
   }, []);
 
+  const loginWithUserData = useCallback((data, explicitRole) => {
+    const finalRole = explicitRole || data?.role || 'student';
+    const userObj = {
+      email: data.email || (data.nationalId ? `${data.nationalId}@school.local` : 'user@school.local'),
+      uid: data.uid || data.id || `user_${data.nationalId || Date.now()}`,
+      displayName: data.name || 'مستخدم'
+    };
+    setCurrentUser(userObj);
+    setUserRole(finalRole);
+    const enrichedData = { ...data, role: finalRole };
+    setUserData(enrichedData);
+    localStorage.setItem('userRole', finalRole);
+    localStorage.setItem('userData', JSON.stringify(enrichedData));
+  }, []);
+
   const switchSchoolContext = useCallback(async (newSchoolId, newSchoolName, newLogoUrl, newSubTitle) => {
     if (userRole !== 'superadmin' && userData?.role !== 'superadmin') return;
     
@@ -205,7 +236,7 @@ export function AuthProvider({ children }) {
     }
   })();
 
-  const value = { currentUser, userRole, userData, loading, setLoginRole, switchSchoolContext, loginAsSuperAdmin, logout };
+  const value = { currentUser, userRole, userData, loading, setLoginRole, switchSchoolContext, loginAsSuperAdmin, loginWithUserData, logout };
 
   return (
     <AuthContext.Provider value={value}>

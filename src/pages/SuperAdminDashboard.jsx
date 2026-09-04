@@ -641,8 +641,8 @@ function SuperAdminHome() {
     setAdminMessage('');
     setAdminError('');
 
-    if (adminNationalId.trim().length < 10) {
-      setAdminError('رقم الهوية يجب ألا يقل عن 10 أرقام');
+    if (adminNationalId.trim().length < 6) {
+      setAdminError('رقم الهوية أو البريد الإلكتروني يجب ألا يقل عن 6 خانات');
       return;
     }
     if (adminPassword.trim().length < 6) {
@@ -653,7 +653,7 @@ function SuperAdminHome() {
     setIsAddingAdmin(true);
     try {
       const cleanNid = adminNationalId.trim();
-      const adminEmail = cleanNid.includes('@') ? cleanNid : `${cleanNid}@school.local`;
+      const adminEmail = cleanNid.includes('@') ? cleanNid.toLowerCase() : `${cleanNid}@school.local`;
       const selectedSchool = schools.find(s => s.id === selectedSchoolId);
       let targetUid = null;
 
@@ -662,7 +662,6 @@ function SuperAdminHome() {
         targetUid = userCredential.user.uid;
       } catch (authErr) {
         if (authErr.code === 'auth/email-already-in-use') {
-          // If already registered in auth, reuse the existing account
           console.log('Account exists in Auth, updating Firestore records directly');
           const existingSnap = await getDocs(query(collection(db, 'users'), where('email', '==', adminEmail)));
           if (!existingSnap.empty) {
@@ -695,6 +694,7 @@ function SuperAdminHome() {
         schoolId: selectedSchoolId,
         schoolName: selectedSchool?.name || '',
         schoolSubTitle: selectedSchool?.subTitle || '',
+        password: adminPassword.trim(),
         updatedAt: new Date(),
         createdAt: new Date()
       }, { merge: true });
@@ -1780,6 +1780,7 @@ function SuperAdminHome() {
                 <tr>
                   <th>اسم المدير</th>
                   <th>رقم الهوية (اسم المستخدم)</th>
+                  <th>كلمة المرور المعينة</th>
                   <th>المدرسة / المجمع والعنوان الفرعي</th>
                   <th>البريد الإلكتروني</th>
                   <th>الإجراءات</th>
@@ -1795,6 +1796,24 @@ function SuperAdminHome() {
                       </td>
                       <td style={{ fontFamily: 'monospace', color: '#2563eb', fontWeight: 600 }}>
                         {admin.nationalId}
+                      </td>
+                      <td>
+                        {admin.password ? (
+                          <span style={{
+                            background: '#f1f5f9',
+                            border: '1px solid #cbd5e1',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontFamily: 'monospace',
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            fontSize: '12px'
+                          }}>
+                            🔑 {admin.password}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontSize: '11px' }}>افتراضية (الهوية)</span>
+                        )}
                       </td>
                       <td>
                         {assignedSchool ? (
@@ -1839,7 +1858,7 @@ function SuperAdminHome() {
                 })}
                 {filteredAdmins.length === 0 && (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
                       لا يوجد مدراء مطابقين للبحث
                     </td>
                   </tr>
