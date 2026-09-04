@@ -1,249 +1,1862 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
-import { collection, addDoc, onSnapshot, doc, setDoc, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { 
+  collection, addDoc, onSnapshot, doc, setDoc, query, where, getDocs, deleteDoc, updateDoc 
+} from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { Building2, UserPlus, Save, Trash2, CheckSquare } from 'lucide-react';
+import { 
+  Building2, UserPlus, Save, Trash2, CheckSquare, ShieldCheck, 
+  Users, BookOpen, GraduationCap, Lock, Download, Search, Plus, 
+  Edit, Key, FileSpreadsheet, Printer, ExternalLink, Sparkles, 
+  Filter, CheckCircle2, RefreshCw, Globe, Award, Mail, Star, 
+  Layers, MapPin, Phone, AlertCircle, X, Compass, ChevronRight, Eye
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Layout from '../components/Layout';
 import ChangePassword from '../components/ChangePassword';
+import AchievementPortfolioPage from './AchievementPortfolioPage';
+import SchoolMessagingHub from './SchoolMessagingHub';
+import SchoolExcellenceDashboard from './SchoolExcellenceDashboard';
 
-export default function SuperAdminDashboard() {
-  const { userData } = useAuth();
-  const { t } = useLanguage();
-  
+function SuperAdminHome() {
+  const { userData, currentUser } = useAuth();
+  const { t, isRTL } = useLanguage();
+  const navigate = useNavigate();
+
+  // Data states
   const [schools, setSchools] = useState([]);
   const [admins, setAdmins] = useState([]);
-  
-  // New School State
+  const [superAdmins, setSuperAdmins] = useState([]);
+  const [stats, setStats] = useState({
+    teachers: 0,
+    students: 0,
+    staff: 0,
+    supervisors: 0
+  });
+
+  // Active Tab: 'schools' | 'admins' | 'superadmins' | 'reports'
+  const [activeTab, setActiveTab] = useState('schools');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Modals state
+  const [showAddSchoolModal, setShowAddSchoolModal] = useState(false);
+  const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [showAddSuperAdminModal, setShowAddSuperAdminModal] = useState(false);
+  const [editingSchool, setEditingSchool] = useState(null);
+  const [passwordResetUser, setPasswordResetUser] = useState(null);
+  const [newCustomPassword, setNewCustomPassword] = useState('');
+
+  // New School Form State
   const [schoolName, setSchoolName] = useState('');
+  const [schoolCode, setSchoolCode] = useState('');
+  const [schoolCity, setSchoolCity] = useState('جدة');
+  const [schoolTrack, setSchoolTrack] = useState('أهلي متقدم + STEM');
+  const [schoolAddress, setSchoolAddress] = useState('');
   const [isAddingSchool, setIsAddingSchool] = useState(false);
 
-  // New Admin State
+  // New Admin Form State
   const [adminName, setAdminName] = useState('');
   const [adminNationalId, setAdminNationalId] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  const [selectedSchool, setSelectedSchool] = useState('');
+  const [adminPhone, setAdminPhone] = useState('');
+  const [selectedSchoolId, setSelectedSchoolId] = useState('');
   const [isAddingAdmin, setIsAddingAdmin] = useState(false);
   const [adminMessage, setAdminMessage] = useState('');
   const [adminError, setAdminError] = useState('');
 
+  // New Super Admin Form State
+  const [superAdminName, setSuperAdminName] = useState('');
+  const [superAdminNationalId, setSuperAdminNationalId] = useState('');
+  const [superAdminPassword, setSuperAdminPassword] = useState('');
+  const [isAddingSuperAdmin, setIsAddingSuperAdmin] = useState(false);
+
+  // Real-time Firestore Listeners
   useEffect(() => {
-    // Fetch schools
+    // 1. Schools Listener
     const unsubSchools = onSnapshot(collection(db, 'schools'), snap => {
       const s = [];
       snap.forEach(d => s.push({ id: d.id, ...d.data() }));
       setSchools(s);
     });
 
-    // Fetch admins
-    const q = query(collection(db, 'users'), where('role', '==', 'admin'));
-    const unsubAdmins = onSnapshot(q, snap => {
+    // 2. Admins (School Principals) Listener
+    const qAdmins = query(collection(db, 'users'), where('role', '==', 'admin'));
+    const unsubAdmins = onSnapshot(qAdmins, snap => {
       const a = [];
       snap.forEach(d => a.push({ id: d.id, ...d.data() }));
       setAdmins(a);
     });
 
+    // 3. Super Admins Listener
+    const qSuperAdmins = query(collection(db, 'users'), where('role', '==', 'superadmin'));
+    const unsubSuperAdmins = onSnapshot(qSuperAdmins, snap => {
+      const sa = [];
+      snap.forEach(d => sa.push({ id: d.id, ...d.data() }));
+      setSuperAdmins(sa);
+    });
+
+    // 4. Global Counts Listeners (Teachers, Students, Staff, Supervisors)
+    const unsubTeachers = onSnapshot(collection(db, 'teachers'), snap => {
+      setStats(prev => ({ ...prev, teachers: snap.size }));
+    });
+    const unsubStudents = onSnapshot(collection(db, 'students'), snap => {
+      setStats(prev => ({ ...prev, students: snap.size }));
+    });
+    const unsubStaff = onSnapshot(collection(db, 'staff'), snap => {
+      setStats(prev => ({ ...prev, staff: snap.size }));
+    });
+    const unsubSupervisors = onSnapshot(collection(db, 'supervisors'), snap => {
+      setStats(prev => ({ ...prev, supervisors: snap.size }));
+    });
+
     return () => {
       unsubSchools();
       unsubAdmins();
+      unsubSuperAdmins();
+      unsubTeachers();
+      unsubStudents();
+      unsubStaff();
+      unsubSupervisors();
     };
   }, []);
 
+  // Handle Add School
   const handleAddSchool = async (e) => {
     e.preventDefault();
-    if (!schoolName) return;
+    if (!schoolName.trim()) return;
     setIsAddingSchool(true);
     try {
+      const cleanCode = schoolCode.trim() || `school_${Date.now().toString().slice(-5)}`;
       await addDoc(collection(db, 'schools'), {
-        name: schoolName,
+        name: schoolName.trim(),
+        code: cleanCode,
+        city: schoolCity.trim() || 'جدة',
+        track: schoolTrack || 'أهلي متقدم + STEM',
+        address: schoolAddress.trim() || 'المملكة العربية السعودية',
         createdAt: new Date()
       });
+
       setSchoolName('');
-      alert(t('superAdmin.schoolAddedSuccess'));
+      setSchoolCode('');
+      setSchoolAddress('');
+      setShowAddSchoolModal(false);
+      alert('تمت إضافة المدرسة/المجمع التعليمي بنجاح!');
     } catch (error) {
-      console.error(error);
-      alert(t('superAdmin.schoolAddError'));
+      console.error('Error adding school:', error);
+      alert('حدث خطأ أثناء إضافة المدرسة: ' + error.message);
     } finally {
       setIsAddingSchool(false);
     }
   };
 
+  // Handle Edit School
+  const handleUpdateSchool = async (e) => {
+    e.preventDefault();
+    if (!editingSchool || !editingSchool.name) return;
+    try {
+      await updateDoc(doc(db, 'schools', editingSchool.id), {
+        name: editingSchool.name,
+        city: editingSchool.city || 'جدة',
+        track: editingSchool.track || 'أهلي متقدم',
+        address: editingSchool.address || '',
+        updatedAt: new Date()
+      });
+      setEditingSchool(null);
+      alert('تم تحديث بيانات المدرسة بنجاح!');
+    } catch (error) {
+      console.error('Error updating school:', error);
+      alert('حدث خطأ أثناء تحديث المدرسة: ' + error.message);
+    }
+  };
+
+  // Handle Delete School
+  const handleDeleteSchool = async (school) => {
+    const hasAdmins = admins.some(a => a.schoolId === school.id);
+    const confirmMsg = hasAdmins 
+      ? `تحذير: المدرسة "${school.name}" مرتبطة بمدراء حاليين. هل أنت متأكد تماماً من حذفها من المنظومة؟`
+      : `هل أنت متأكد من حذف مدرسة "${school.name}"؟`;
+    
+    if (window.confirm(confirmMsg)) {
+      try {
+        await deleteDoc(doc(db, 'schools', school.id));
+        alert('تم حذف المدرسة بنجاح.');
+      } catch (error) {
+        console.error('Error deleting school:', error);
+        alert('حدث خطأ أثناء حذف المدرسة.');
+      }
+    }
+  };
+
+  // Handle Add Admin (School Principal)
   const handleAddAdmin = async (e) => {
     e.preventDefault();
     setAdminMessage('');
     setAdminError('');
 
     if (adminNationalId.length < 10) {
-      setAdminError(t('superAdmin.nationalIdLengthError'));
+      setAdminError('رقم الهوية يجب ألا يقل عن 10 أرقام');
       return;
     }
     if (adminPassword.length < 6) {
-      setAdminError(t('superAdmin.passwordLengthError'));
+      setAdminError('كلمة المرور يجب ألا تقل عن 6 خانات');
       return;
     }
 
     setIsAddingAdmin(true);
     try {
-      // Create user in Auth using nationalId as email if no email is needed
       const adminEmail = adminNationalId.includes('@') ? adminNationalId : `${adminNationalId}@school.local`;
-      
       const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
       const user = userCredential.user;
 
-      // Save admin in users collection
+      const selectedSchool = schools.find(s => s.id === selectedSchoolId);
+
       await setDoc(doc(db, 'users', user.uid), {
         name: adminName,
         nationalId: adminNationalId,
         email: adminEmail,
+        phone: adminPhone || '',
         role: 'admin',
-        schoolId: selectedSchool,
+        schoolId: selectedSchoolId,
+        schoolName: selectedSchool?.name || '',
         createdAt: new Date()
       });
 
-      setAdminMessage(t('superAdmin.adminCreatedSuccess'));
       setAdminName('');
       setAdminNationalId('');
       setAdminPassword('');
-      setSelectedSchool('');
+      setAdminPhone('');
+      setSelectedSchoolId('');
+      setShowAddAdminModal(false);
+      alert('تم إنشاء حساب المدير وتعيينه للمدرسة بنجاح!');
     } catch (error) {
-      console.error(error);
+      console.error('Error adding admin:', error);
       if (error.code === 'auth/email-already-in-use') {
-        setAdminError(t('superAdmin.nationalIdInUse'));
+        setAdminError('رقم الهوية / اسم المستخدم مسجل مسبقاً في النظام.');
       } else {
-        setAdminError(t('superAdmin.adminCreateError') + error.message);
+        setAdminError('حدث خطأ أثناء إنشاء الحساب: ' + error.message);
       }
     } finally {
       setIsAddingAdmin(false);
     }
   };
 
-  const handleDeleteAdmin = async (id) => {
-    if (window.confirm(t('superAdmin.confirmDeleteAdmin'))) {
+  // Handle Delete Admin
+  const handleDeleteAdmin = async (id, name) => {
+    if (window.confirm(`هل أنت متأكد من حذف حساب المدير "${name}" من قاعدة البيانات؟`)) {
       try {
         await deleteDoc(doc(db, 'users', id));
-        alert(t('superAdmin.deleteSuccess'));
+        alert('تم حذف حساب المدير بنجاح.');
       } catch (error) {
-        alert(t('superAdmin.deleteError'));
+        console.error('Error deleting admin:', error);
+        alert('حدث خطأ أثناء الحذف.');
       }
     }
   };
 
+  // Handle Add Super Admin
+  const handleAddSuperAdmin = async (e) => {
+    e.preventDefault();
+    if (superAdminNationalId.length < 6 || superAdminPassword.length < 6) {
+      alert('يرجى التأكد من صحة البيانات (كلمة المرور 6 خانات على الأقل)');
+      return;
+    }
+    setIsAddingSuperAdmin(true);
+    try {
+      const email = superAdminNationalId.includes('@') ? superAdminNationalId : `${superAdminNationalId}@school.local`;
+      const userCredential = await createUserWithEmailAndPassword(auth, email, superAdminPassword);
+      const user = userCredential.user;
+
+      await setDoc(doc(db, 'users', user.uid), {
+        name: superAdminName || 'ماستر عام إضافي',
+        nationalId: superAdminNationalId,
+        email: email,
+        role: 'superadmin',
+        schoolId: 'ALL',
+        createdAt: new Date()
+      });
+
+      setSuperAdminName('');
+      setSuperAdminNationalId('');
+      setSuperAdminPassword('');
+      setShowAddSuperAdminModal(false);
+      alert('تم إنشاء حساب الماستر العام الجديد بنجاح!');
+    } catch (error) {
+      console.error(error);
+      alert('حدث خطأ أثناء إنشاء حساب الماستر: ' + error.message);
+    } finally {
+      setIsAddingSuperAdmin(false);
+    }
+  };
+
+  // Filtered lists based on search query
+  const filteredSchools = useMemo(() => {
+    if (!searchQuery.trim()) return schools;
+    const q = searchQuery.toLowerCase().trim();
+    return schools.filter(s => 
+      s.name?.toLowerCase().includes(q) || 
+      s.code?.toLowerCase().includes(q) || 
+      s.city?.toLowerCase().includes(q) ||
+      s.id?.toLowerCase().includes(q)
+    );
+  }, [schools, searchQuery]);
+
+  const filteredAdmins = useMemo(() => {
+    if (!searchQuery.trim()) return admins;
+    const q = searchQuery.toLowerCase().trim();
+    return admins.filter(a => 
+      a.name?.toLowerCase().includes(q) || 
+      a.nationalId?.toLowerCase().includes(q) || 
+      schools.find(s => s.id === a.schoolId)?.name?.toLowerCase().includes(q)
+    );
+  }, [admins, schools, searchQuery]);
+
+  const filteredSuperAdmins = useMemo(() => {
+    if (!searchQuery.trim()) return superAdmins;
+    const q = searchQuery.toLowerCase().trim();
+    return superAdmins.filter(sa => 
+      sa.name?.toLowerCase().includes(q) || 
+      sa.nationalId?.toLowerCase().includes(q) ||
+      sa.email?.toLowerCase().includes(q)
+    );
+  }, [superAdmins, searchQuery]);
+
+  // Quick Export Data as CSV
+  const handleExportData = (type) => {
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    let filename = `export_${type}_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    if (type === 'schools') {
+      csvContent += "اسم المدرسة / المجمع,المعرف (Code),المدينة,المسار التعليمي,المدير المعين\n";
+      schools.forEach(s => {
+        const assignedAdmin = admins.find(a => a.schoolId === s.id)?.name || 'غير معين';
+        csvContent += `"${s.name || ''}","${s.code || s.id || ''}","${s.city || ''}","${s.track || ''}","${assignedAdmin}"\n`;
+      });
+    } else if (type === 'admins') {
+      csvContent += "اسم المدير,رقم الهوية,المدرسة / المجمع المعين,البريد الإلكتروني,رقم الهاتف\n";
+      admins.forEach(a => {
+        const schoolName = schools.find(s => s.id === a.schoolId)?.name || 'غير محدد';
+        csvContent += `"${a.name || ''}","${a.nationalId || ''}","${schoolName}","${a.email || ''}","${a.phone || ''}"\n`;
+      });
+    } else {
+      csvContent += "المؤشر,العدد الإجمالي\n";
+      csvContent += `إجمالي المدارس,${schools.length}\n`;
+      csvContent += `مدراء المدارس,${admins.length}\n`;
+      csvContent += `إجمالي المعلمين,${stats.teachers}\n`;
+      csvContent += `إجمالي الطلاب,${stats.students}\n`;
+      csvContent += `الكوادر والمشرفين,${stats.staff + stats.supervisors}\n`;
+      csvContent += `حسابات الماستر العام,${superAdmins.length}\n`;
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <Layout role="superadmin" title={t('superAdmin.title')}>
-      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Building2 size={32} color="var(--color-primary-dark)" />
-          <h1 style={{ margin: 0, color: 'var(--color-primary-dark)' }}>{t('superAdmin.generalSystemManagement')}</h1>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', padding: '4px' }}>
+      
+      {/* 1. Grand Hero Banner (Super Master Portal) */}
+      <div 
+        style={{
+          background: 'linear-gradient(135deg, #0082a6 0%, #088395 45%, #0a7ea4 100%)',
+          borderRadius: '24px',
+          padding: '28px 32px',
+          color: '#ffffff',
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: '0 10px 25px -5px rgba(0, 130, 166, 0.35), 0 8px 10px -6px rgba(0, 130, 166, 0.2)'
+        }}
+      >
+        {/* Decorative background glow circles */}
+        <div style={{
+          position: 'absolute',
+          top: '-40px',
+          left: '-40px',
+          width: '180px',
+          height: '180px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%)',
+          pointerEvents: 'none'
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: '-50px',
+          right: '-20px',
+          width: '220px',
+          height: '220px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 70%)',
+          pointerEvents: 'none'
+        }} />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          
-          {/* المجمعات */}
-          <div className="glass-panel" style={{ padding: '24px' }}>
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}><Building2 size={20}/> {t('superAdmin.educationalComplexes')}</h2>
-            
-            <form onSubmit={handleAddSchool} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              <input 
-                type="text" 
-                className="input-field" 
-                value={schoolName} 
-                onChange={e => setSchoolName(e.target.value)} 
-                placeholder={t('superAdmin.schoolNamePlaceholder')} 
-                required 
-              />
-              <button type="submit" className="btn btn-primary" disabled={isAddingSchool}>
-                {isAddingSchool ? t('superAdmin.adding') : t('superAdmin.addSchool')}
-              </button>
-            </form>
-
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{t('superAdmin.schoolName')}</th>
-                  <th>{t('superAdmin.schoolId')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {schools.map(s => (
-                  <tr key={s.id}>
-                    <td>{s.name}</td>
-                    <td style={{ fontSize: '12px', color: '#64748b' }}>{s.id}</td>
-                  </tr>
-                ))}
-                {schools.length === 0 && <tr><td colSpan="2" style={{ textAlign: 'center' }}>{t('superAdmin.noSchoolsYet')}</td></tr>}
-              </tbody>
-            </table>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          {/* Title & Shield Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '10px' }}>
+            <div style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '14px',
+              background: 'rgba(255, 255, 255, 0.18)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <ShieldCheck size={26} color="#ffffff" />
+            </div>
+            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.3px' }}>
+              لوحة تحكم الماستر العام (Super Master Portal)
+            </h1>
           </div>
 
-          {/* مدراء المجمعات */}
-          <div className="glass-panel" style={{ padding: '24px' }}>
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}><UserPlus size={20}/> {t('superAdmin.adminManagement')}</h2>
-            
-            {adminMessage && <div style={{ background: '#dcfce7', color: '#166534', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>{adminMessage}</div>}
-            {adminError && <div style={{ background: '#fee2e2', color: '#991b1b', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>{adminError}</div>}
+          {/* Subtitle description */}
+          <p style={{
+            margin: '0 0 24px 0',
+            fontSize: '14px',
+            lineHeight: '1.7',
+            color: 'rgba(255, 255, 255, 0.92)',
+            maxWidth: '900px',
+            fontWeight: 500
+          }}>
+            إدارة المنظومة التعليمية الشاملة متعددة المدارس — إضافة وتخصيص أي مدرسة أو مجمع تعليمي، تعيين وتوزيع المدراء، والمتابعة المركزية لكافة الحسابات والإحصائيات.
+          </p>
 
-            <form onSubmit={handleAddAdmin} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px' }}>{t('superAdmin.adminName')}</label>
-                <input type="text" className="input-field" value={adminName} onChange={e => setAdminName(e.target.value)} required />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px' }}>{t('superAdmin.nationalIdLabel')}</label>
-                <input type="text" className="input-field" value={adminNationalId} onChange={e => setAdminNationalId(e.target.value)} required dir="ltr" />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px' }}>{t('superAdmin.passwordLabel')}</label>
-                <input type="password" className="input-field" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} required dir="ltr" />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px' }}>{t('superAdmin.schoolLabel')}</label>
-                <select className="input-field" value={selectedSchool} onChange={e => setSelectedSchool(e.target.value)} required>
-                  <option value="">{t('superAdmin.selectSchool')}</option>
-                  {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              <button type="submit" className="btn btn-primary" disabled={isAddingAdmin}>
-                {isAddingAdmin ? t('superAdmin.creating') : t('superAdmin.createAdminAccount')}
-              </button>
-            </form>
+          {/* Action Buttons in Banner */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setShowAddSchoolModal(true)}
+              style={{
+                background: '#ffffff',
+                color: '#0082a6',
+                border: 'none',
+                borderRadius: '30px',
+                padding: '10px 24px',
+                fontSize: '14px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.12)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 18px rgba(0, 0, 0, 0.18)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.12)';
+              }}
+            >
+              <Plus size={18} strokeWidth={3} />
+              <span>إضافة مدرسة جديدة</span>
+            </button>
 
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{t('superAdmin.adminName')}</th>
-                  <th>{t('superAdmin.nationalId')}</th>
-                  <th>{t('superAdmin.school')}</th>
-                  <th>{t('superAdmin.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {admins.map(a => (
-                  <tr key={a.id}>
-                    <td>{a.name}</td>
-                    <td>{a.nationalId}</td>
-                    <td style={{ fontSize: '12px', color: '#64748b' }}>
-                      {schools.find(s => s.id === a.schoolId)?.name || t('superAdmin.unknown')}
-                    </td>
-                    <td>
-                      <button onClick={() => handleDeleteAdmin(a.id)} className="btn-icon delete">
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {admins.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center' }}>{t('superAdmin.noAdminsYet')}</td></tr>}
-              </tbody>
-            </table>
+            <button
+              onClick={() => setShowAddAdminModal(true)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.16)',
+                color: '#ffffff',
+                border: '1px solid rgba(255, 255, 255, 0.4)',
+                borderRadius: '30px',
+                padding: '10px 22px',
+                fontSize: '14px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                backdropFilter: 'blur(6px)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.26)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.16)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <UserPlus size={18} />
+              <span>إنشاء حساب مدير</span>
+            </button>
           </div>
-
-        </div>
-
-        <div style={{ marginTop: '24px' }}>
-          <ChangePassword />
         </div>
       </div>
+
+      {/* 2. Five Real-time Stat Cards */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', 
+        gap: '14px' 
+      }}>
+        {/* Card 1: إجمالي المدارس */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          padding: '18px 20px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          border: '1px solid #e2e8f0',
+          borderTop: '4px solid #0284c7',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          transition: 'all 0.2s ease'
+        }}>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
+              إجمالي المدارس
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
+              {schools.length}
+            </div>
+          </div>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: 'rgba(2, 132, 199, 0.1)',
+            color: '#0284c7',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Building2 size={22} />
+          </div>
+        </div>
+
+        {/* Card 2: مدراء المدارس */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          padding: '18px 20px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          border: '1px solid #e2e8f0',
+          borderTop: '4px solid #2563eb',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          transition: 'all 0.2s ease'
+        }}>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
+              مدراء المدارس
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
+              {admins.length}
+            </div>
+          </div>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: 'rgba(37, 99, 235, 0.1)',
+            color: '#2563eb',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <ShieldCheck size={22} />
+          </div>
+        </div>
+
+        {/* Card 3: إجمالي المعلمين */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          padding: '18px 20px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          border: '1px solid #e2e8f0',
+          borderTop: '4px solid #10b981',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          transition: 'all 0.2s ease'
+        }}>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
+              إجمالي المعلمين
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
+              {stats.teachers}
+            </div>
+          </div>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: 'rgba(16, 185, 129, 0.1)',
+            color: '#059669',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <BookOpen size={22} />
+          </div>
+        </div>
+
+        {/* Card 4: إجمالي الطلاب */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          padding: '18px 20px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          border: '1px solid #e2e8f0',
+          borderTop: '4px solid #8b5cf6',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          transition: 'all 0.2s ease'
+        }}>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
+              إجمالي الطلاب
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
+              {stats.students}
+            </div>
+          </div>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: 'rgba(139, 92, 246, 0.1)',
+            color: '#7c3aed',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <GraduationCap size={22} />
+          </div>
+        </div>
+
+        {/* Card 5: الكوادر والمشرفين */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          padding: '18px 20px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          border: '1px solid #e2e8f0',
+          borderTop: '4px solid #f59e0b',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          transition: 'all 0.2s ease'
+        }}>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
+              الكوادر والمشرفين
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
+              {stats.staff + stats.supervisors}
+            </div>
+          </div>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: 'rgba(245, 158, 11, 0.1)',
+            color: '#d97706',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Users size={22} />
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Navigation Tabs Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        flexWrap: 'wrap',
+        marginTop: '6px',
+        borderBottom: '1px solid #e2e8f0',
+        paddingBottom: '12px'
+      }}>
+        <button
+          onClick={() => { setActiveTab('schools'); setSearchQuery(''); }}
+          style={{
+            background: activeTab === 'schools' ? '#0082a6' : '#ffffff',
+            color: activeTab === 'schools' ? '#ffffff' : '#475569',
+            border: `1px solid ${activeTab === 'schools' ? '#0082a6' : '#cbd5e1'}`,
+            borderRadius: '12px',
+            padding: '9px 18px',
+            fontSize: '14px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: activeTab === 'schools' ? '0 4px 12px rgba(0, 130, 166, 0.25)' : 'none'
+          }}
+        >
+          <Building2 size={17} />
+          <span>المدارس والمجمعات ({schools.length})</span>
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('admins'); setSearchQuery(''); }}
+          style={{
+            background: activeTab === 'admins' ? '#0082a6' : '#ffffff',
+            color: activeTab === 'admins' ? '#ffffff' : '#475569',
+            border: `1px solid ${activeTab === 'admins' ? '#0082a6' : '#cbd5e1'}`,
+            borderRadius: '12px',
+            padding: '9px 18px',
+            fontSize: '14px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: activeTab === 'admins' ? '0 4px 12px rgba(0, 130, 166, 0.25)' : 'none'
+          }}
+        >
+          <ShieldCheck size={17} />
+          <span>مدراء المدارس ({admins.length})</span>
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('superadmins'); setSearchQuery(''); }}
+          style={{
+            background: activeTab === 'superadmins' ? '#0082a6' : '#ffffff',
+            color: activeTab === 'superadmins' ? '#ffffff' : '#475569',
+            border: `1px solid ${activeTab === 'superadmins' ? '#0082a6' : '#cbd5e1'}`,
+            borderRadius: '12px',
+            padding: '9px 18px',
+            fontSize: '14px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: activeTab === 'superadmins' ? '0 4px 12px rgba(0, 130, 166, 0.25)' : 'none'
+          }}
+        >
+          <Lock size={17} />
+          <span>حسابات الماستر العام ({superAdmins.length})</span>
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('reports'); setSearchQuery(''); }}
+          style={{
+            background: activeTab === 'reports' ? '#0082a6' : '#ffffff',
+            color: activeTab === 'reports' ? '#ffffff' : '#475569',
+            border: `1px solid ${activeTab === 'reports' ? '#0082a6' : '#cbd5e1'}`,
+            borderRadius: '12px',
+            padding: '9px 18px',
+            fontSize: '14px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: activeTab === 'reports' ? '0 4px 12px rgba(0, 130, 166, 0.25)' : 'none'
+          }}
+        >
+          <FileSpreadsheet size={17} />
+          <span>التقارير والتصدير</span>
+        </button>
+      </div>
+
+      {/* 4. Search and Toolbar Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        flexWrap: 'wrap'
+      }}>
+        {/* Search Input */}
+        <div style={{
+          position: 'relative',
+          flex: '1',
+          minWidth: '260px',
+          maxWidth: '460px'
+        }}>
+          <input
+            type="text"
+            className="input-field"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={
+              activeTab === 'schools' ? "البحث عن مدرسة، مجمع، أو كود..." :
+              activeTab === 'admins' ? "البحث باسم المدير أو رقم الهوية أو المدرسة..." :
+              activeTab === 'superadmins' ? "البحث في حسابات الماستر..." :
+              "البحث في بيانات التقارير..."
+            }
+            style={{
+              paddingRight: isRTL ? '40px' : '14px',
+              paddingLeft: !isRTL ? '40px' : '14px',
+              background: '#ffffff',
+              borderRadius: '12px',
+              fontSize: '13px'
+            }}
+          />
+          <Search 
+            size={18} 
+            color="#94a3b8" 
+            style={{
+              position: 'absolute',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              right: isRTL ? '14px' : 'auto',
+              left: !isRTL ? '14px' : 'auto',
+              pointerEvents: 'none'
+            }}
+          />
+        </div>
+
+        {/* Tab Specific Quick Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {activeTab === 'schools' && (
+            <button 
+              className="btn btn-primary"
+              onClick={() => setShowAddSchoolModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+            >
+              <Plus size={16} />
+              <span>إضافة مدرسة</span>
+            </button>
+          )}
+
+          {activeTab === 'admins' && (
+            <button 
+              className="btn btn-primary"
+              onClick={() => setShowAddAdminModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+            >
+              <UserPlus size={16} />
+              <span>إنشاء مدير جديد</span>
+            </button>
+          )}
+
+          {activeTab === 'superadmins' && (
+            <button 
+              className="btn btn-primary"
+              onClick={() => setShowAddSuperAdminModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+            >
+              <Plus size={16} />
+              <span>إنشاء حساب ماستر</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 5. Tab Content Sections */}
+
+      {/* Tab 1: المدارس والمجمعات */}
+      {activeTab === 'schools' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {filteredSchools.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '48px 24px', textAlign: 'center', background: '#ffffff', borderRadius: '16px' }}>
+              <Building2 size={48} color="#94a3b8" style={{ margin: '0 auto 12px' }} />
+              <h3 style={{ margin: '0 0 6px', color: '#0f172a', fontWeight: 700 }}>لا توجد مدارس مسجلة</h3>
+              <p style={{ margin: '0 0 18px', color: '#64748b', fontSize: '13px' }}>
+                ابدأ بإضافة أول مدرسة أو مجمع تعليمي للمنظومة الآن.
+              </p>
+              <button className="btn btn-primary" onClick={() => setShowAddSchoolModal(true)}>
+                <Plus size={16} /> إضافة مدرسة جديدة
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+              {filteredSchools.map(school => {
+                const assignedAdmin = admins.find(a => a.schoolId === school.id);
+                return (
+                  <div 
+                    key={school.id}
+                    className="glass-panel"
+                    style={{
+                      background: '#ffffff',
+                      borderRadius: '16px',
+                      padding: '20px',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '14px',
+                      position: 'relative'
+                    }}
+                  >
+                    <div>
+                      {/* Top row with school icon and track */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '42px',
+                            height: '42px',
+                            borderRadius: '12px',
+                            background: 'linear-gradient(135deg, rgba(0, 130, 166, 0.1), rgba(2, 132, 199, 0.15))',
+                            color: '#0082a6',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 800
+                          }}>
+                            <Building2 size={22} />
+                          </div>
+                          <div>
+                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                              {school.name}
+                            </h3>
+                            <span style={{ fontSize: '12px', color: '#64748b' }}>
+                              كود المجمع: <strong style={{ color: '#0082a6' }}>{school.code || school.id}</strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: '#0e7490',
+                          background: 'rgba(14, 116, 144, 0.08)',
+                          padding: '3px 8px',
+                          borderRadius: '8px'
+                        }}>
+                          {school.city || 'جدة'}
+                        </span>
+                      </div>
+
+                      {/* Educational Track badge */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#475569', marginBottom: '10px' }}>
+                        <Compass size={14} color="#0082a6" />
+                        <span>المسار: <strong>{school.track || 'أهلي متقدم + STEM'}</strong></span>
+                      </div>
+
+                      {/* Assigned Principal Box */}
+                      <div style={{
+                        background: '#f8fafc',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        border: '1px solid #f1f5f9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        fontSize: '12px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <ShieldCheck size={16} color="#2563eb" />
+                          <span style={{ color: '#64748b' }}>المدير:</span>
+                          <strong style={{ color: assignedAdmin ? '#0f172a' : '#94a3b8' }}>
+                            {assignedAdmin ? assignedAdmin.name : 'لم يتم تعيين مدير بعد'}
+                          </strong>
+                        </div>
+                        {assignedAdmin && (
+                          <span style={{ color: '#64748b', fontSize: '11px' }}>
+                            ({assignedAdmin.nationalId})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* School Actions Bottom Bar */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+                      <button
+                        onClick={() => setEditingSchool(school)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#0082a6',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        <Edit size={14} /> تعديل
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteSchool(school)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#ef4444',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        <Trash2 size={14} /> حذف
+                      </button>
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 2: مدراء المدارس */}
+      {activeTab === 'admins' && (
+        <div className="glass-panel" style={{ background: '#ffffff', borderRadius: '16px', padding: '20px', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={20} color="#2563eb" /> قائمة مدراء المدارس والمجمعات التعليمية
+            </h3>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>
+              إجمالي المدراء: <strong>{admins.length}</strong>
+            </span>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>اسم المدير</th>
+                  <th>رقم الهوية (اسم المستخدم)</th>
+                  <th>المدرسة / المجمع المعين</th>
+                  <th>البريد الإلكتروني</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAdmins.map(admin => {
+                  const assignedSchool = schools.find(s => s.id === admin.schoolId);
+                  return (
+                    <tr key={admin.id}>
+                      <td style={{ fontWeight: 700, color: '#0f172a' }}>
+                        {admin.name}
+                      </td>
+                      <td style={{ fontFamily: 'monospace', color: '#2563eb', fontWeight: 600 }}>
+                        {admin.nationalId}
+                      </td>
+                      <td>
+                        {assignedSchool ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: '#eff6ff',
+                            color: '#1d4ed8',
+                            padding: '3px 10px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: 600
+                          }}>
+                            <Building2 size={13} /> {assignedSchool.name}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontSize: '12px' }}>غير مخصص</span>
+                        )}
+                      </td>
+                      <td style={{ fontSize: '12px', color: '#64748b' }}>
+                        {admin.email || `${admin.nationalId}@school.local`}
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => handleDeleteAdmin(admin.id, admin.name)}
+                          className="btn-icon delete"
+                          title="حذف حساب المدير"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredAdmins.length === 0 && (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                      لا يوجد مدراء مطابقين للبحث
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: حسابات الماستر العام */}
+      {activeTab === 'superadmins' && (
+        <div className="glass-panel" style={{ background: '#ffffff', borderRadius: '16px', padding: '20px', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Lock size={20} color="#0082a6" /> حسابات الماستر العام والإشراف الأعلى
+            </h3>
+            <button className="btn btn-primary" onClick={() => setShowAddSuperAdminModal(true)} style={{ fontSize: '13px' }}>
+              <Plus size={16} /> إضافة ماستر عام
+            </button>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>اسم الماستر</th>
+                  <th>اسم المستخدم / الهوية</th>
+                  <th>البريد الإلكتروني</th>
+                  <th>الصلاحيات</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSuperAdmins.map(sa => (
+                  <tr key={sa.id}>
+                    <td style={{ fontWeight: 700, color: '#0f172a' }}>{sa.name || 'حساب الماستر العام'}</td>
+                    <td style={{ fontFamily: 'monospace', color: '#0082a6', fontWeight: 600 }}>{sa.nationalId}</td>
+                    <td style={{ fontSize: '12px', color: '#64748b' }}>{sa.email || `${sa.nationalId}@school.local`}</td>
+                    <td>
+                      <span style={{
+                        background: '#ecfdf5',
+                        color: '#059669',
+                        padding: '3px 10px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: 700
+                      }}>
+                        صلاحية كاملة على كافة المدارس (ALL)
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>نشط</span>
+                    </td>
+                  </tr>
+                ))}
+                {filteredSuperAdmins.length === 0 && (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                      لا يوجد حسابات ماستر مسجلة في قائمة المستخدمين
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: التقارير والتصدير */}
+      {activeTab === 'reports' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="glass-panel" style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '17px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Download size={20} color="#0082a6" /> مركز التصدير الشامل لبيانات المنظومة التعليمية
+            </h3>
+            
+            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px' }}>
+              يمكنك تصدير تقارير وإحصائيات مركزية شاملة لجميع المدارس والمجمعات والكوادر بصيغة Excel / CSV بضغطة زر واحدة:
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+              
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                    بيانات المدارس والمجمعات
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                    تصدير قائمة كاملة بالمدارس، الأكواد، المدن، والمدراء المعينين.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleExportData('schools')}
+                  className="btn btn-outline"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', width: '100%' }}
+                >
+                  <FileSpreadsheet size={16} /> تصدير جدول المدارس (CSV)
+                </button>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                    سجل مدراء المدارس
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                    تصدير قائمة حسابات المدراء مع الهويات والمدارس المعينة.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleExportData('admins')}
+                  className="btn btn-outline"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', width: '100%' }}
+                >
+                  <FileSpreadsheet size={16} /> تصدير جدول المدراء (CSV)
+                </button>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                    الإحصائية الرقمية العامة
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                    ملخص شامل لإحصائيات المنظومة والكوادر والطلاب والمدارس.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleExportData('summary')}
+                  className="btn btn-primary"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', width: '100%' }}
+                >
+                  <Download size={16} /> تحميل التقرير الإحصائي
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1: Add School Modal */}
+      {showAddSchoolModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => setShowAddSchoolModal(false)}
+        >
+          <div 
+            className="glass-panel"
+            style={{
+              background: '#ffffff',
+              width: '520px',
+              maxWidth: '100%',
+              borderRadius: '20px',
+              padding: '28px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowAddSchoolModal(false)}
+              style={{
+                position: 'absolute',
+                top: '18px',
+                left: isRTL ? '18px' : 'auto',
+                right: !isRTL ? '18px' : 'auto',
+                background: '#f1f5f9',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
+                background: 'rgba(0, 130, 166, 0.1)',
+                color: '#0082a6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Building2 size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
+                  إضافة مدرسة / مجمع تعليمي جديد
+                </h3>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  تضمين مدرسة جديدة للمنظومة التعليمية وتحديد مساراتها
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddSchool} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  اسم المدرسة / المجمع التعليمي <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="مثال: مدارس المتقدمة للتعلم الذكي - حي الزهراء"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                    كود / معرف المدرسة
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="مثال: jeddah_zahraa"
+                    value={schoolCode}
+                    onChange={(e) => setSchoolCode(e.target.value)}
+                    dir="ltr"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                    المدينة / المنطقة
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="جدة / الرياض / الدمام..."
+                    value={schoolCity}
+                    onChange={(e) => setSchoolCity(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  المسار التعليمي والبرامج
+                </label>
+                <select
+                  className="input-field"
+                  value={schoolTrack}
+                  onChange={(e) => setSchoolTrack(e.target.value)}
+                >
+                  <option value="أهلي متقدم + STEM">أهلي متقدم + STEM</option>
+                  <option value="عالمي International (دبلومة أمريكية)">عالمي International (دبلومة أمريكية)</option>
+                  <option value="مدارس تحفيظ القرآن الكريم">مدارس تحفيظ القرآن الكريم</option>
+                  <option value="مسار أهلي شامل لكافة المراحل">مسار أهلي شامل لكافة المراحل</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  العنوان والفرع
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="مثال: المملكة العربية السعودية - جدة - حي الزهراء"
+                  value={schoolAddress}
+                  onChange={(e) => setSchoolAddress(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
+                  disabled={isAddingSchool}
+                >
+                  {isAddingSchool ? 'جاري الحفظ...' : 'حفظ وإضافة المدرسة'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowAddSchoolModal(false)}
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Add Principal Modal */}
+      {showAddAdminModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => setShowAddAdminModal(false)}
+        >
+          <div 
+            className="glass-panel"
+            style={{
+              background: '#ffffff',
+              width: '540px',
+              maxWidth: '100%',
+              borderRadius: '20px',
+              padding: '28px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowAddAdminModal(false)}
+              style={{
+                position: 'absolute',
+                top: '18px',
+                left: isRTL ? '18px' : 'auto',
+                right: !isRTL ? '18px' : 'auto',
+                background: '#f1f5f9',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
+                background: 'rgba(37, 99, 235, 0.1)',
+                color: '#2563eb',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <UserPlus size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
+                  إنشاء حساب مدير مدرسة جديد
+                </h3>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  تعيين مدير مسؤول وإسناده إلى مدرسة أو مجمع تعليمي
+                </span>
+              </div>
+            </div>
+
+            {adminError && (
+              <div style={{ background: '#fee2e2', color: '#991b1b', padding: '10px 14px', borderRadius: '10px', marginBottom: '14px', fontSize: '13px' }}>
+                {adminError}
+              </div>
+            )}
+
+            <form onSubmit={handleAddAdmin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  اسم المدير الرباعي <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="مثال: أنس الجهني"
+                  value={adminName}
+                  onChange={(e) => setAdminName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                    رقم الهوية (اسم الدخول) <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="10 أرقام"
+                    value={adminNationalId}
+                    onChange={(e) => setAdminNationalId(e.target.value)}
+                    dir="ltr"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                    كلمة المرور <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="password"
+                    className="input-field"
+                    placeholder="6 خانات على الأقل"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    dir="ltr"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  المدرسة / المجمع التعليمي المسند له <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  className="input-field"
+                  value={selectedSchoolId}
+                  onChange={(e) => setSelectedSchoolId(e.target.value)}
+                  required
+                >
+                  <option value="">-- اختر المدرسة لتسليم إدارتها --</option>
+                  {schools.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.city || 'جدة'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  رقم الهاتف / الجوال (اختياري)
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="05xxxxxxxx"
+                  value={adminPhone}
+                  onChange={(e) => setAdminPhone(e.target.value)}
+                  dir="ltr"
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
+                  disabled={isAddingAdmin}
+                >
+                  {isAddingAdmin ? 'جاري الإنشاء...' : 'إنشاء وتعيين حساب المدير'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowAddAdminModal(false)}
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Add Super Admin Modal */}
+      {showAddSuperAdminModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => setShowAddSuperAdminModal(false)}
+        >
+          <div 
+            className="glass-panel"
+            style={{
+              background: '#ffffff',
+              width: '480px',
+              maxWidth: '100%',
+              borderRadius: '20px',
+              padding: '28px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowAddSuperAdminModal(false)}
+              style={{
+                position: 'absolute',
+                top: '18px',
+                left: isRTL ? '18px' : 'auto',
+                right: !isRTL ? '18px' : 'auto',
+                background: '#f1f5f9',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
+                background: 'rgba(0, 130, 166, 0.1)',
+                color: '#0082a6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Lock size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
+                  إنشاء حساب ماستر عام إضافي
+                </h3>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  صلاحيات عليا كاملة على كافة المدارس والحسابات
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddSuperAdmin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  الاسم الكامل للماستر <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="مثال: الإشراف العام - شركة المدارس المتقدمة"
+                  value={superAdminName}
+                  onChange={(e) => setSuperAdminName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  اسم المستخدم / رقم الهوية <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="اسم الدخول"
+                  value={superAdminNationalId}
+                  onChange={(e) => setSuperAdminNationalId(e.target.value)}
+                  dir="ltr"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  كلمة المرور <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="6 خانات على الأقل"
+                  value={superAdminPassword}
+                  onChange={(e) => setSuperAdminPassword(e.target.value)}
+                  dir="ltr"
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
+                  disabled={isAddingSuperAdmin}
+                >
+                  {isAddingSuperAdmin ? 'جاري الإنشاء...' : 'إنشاء حساب الماستر'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowAddSuperAdminModal(false)}
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Edit School Modal */}
+      {editingSchool && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => setEditingSchool(null)}
+        >
+          <div 
+            className="glass-panel"
+            style={{
+              background: '#ffffff',
+              width: '500px',
+              maxWidth: '100%',
+              borderRadius: '20px',
+              padding: '28px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setEditingSchool(null)}
+              style={{
+                position: 'absolute',
+                top: '18px',
+                left: isRTL ? '18px' : 'auto',
+                right: !isRTL ? '18px' : 'auto',
+                background: '#f1f5f9',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
+              تعديل بيانات المدرسة
+            </h3>
+
+            <form onSubmit={handleUpdateSchool} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  اسم المدرسة / المجمع
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={editingSchool.name || ''}
+                  onChange={(e) => setEditingSchool({ ...editingSchool, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  المدينة / المنطقة
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={editingSchool.city || ''}
+                  onChange={(e) => setEditingSchool({ ...editingSchool, city: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  المسار التعليمي
+                </label>
+                <select
+                  className="input-field"
+                  value={editingSchool.track || 'أهلي متقدم + STEM'}
+                  onChange={(e) => setEditingSchool({ ...editingSchool, track: e.target.value })}
+                >
+                  <option value="أهلي متقدم + STEM">أهلي متقدم + STEM</option>
+                  <option value="عالمي International (دبلومة أمريكية)">عالمي International (دبلومة أمريكية)</option>
+                  <option value="مدارس تحفيظ القرآن الكريم">مدارس تحفيظ القرآن الكريم</option>
+                  <option value="مسار أهلي شامل لكافة المراحل">مسار أهلي شامل لكافة المراحل</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                  حفظ التعديلات
+                </button>
+                <button type="button" className="btn btn-outline" onClick={() => setEditingSchool(null)}>
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+export default function SuperAdminDashboard() {
+  const { userData } = useAuth();
+  const { t } = useLanguage();
+
+  return (
+    <Layout role="superadmin" title="لوحة تحكم الماستر العام (Super Master)">
+      <Routes>
+        <Route path="/" element={<SuperAdminHome />} />
+        <Route path="/portfolio" element={<AchievementPortfolioPage targetRole="superadmin" />} />
+        <Route path="/messages" element={<SchoolMessagingHub />} />
+        <Route path="/excellence" element={<SchoolExcellenceDashboard />} />
+        <Route path="/settings" element={<div style={{ padding: '24px' }}><ChangePassword /></div>} />
+        <Route path="*" element={<SuperAdminHome />} />
+      </Routes>
     </Layout>
   );
 }

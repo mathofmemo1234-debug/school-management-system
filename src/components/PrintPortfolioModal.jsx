@@ -27,7 +27,9 @@ export default function PrintPortfolioModal({
   onClose
 }) {
   const [reportTitle, setReportTitle] = useState(
-    role === 'student' 
+    role === 'superadmin'
+      ? 'ملف إنجاز الإدارة العامة والماستر العام'
+      : role === 'student' 
       ? 'ملف الإنجاز الأكاديمي والأنشطة الطلابية'
       : role === 'supervisor'
       ? 'ملف الإنجاز والتميز الإشرافي المهني'

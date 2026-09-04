@@ -80,6 +80,10 @@ export default function Sidebar({ role }) {
 
   const superAdminLinks = [
     { path: '/superadmin', icon: Home, label: t('sidebar.superAdminDashboard') },
+    { path: '/superadmin/messages', icon: Mail, label: 'المراسلات والتعاميم' },
+    { path: '/superadmin/portfolio', icon: Award, label: 'ملف الإنجاز القيادي' },
+    { path: '/superadmin/excellence', icon: Star, label: 'معايير التميز والاعتماد' },
+    { path: '/superadmin/settings', icon: Settings, label: t('sidebar.settings') },
   ];
 
   const teacherLinks = [
