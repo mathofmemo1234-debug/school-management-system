@@ -15,6 +15,13 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// HARD DATABASE ISOLATION ASSERTION:
+// Ensures this application instance is strictly locked to Advanced Smart Learning database
+if (firebaseConfig.projectId !== "advanced-smart-learning-3dfbf") {
+  throw new Error("FATAL_SECURITY_ERROR: Advanced Smart Learning must connect exclusively to advanced-smart-learning-3dfbf project.");
+}
+
 export const auth = getAuth(app);
 
 // Ensure session persists after page refresh

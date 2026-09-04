@@ -22,8 +22,8 @@ export function AuthProvider({ children }) {
         const superData = { name: 'حساب الماستر العام', role: 'superadmin', schoolId: 'ALL' };
         setUserRole('superadmin');
         setUserData(superData);
-        localStorage.setItem('userRole', 'superadmin');
-        localStorage.setItem('userData', JSON.stringify(superData));
+        localStorage.setItem('msc_userRole', 'superadmin');
+        localStorage.setItem('msc_userData', JSON.stringify(superData));
         return superData;
       }
 
@@ -121,8 +121,8 @@ export function AuthProvider({ children }) {
           setCurrentUser(user);
           setUserRole('superadmin');
           setUserData(superData);
-          localStorage.setItem('userRole', 'superadmin');
-          localStorage.setItem('userData', JSON.stringify(superData));
+          localStorage.setItem('msc_userRole', 'superadmin');
+          localStorage.setItem('msc_userData', JSON.stringify(superData));
           setLoading(false);
           return;
         }
@@ -132,12 +132,12 @@ export function AuthProvider({ children }) {
           setCurrentUser(user);
           setUserRole(result.role);
           setUserData(result);
-          localStorage.setItem('userRole', result.role);
-          localStorage.setItem('userData', JSON.stringify(result));
+          localStorage.setItem('msc_userRole', result.role);
+          localStorage.setItem('msc_userData', JSON.stringify(result));
         } else {
           // User is NOT registered in database or has been deleted/blocked! Force logout immediately.
-          localStorage.removeItem('userRole');
-          localStorage.removeItem('userData');
+          localStorage.removeItem('msc_userRole');
+          localStorage.removeItem('msc_userData');
           setCurrentUser(null);
           setUserRole(null);
           setUserData(null);
@@ -145,8 +145,8 @@ export function AuthProvider({ children }) {
         }
         setLoading(false);
       } else {
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userData');
+        localStorage.removeItem('msc_userRole');
+        localStorage.removeItem('msc_userData');
         setCurrentUser(null);
         setUserRole(null);
         setUserData(null);
@@ -159,8 +159,8 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('userData');
+      localStorage.removeItem('msc_userRole');
+      localStorage.removeItem('msc_userData');
       setCurrentUser(null);
       setUserRole(null);
       setUserData(null);
@@ -168,8 +168,8 @@ export function AuthProvider({ children }) {
       await signOut(auth);
     } catch (e) {
       console.warn('Error in logout:', e);
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('userData');
+      localStorage.removeItem('msc_userRole');
+      localStorage.removeItem('msc_userData');
       setCurrentUser(null);
       setUserRole(null);
       setUserData(null);
@@ -188,8 +188,8 @@ export function AuthProvider({ children }) {
     setCurrentUser({ email: superData.email, uid: 'superadmin_master', displayName: superData.name });
     setUserRole('superadmin');
     setUserData(superData);
-    localStorage.setItem('userRole', 'superadmin');
-    localStorage.setItem('userData', JSON.stringify(superData));
+    localStorage.setItem('msc_userRole', 'superadmin');
+    localStorage.setItem('msc_userData', JSON.stringify(superData));
   }, []);
 
   const loginWithUserData = useCallback((data, explicitRole) => {
@@ -203,8 +203,8 @@ export function AuthProvider({ children }) {
     setUserRole(finalRole);
     const enrichedData = { ...data, role: finalRole };
     setUserData(enrichedData);
-    localStorage.setItem('userRole', finalRole);
-    localStorage.setItem('userData', JSON.stringify(enrichedData));
+    localStorage.setItem('msc_userRole', finalRole);
+    localStorage.setItem('msc_userData', JSON.stringify(enrichedData));
   }, []);
 
   const switchSchoolContext = useCallback(async (newSchoolId, newSchoolName, newLogoUrl, newSubTitle) => {
@@ -213,7 +213,7 @@ export function AuthProvider({ children }) {
     if (newSchoolId === 'ALL' || !newSchoolId) {
       const updated = { ...userData, schoolId: 'ALL', schoolName: 'جميع المدارس (الماستر العام)', schoolSubTitle: '', logoUrl: null, activePreviewSchoolId: null };
       setUserData(updated);
-      localStorage.setItem('userData', JSON.stringify(updated));
+      localStorage.setItem('msc_userData', JSON.stringify(updated));
     } else {
       let sName = newSchoolName;
       let sLogo = newLogoUrl;
@@ -232,18 +232,18 @@ export function AuthProvider({ children }) {
       }
       const updated = { ...userData, schoolId: newSchoolId, schoolName: sName || 'المدرسة المحددة', schoolSubTitle: sSubTitle, logoUrl: sLogo || null, activePreviewSchoolId: newSchoolId };
       setUserData(updated);
-      localStorage.setItem('userData', JSON.stringify(updated));
+      localStorage.setItem('msc_userData', JSON.stringify(updated));
     }
   }, [userRole, userData]);
 
   const setLoginRole = useCallback((role) => {
     setUserRole(role);
-    localStorage.setItem('userRole', role);
+    localStorage.setItem('msc_userRole', role);
   }, []);
 
   const cachedUserData = (() => {
     try {
-      return userData || JSON.parse(localStorage.getItem('userData') || 'null');
+      return userData || JSON.parse(localStorage.getItem('msc_userData') || 'null');
     } catch {
       return userData || null;
     }
