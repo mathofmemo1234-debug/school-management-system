@@ -116,47 +116,40 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setCurrentUser(user);
-        if (!initializedRef.current) {
-          initializedRef.current = true;
-          const cachedRole = localStorage.getItem('userRole');
-          const cachedData = (() => { try { return JSON.parse(localStorage.getItem('userData') || 'null'); } catch { return null; } })();
-          if (cachedRole && cachedData) {
-            setUserRole(cachedRole);
-            setUserData(cachedData);
-            setLoading(false);
-            resolveRole(user, cachedRole);
-          } else {
-            const result = await resolveRole(user, null);
-            if (!result) { setUserRole(null); setUserData(null); }
-            setLoading(false);
-          }
-        } else {
-          setLoading(false);
-        }
-      } else {
-        // Check if there is an active local verified session
-        const cachedRole = localStorage.getItem('userRole');
-        const cachedData = (() => { try { return JSON.parse(localStorage.getItem('userData') || 'null'); } catch { return null; } })();
-        if (cachedRole && cachedData) {
-          const sessionUser = {
-            email: cachedData.email || (cachedData.nationalId ? `${cachedData.nationalId}@school.local` : 'user@school.local'),
-            uid: cachedData.uid || cachedData.id || `session_${cachedRole}`,
-            displayName: cachedData.name || 'مستخدم'
-          };
-          setCurrentUser(sessionUser);
-          setUserRole(cachedRole);
-          setUserData(cachedData);
+        if (user.email === 'super@admin.com') {
+          const superData = { name: 'حساب الماستر العام', email: 'super@admin.com', role: 'superadmin', schoolId: 'ALL' };
+          setCurrentUser(user);
+          setUserRole('superadmin');
+          setUserData(superData);
+          localStorage.setItem('userRole', 'superadmin');
+          localStorage.setItem('userData', JSON.stringify(superData));
           setLoading(false);
           return;
         }
 
-        // Otherwise, completely cleared
+        const result = await resolveRole(user, null);
+        if (result && !result.isBlocked && result.status !== 'inactive' && !result.isArchived) {
+          setCurrentUser(user);
+          setUserRole(result.role);
+          setUserData(result);
+          localStorage.setItem('userRole', result.role);
+          localStorage.setItem('userData', JSON.stringify(result));
+        } else {
+          // User is NOT registered in database or has been deleted/blocked! Force logout immediately.
+          localStorage.removeItem('userRole');
+          localStorage.removeItem('userData');
+          setCurrentUser(null);
+          setUserRole(null);
+          setUserData(null);
+          signOut(auth).catch(() => {});
+        }
+        setLoading(false);
+      } else {
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userData');
         setCurrentUser(null);
         setUserRole(null);
         setUserData(null);
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userData');
         initializedRef.current = false;
         setLoading(false);
       }

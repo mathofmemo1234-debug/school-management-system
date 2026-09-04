@@ -204,30 +204,18 @@ export default function Login() {
       const loginEmail = getFakeEmail(trimmedId);
       const record = await findAnyRecord(trimmedId, role);
 
-      // CASE 1: No record found in custom collections, try Firebase Auth directly
+      // STRICT CHECK: If account is NOT registered in the school database, BLOCK LOGIN IMMEDIATELY!
       if (!record) {
-        try {
-          const userCredential = await signInWithEmailAndPassword(auth, loginEmail, trimmedPassword);
-          if (userCredential.user) {
-            loginWithUserData({ email: loginEmail, role: role, nationalId: trimmedId, name: 'مستخدم' }, role);
-            navigate(`/${role}`, { replace: true });
-            return;
-          }
-        } catch (authErr) {
-          if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
-            setError('❌ كلمة المرور أو اسم المستخدم غير صحيح. يرجى التحقق من صحة البيانات والمحاولة مجدداً.');
-          } else if (authErr.code === 'auth/user-not-found') {
-            setError(`❌ لم يتم العثور على أي حساب مسجل برقم الهوية أو البريد: (${trimmedId}). يرجى التأكد من الرقم أو مراجعة إدارة المدرسة.`);
-          } else if (authErr.code === 'auth/too-many-requests') {
-            setError('⚠️ تم حظر محاولات الدخول مؤقتاً بسبب تكرار المحاولات الخاطئة. يرجى الانتظار دقيقة والمحاولة مجدداً.');
-          } else if (authErr.code === 'auth/network-request-failed') {
-            setError('⚠️ تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.');
-          } else {
-            setError(`❌ تعذر الدخول: رقم الهوية أو البريد (${trimmedId}) غير مسجل في النظام.`);
-          }
-          setLoading(false);
-          return;
-        }
+        setError(`❌ تعذر الدخول: رقم الهوية أو البريد (${trimmedId}) غير مسجل في قاعدة بيانات المدرسة. يرجى التأكد من الرقم أو مراجعة إدارة المدرسة.`);
+        setLoading(false);
+        return;
+      }
+
+      // Check if account is blocked or inactive
+      if (record.isBlocked || record.status === 'inactive' || record.status === 'archived' || record.isArchived) {
+        setError('❌ هذا الحساب معطل أو غير نشط في النظام حالياً. يرجى مراجعة إدارة المدرسة.');
+        setLoading(false);
+        return;
       }
 
       // CASE 2: Record IS found in Firestore
@@ -235,14 +223,13 @@ export default function Login() {
       const actualRoleName = ROLE_NAMES[actualRole] || actualRole;
       const selectedRoleName = ROLE_NAMES[role] || role;
 
-      // Fast Password Verification
+      // Strict Password Verification
       const matchesStored = record.password && (String(record.password).trim() === trimmedPassword);
       const matchesDefaultNid = (record.nationalId && String(record.nationalId).trim() === trimmedPassword) || (trimmedPassword === trimmedId);
-      const matchesAdminDefault = (actualRole === 'admin' && (trimmedPassword === 'admin123' || trimmedPassword === 'admin'));
 
       let isPasswordValid = false;
 
-      if (matchesStored || matchesDefaultNid || matchesAdminDefault) {
+      if (matchesStored || matchesDefaultNid) {
         isPasswordValid = true;
         // Non-blocking background sync
         const passToUse = trimmedPassword.length >= 6 ? trimmedPassword : `${trimmedPassword}00`;
@@ -278,7 +265,7 @@ export default function Login() {
           selectedRoleName,
           record
         });
-        setError(`⚠️ تنبيه: هذا الحساب مسجل في النظام كـ [${actualRoleName}] وليس [${selectedRoleName}].`);
+        setError(`⚠️ تنبيه: هذا الحساب مسجل في النظام كـ [${actualRoleName}] وليس [${selectedRoleName}]. لا يمكن الدخول إلا من خلال تبويب ${actualRoleName}.`);
         setLoading(false);
         return;
       }

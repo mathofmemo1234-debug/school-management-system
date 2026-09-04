@@ -29,11 +29,11 @@ export default function ProtectedRoute({ children, allowedRole }) {
     );
   }
 
-  if (!currentUser && !userData) {
+  if (!currentUser || !userRole || !userData) {
     return <Navigate to="/login" replace />;
   }
 
-  if (userRole && userRole !== allowedRole) {
+  if (userRole !== allowedRole) {
     return <Navigate to={`/${userRole}`} replace />;
   }
 
