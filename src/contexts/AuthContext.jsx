@@ -30,47 +30,93 @@ export function AuthProvider({ children }) {
       const nid = user.email.replace('@school.local', '');
       let data = null;
 
-      let q = query(collection(db, 'users'), where('email', '==', user.email));
-      let snap = await getDocs(q);
-      if (snap.empty && user.uid) { q = query(collection(db, 'users'), where('uid', '==', user.uid)); snap = await getDocs(q); }
-      if (snap.empty && nid) {
-        q = query(collection(db, 'users'), where('nationalId', '==', nid)); snap = await getDocs(q);
-        if (snap.empty && !isNaN(nid)) { q = query(collection(db, 'users'), where('nationalId', '==', Number(nid))); snap = await getDocs(q); }
-      }
-      if (!snap.empty) {
-        const allDocs = snap.docs.map(d => d.data());
-        data = (allDocs.length > 1 && roleHint) ? (allDocs.find(d => d.role === roleHint) || allDocs[0]) : allDocs[0];
-      }
-
-      if (!data && (!roleHint || roleHint === 'teacher')) {
-        let tQ = query(collection(db, 'teachers'), where('nationalId', '==', nid)); let tS = await getDocs(tQ);
+      // 1. Check teachers collection FIRST
+      try {
+        let tQ = query(collection(db, 'teachers'), where('nationalId', '==', nid));
+        let tS = await getDocs(tQ);
         if (tS.empty && !isNaN(nid)) { tQ = query(collection(db, 'teachers'), where('nationalId', '==', Number(nid))); tS = await getDocs(tQ); }
         if (tS.empty) { tQ = query(collection(db, 'teachers'), where('email', '==', user.email)); tS = await getDocs(tQ); }
-        if (!tS.empty) { const d = tS.docs[0].data(); data = { ...d, role: 'teacher', email: user.email, nationalId: String(d.nationalId || nid) }; try { await addDoc(collection(db, 'users'), { nationalId: String(d.nationalId||nid), email: user.email, role: 'teacher', name: d.name||'معلم', subject: d.subject||'', schoolId: d.schoolId||'default_school_1' }); } catch(e){} }
+        if (!tS.empty) {
+          const d = tS.docs[0].data();
+          data = { ...d, role: 'teacher', email: user.email, nationalId: String(d.nationalId || nid) };
+        }
+      } catch (e) {}
+
+      // 2. Check students collection
+      if (!data) {
+        try {
+          let stQ = query(collection(db, 'students'), where('nationalId', '==', nid));
+          let stS = await getDocs(stQ);
+          if (stS.empty && !isNaN(nid)) { stQ = query(collection(db, 'students'), where('nationalId', '==', Number(nid))); stS = await getDocs(stQ); }
+          if (stS.empty) { stQ = query(collection(db, 'students'), where('email', '==', user.email)); stS = await getDocs(stQ); }
+          if (!stS.empty) {
+            const d = stS.docs[0].data();
+            data = { ...d, role: 'student', email: user.email, nationalId: String(d.nationalId || nid) };
+          }
+        } catch (e) {}
       }
-      if (!data && (!roleHint || roleHint === 'staff')) {
-        let sQ = query(collection(db, 'staff'), where('nationalId', '==', nid)); let sS = await getDocs(sQ);
-        if (sS.empty && !isNaN(nid)) { sQ = query(collection(db, 'staff'), where('nationalId', '==', Number(nid))); sS = await getDocs(sQ); }
-        if (sS.empty) { sQ = query(collection(db, 'staff'), where('email', '==', user.email)); sS = await getDocs(sQ); }
-        if (!sS.empty) { const d = sS.docs[0].data(); data = { ...d, role: 'staff', email: user.email, nationalId: String(d.nationalId || nid) }; try { await addDoc(collection(db, 'users'), { nationalId: String(d.nationalId||nid), email: user.email, role: 'staff', name: d.name||'عضو كادر', roleTitle: d.roleTitle||'', permissions: d.permissions||[], schoolId: d.schoolId||'default_school_1' }); } catch(e){} }
+
+      // 3. Check staff collection
+      if (!data) {
+        try {
+          let sQ = query(collection(db, 'staff'), where('nationalId', '==', nid));
+          let sS = await getDocs(sQ);
+          if (sS.empty && !isNaN(nid)) { sQ = query(collection(db, 'staff'), where('nationalId', '==', Number(nid))); sS = await getDocs(sQ); }
+          if (sS.empty) { sQ = query(collection(db, 'staff'), where('email', '==', user.email)); sS = await getDocs(sQ); }
+          if (!sS.empty) {
+            const d = sS.docs[0].data();
+            data = { ...d, role: 'staff', email: user.email, nationalId: String(d.nationalId || nid) };
+          }
+        } catch (e) {}
       }
-      if (!data && (!roleHint || roleHint === 'supervisor')) {
-        let spQ = query(collection(db, 'supervisors'), where('nationalId', '==', nid)); let spS = await getDocs(spQ);
-        if (spS.empty && !isNaN(nid)) { spQ = query(collection(db, 'supervisors'), where('nationalId', '==', Number(nid))); spS = await getDocs(spQ); }
-        if (spS.empty) { spQ = query(collection(db, 'supervisors'), where('email', '==', user.email)); spS = await getDocs(spQ); }
-        if (!spS.empty) { const d = spS.docs[0].data(); data = { ...d, role: 'supervisor', email: user.email, nationalId: String(d.nationalId || nid) }; try { await addDoc(collection(db, 'users'), { nationalId: String(d.nationalId||nid), email: user.email, role: 'supervisor', name: d.name||'مشرف تعليمي', specialty: d.specialty||'', schoolId: d.schoolId||'default_school_1' }); } catch(e){} }
+
+      // 4. Check supervisors collection
+      if (!data) {
+        try {
+          let spQ = query(collection(db, 'supervisors'), where('nationalId', '==', nid));
+          let spS = await getDocs(spQ);
+          if (spS.empty && !isNaN(nid)) { spQ = query(collection(db, 'supervisors'), where('nationalId', '==', Number(nid))); spS = await getDocs(spQ); }
+          if (spS.empty) { spQ = query(collection(db, 'supervisors'), where('email', '==', user.email)); spS = await getDocs(spQ); }
+          if (!spS.empty) {
+            const d = spS.docs[0].data();
+            data = { ...d, role: 'supervisor', email: user.email, nationalId: String(d.nationalId || nid) };
+          }
+        } catch (e) {}
       }
-      if (!data && (!roleHint || roleHint === 'student')) {
-        let stQ = query(collection(db, 'students'), where('nationalId', '==', nid)); let stS = await getDocs(stQ);
-        if (stS.empty && !isNaN(nid)) { stQ = query(collection(db, 'students'), where('nationalId', '==', Number(nid))); stS = await getDocs(stQ); }
-        if (stS.empty) { stQ = query(collection(db, 'students'), where('email', '==', user.email)); stS = await getDocs(stQ); }
-        if (!stS.empty) { const d = stS.docs[0].data(); data = { ...d, role: 'student', email: user.email, nationalId: String(d.nationalId || nid) }; try { await addDoc(collection(db, 'users'), { nationalId: String(d.nationalId||nid), email: user.email, role: 'student', name: d.name||'طالب', class: d.class||d.className||'', schoolId: d.schoolId||'default_school_1' }); } catch(e){} }
+
+      // 5. Check parents collection
+      if (!data) {
+        try {
+          let pQ = query(collection(db, 'parents'), where('email', '==', user.email));
+          let pS = await getDocs(pQ);
+          if (pS.empty && user.uid) { pQ = query(collection(db, 'parents'), where('uid', '==', user.uid)); pS = await getDocs(pQ); }
+          if (pS.empty && nid) {
+            pQ = query(collection(db, 'parents'), where('nationalId', '==', nid));
+            pS = await getDocs(pQ);
+            if (pS.empty && !isNaN(nid)) { pQ = query(collection(db, 'parents'), where('nationalId', '==', Number(nid))); pS = await getDocs(pQ); }
+          }
+          if (!pS.empty) {
+            const d = pS.docs[0].data();
+            data = { ...d, role: 'parent', email: user.email, uid: user.uid, nationalId: String(d.nationalId || nid) };
+          }
+        } catch (e) {}
       }
-      if (!data && (!roleHint || roleHint === 'parent')) {
-        let pQ = query(collection(db, 'parents'), where('email', '==', user.email)); let pS = await getDocs(pQ);
-        if (pS.empty && user.uid) { pQ = query(collection(db, 'parents'), where('uid', '==', user.uid)); pS = await getDocs(pQ); }
-        if (pS.empty && nid) { pQ = query(collection(db, 'parents'), where('nationalId', '==', nid)); pS = await getDocs(pQ); if (pS.empty && !isNaN(nid)) { pQ = query(collection(db, 'parents'), where('nationalId', '==', Number(nid))); pS = await getDocs(pQ); } }
-        if (!pS.empty) { const d = pS.docs[0].data(); data = { ...d, role: 'parent', email: user.email, uid: user.uid, nationalId: String(d.nationalId || nid) }; try { await addDoc(collection(db, 'users'), { uid: user.uid, email: user.email, role: 'parent', nationalId: String(d.nationalId||nid), name: d.name||user.displayName||'ولي أمر', studentNationalId: d.studentNationalId||'', studentName: d.studentName||'', studentClass: d.studentClass||'', schoolId: d.schoolId||'default_school_1' }); } catch(e){} }
+
+      // 6. Check users collection (admins & others)
+      if (!data) {
+        try {
+          let q = query(collection(db, 'users'), where('email', '==', user.email));
+          let snap = await getDocs(q);
+          if (snap.empty && user.uid) { q = query(collection(db, 'users'), where('uid', '==', user.uid)); snap = await getDocs(q); }
+          if (snap.empty && nid) {
+            q = query(collection(db, 'users'), where('nationalId', '==', nid)); snap = await getDocs(q);
+            if (snap.empty && !isNaN(nid)) { q = query(collection(db, 'users'), where('nationalId', '==', Number(nid))); snap = await getDocs(q); }
+          }
+          if (!snap.empty) {
+            const allDocs = snap.docs.map(d => d.data());
+            data = (allDocs.length > 1 && roleHint) ? (allDocs.find(d => d.role === roleHint) || allDocs[0]) : allDocs[0];
+          }
+        } catch (e) {}
       }
 
       if (data) {

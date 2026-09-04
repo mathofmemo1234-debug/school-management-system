@@ -60,67 +60,75 @@ export default function Login() {
     navigate(`/${mismatch.actualRole}`, { replace: true });
   };
 
-  // Helper to find record across ALL collections with string/number matches
+  // Helper to find record across ALL collections with strict priority to prevent role confusion
   const findAnyRecord = async (nid) => {
     const cleanNid = String(nid || '').trim();
     if (!cleanNid) return null;
     const lowerNid = cleanNid.toLowerCase();
     const fakeEmail = getFakeEmail(cleanNid).toLowerCase();
 
-    // 1. Check users (admins & others)
+    // 1. Check teachers FIRST (Primary authority on teachers)
+    try {
+      let tSnap = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', cleanNid)));
+      if (tSnap.empty && !isNaN(cleanNid)) tSnap = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', Number(cleanNid))));
+      if (tSnap.empty) tSnap = await getDocs(query(collection(db, 'teachers'), where('email', '==', cleanNid)));
+      if (tSnap.empty) tSnap = await getDocs(query(collection(db, 'teachers'), where('email', '==', lowerNid)));
+      if (tSnap.empty) tSnap = await getDocs(query(collection(db, 'teachers'), where('email', '==', fakeEmail)));
+      if (!tSnap.empty) return { ...tSnap.docs[0].data(), id: tSnap.docs[0].id, role: 'teacher' };
+    } catch (err) { console.warn("Error querying teachers:", err); }
+
+    // 2. Check students (Primary authority on students)
+    try {
+      let sSnap = await getDocs(query(collection(db, 'students'), where('nationalId', '==', cleanNid)));
+      if (sSnap.empty && !isNaN(cleanNid)) sSnap = await getDocs(query(collection(db, 'students'), where('nationalId', '==', Number(cleanNid))));
+      if (sSnap.empty) sSnap = await getDocs(query(collection(db, 'students'), where('email', '==', cleanNid)));
+      if (sSnap.empty) sSnap = await getDocs(query(collection(db, 'students'), where('email', '==', lowerNid)));
+      if (sSnap.empty) sSnap = await getDocs(query(collection(db, 'students'), where('email', '==', fakeEmail)));
+      if (!sSnap.empty) return { ...sSnap.docs[0].data(), id: sSnap.docs[0].id, role: 'student' };
+    } catch (err) { console.warn("Error querying students:", err); }
+
+    // 3. Check staff
+    try {
+      let staffSnap = await getDocs(query(collection(db, 'staff'), where('nationalId', '==', cleanNid)));
+      if (staffSnap.empty && !isNaN(cleanNid)) staffSnap = await getDocs(query(collection(db, 'staff'), where('nationalId', '==', Number(cleanNid))));
+      if (staffSnap.empty) staffSnap = await getDocs(query(collection(db, 'staff'), where('email', '==', cleanNid)));
+      if (staffSnap.empty) staffSnap = await getDocs(query(collection(db, 'staff'), where('email', '==', lowerNid)));
+      if (staffSnap.empty) staffSnap = await getDocs(query(collection(db, 'staff'), where('email', '==', fakeEmail)));
+      if (!staffSnap.empty) return { ...staffSnap.docs[0].data(), id: staffSnap.docs[0].id, role: 'staff' };
+    } catch (err) { console.warn("Error querying staff:", err); }
+
+    // 4. Check supervisors
+    try {
+      let supSnap = await getDocs(query(collection(db, 'supervisors'), where('nationalId', '==', cleanNid)));
+      if (supSnap.empty && !isNaN(cleanNid)) supSnap = await getDocs(query(collection(db, 'supervisors'), where('nationalId', '==', Number(cleanNid))));
+      if (supSnap.empty) supSnap = await getDocs(query(collection(db, 'supervisors'), where('email', '==', cleanNid)));
+      if (supSnap.empty) supSnap = await getDocs(query(collection(db, 'supervisors'), where('email', '==', lowerNid)));
+      if (supSnap.empty) supSnap = await getDocs(query(collection(db, 'supervisors'), where('email', '==', fakeEmail)));
+      if (!supSnap.empty) return { ...supSnap.docs[0].data(), id: supSnap.docs[0].id, role: 'supervisor' };
+    } catch (err) { console.warn("Error querying supervisors:", err); }
+
+    // 5. Check parents
+    try {
+      let pSnap = await getDocs(query(collection(db, 'parents'), where('nationalId', '==', cleanNid)));
+      if (pSnap.empty && !isNaN(cleanNid)) pSnap = await getDocs(query(collection(db, 'parents'), where('nationalId', '==', Number(cleanNid))));
+      if (pSnap.empty) pSnap = await getDocs(query(collection(db, 'parents'), where('email', '==', cleanNid)));
+      if (pSnap.empty) pSnap = await getDocs(query(collection(db, 'parents'), where('email', '==', lowerNid)));
+      if (pSnap.empty) pSnap = await getDocs(query(collection(db, 'parents'), where('email', '==', fakeEmail)));
+      if (!pSnap.empty) return { ...pSnap.docs[0].data(), id: pSnap.docs[0].id, role: 'parent' };
+    } catch (err) { console.warn("Error querying parents:", err); }
+
+    // 6. Check users (admins and registered users)
     try {
       let uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', cleanNid)));
       if (uSnap.empty && lowerNid !== cleanNid) uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', lowerNid)));
       if (uSnap.empty) uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', fakeEmail)));
       if (uSnap.empty) uSnap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', cleanNid)));
       if (uSnap.empty && !isNaN(cleanNid)) uSnap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', Number(cleanNid))));
-      if (!uSnap.empty) return { ...uSnap.docs[0].data(), id: uSnap.docs[0].id };
+      if (!uSnap.empty) {
+        const uData = uSnap.docs[0].data();
+        return { ...uData, id: uSnap.docs[0].id, role: uData.role || 'student' };
+      }
     } catch (err) { console.warn("Error querying users:", err); }
-
-    // 2. Check teachers
-    try {
-      let tSnap = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', cleanNid)));
-      if (tSnap.empty && !isNaN(cleanNid)) tSnap = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', Number(cleanNid))));
-      if (tSnap.empty) tSnap = await getDocs(query(collection(db, 'teachers'), where('email', '==', cleanNid)));
-      if (tSnap.empty) tSnap = await getDocs(query(collection(db, 'teachers'), where('email', '==', fakeEmail)));
-      if (!tSnap.empty) return { ...tSnap.docs[0].data(), id: tSnap.docs[0].id, role: 'teacher' };
-    } catch (err) { console.warn("Error querying teachers:", err); }
-
-    // 3. Check students
-    try {
-      let sSnap = await getDocs(query(collection(db, 'students'), where('nationalId', '==', cleanNid)));
-      if (sSnap.empty && !isNaN(cleanNid)) sSnap = await getDocs(query(collection(db, 'students'), where('nationalId', '==', Number(cleanNid))));
-      if (sSnap.empty) sSnap = await getDocs(query(collection(db, 'students'), where('email', '==', cleanNid)));
-      if (sSnap.empty) sSnap = await getDocs(query(collection(db, 'students'), where('email', '==', fakeEmail)));
-      if (!sSnap.empty) return { ...sSnap.docs[0].data(), id: sSnap.docs[0].id, role: 'student' };
-    } catch (err) { console.warn("Error querying students:", err); }
-
-    // 4. Check staff
-    try {
-      let staffSnap = await getDocs(query(collection(db, 'staff'), where('nationalId', '==', cleanNid)));
-      if (staffSnap.empty && !isNaN(cleanNid)) staffSnap = await getDocs(query(collection(db, 'staff'), where('nationalId', '==', Number(cleanNid))));
-      if (staffSnap.empty) staffSnap = await getDocs(query(collection(db, 'staff'), where('email', '==', cleanNid)));
-      if (staffSnap.empty) staffSnap = await getDocs(query(collection(db, 'staff'), where('email', '==', fakeEmail)));
-      if (!staffSnap.empty) return { ...staffSnap.docs[0].data(), id: staffSnap.docs[0].id, role: 'staff' };
-    } catch (err) { console.warn("Error querying staff:", err); }
-
-    // 5. Check supervisors
-    try {
-      let supSnap = await getDocs(query(collection(db, 'supervisors'), where('nationalId', '==', cleanNid)));
-      if (supSnap.empty && !isNaN(cleanNid)) supSnap = await getDocs(query(collection(db, 'supervisors'), where('nationalId', '==', Number(cleanNid))));
-      if (supSnap.empty) supSnap = await getDocs(query(collection(db, 'supervisors'), where('email', '==', cleanNid)));
-      if (supSnap.empty) supSnap = await getDocs(query(collection(db, 'supervisors'), where('email', '==', fakeEmail)));
-      if (!supSnap.empty) return { ...supSnap.docs[0].data(), id: supSnap.docs[0].id, role: 'supervisor' };
-    } catch (err) { console.warn("Error querying supervisors:", err); }
-
-    // 6. Check parents
-    try {
-      let pSnap = await getDocs(query(collection(db, 'parents'), where('nationalId', '==', cleanNid)));
-      if (pSnap.empty && !isNaN(cleanNid)) pSnap = await getDocs(query(collection(db, 'parents'), where('nationalId', '==', Number(cleanNid))));
-      if (pSnap.empty) pSnap = await getDocs(query(collection(db, 'parents'), where('email', '==', cleanNid)));
-      if (pSnap.empty) pSnap = await getDocs(query(collection(db, 'parents'), where('email', '==', fakeEmail)));
-      if (!pSnap.empty) return { ...pSnap.docs[0].data(), id: pSnap.docs[0].id, role: 'parent' };
-    } catch (err) { console.warn("Error querying parents:", err); }
 
     return null;
   };
@@ -217,30 +225,6 @@ export default function Login() {
     try {
       const loginEmail = getFakeEmail(trimmedId);
       const record = await findAnyRecord(trimmedId);
-      
-      // Auto-bootstrap first admin if database is completely fresh
-      if (!record && (role === 'admin' || trimmedId.includes('admin'))) {
-        try {
-          const adminCheck = await getDocs(query(collection(db, 'users'), where('role', '==', 'admin')));
-          if (adminCheck.empty) {
-            const userCred = await createUserWithEmailAndPassword(auth, loginEmail, trimmedPassword.length >= 6 ? trimmedPassword : 'admin123');
-            const adminDoc = {
-              uid: userCred.user.uid,
-              nationalId: trimmedId,
-              email: loginEmail,
-              role: 'admin',
-              name: 'مدير المدرسة',
-              schoolId: 'default_school_1',
-              password: trimmedPassword.length >= 6 ? trimmedPassword : 'admin123',
-              createdAt: new Date().toISOString()
-            };
-            await addDoc(collection(db, 'users'), adminDoc);
-            loginWithUserData(adminDoc, 'admin');
-            navigate('/admin', { replace: true });
-            return;
-          }
-        } catch (bootstrapErr) {}
-      }
 
       // CASE 1: No record found at all in any collection
       if (!record) {
