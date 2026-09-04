@@ -54,11 +54,12 @@ export default function Login() {
       trimmedId.toLowerCase() === 'super@admin.com' || 
       trimmedId.toLowerCase() === 'superadmin' || 
       trimmedId.toLowerCase() === 'super' ||
+      trimmedId.toLowerCase() === 'super@admin' ||
       trimmedId.toLowerCase() === 'master'
     ) {
       try {
-        const superEmail = trimmedId.includes('@') ? trimmedId.toLowerCase() : 'super@admin.com';
-        const superPass = trimmedPassword || 'admin123';
+        const superEmail = trimmedId.includes('@') ? (trimmedId === 'super@admin' ? 'super@admin.com' : trimmedId.toLowerCase()) : 'super@admin.com';
+        const superPass = trimmedPassword || 'super@admin';
         
         let superData = {
           name: 'حساب الماستر العام',
@@ -76,7 +77,7 @@ export default function Login() {
           console.warn("Firebase Auth signIn notice for superadmin, continuing with direct master authorization:", signInErr.code);
           if (signInErr.code === 'auth/user-not-found') {
             try {
-              await createUserWithEmailAndPassword(auth, superEmail, superPass.length >= 6 ? superPass : 'admin123');
+              await createUserWithEmailAndPassword(auth, superEmail, superPass.length >= 6 ? superPass : 'super@admin');
             } catch (createErr) {
               console.warn("Could not create user in auth:", createErr);
             }
@@ -509,7 +510,8 @@ export default function Login() {
                 setRole('superadmin'); 
                 setIsSignup(false); 
                 setError(''); 
-                if (!nationalId || nationalId.length === 10) setNationalId('super@admin.com');
+                setNationalId('super@admin.com');
+                setPassword('super@admin');
               }}
               style={{ padding: '8px 2px', fontSize: '11px', fontWeight: 'bold' }}
             >ماستر</button>
@@ -662,7 +664,7 @@ export default function Login() {
                   <label>{(role === 'admin' || role === 'superadmin') ? 'البريد الإلكتروني / الحساب' : t('login.nationalId')}</label>
                   <input 
                     type="text" 
-                    placeholder={role === 'superadmin' ? 'super@admin.com (أو superadmin)' : role === 'admin' ? 'admin@school.com' : t('login.nationalIdPlaceholder')} 
+                    placeholder={role === 'superadmin' ? 'super@admin.com' : role === 'admin' ? 'admin@school.com' : t('login.nationalIdPlaceholder')} 
                     required 
                     dir="ltr"
                     value={nationalId}
@@ -673,18 +675,38 @@ export default function Login() {
                 <div className="form-group">
                   <label>
                     {t('login.password')} 
-                    {role === 'superadmin' && <span style={{fontSize:'12px', color:'#0e7490', marginInlineStart:'6px'}}>(متاح الدخول المباشر كـ ماستر)</span>}
+                    {role === 'superadmin' && <span style={{fontSize:'12px', color:'#0e7490', marginInlineStart:'6px', fontWeight:'700'}}>(كلمة المرور: super@admin)</span>}
                     {(role !== 'admin' && role !== 'superadmin') && <span style={{fontSize:'12px', color:'#666'}}>(الافتراضية هي رقم الهوية)</span>}
                   </label>
                   <input 
                     type="password" 
-                    placeholder={role === 'superadmin' ? 'admin123 أو كلمة المرور الخاصة بك' : t('login.passwordPlaceholder')} 
+                    placeholder={role === 'superadmin' ? 'super@admin' : t('login.passwordPlaceholder')} 
                     required 
                     dir="ltr"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
+
+                {role === 'superadmin' && (
+                  <div style={{
+                    background: 'rgba(14, 116, 144, 0.08)',
+                    border: '1px solid rgba(14, 116, 144, 0.2)',
+                    borderRadius: '10px',
+                    padding: '8px 12px',
+                    marginBottom: '15px',
+                    fontSize: '12px',
+                    color: '#0e7490',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px'
+                  }}>
+                    <span>🔑 الحساب: <strong>super@admin.com</strong></span>
+                    <span>🔒 كلمة المرور: <strong>super@admin</strong></span>
+                  </div>
+                )}
 
                 <button type="submit" className="btn btn-primary btn-block" disabled={loading} style={{ marginBottom: '15px' }}>
                   {loading ? t('login.loading') : (
