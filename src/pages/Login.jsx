@@ -675,7 +675,6 @@ export default function Login() {
                 <div className="form-group">
                   <label>
                     {t('login.password')} 
-                    {role === 'superadmin' && <span style={{fontSize:'12px', color:'#0e7490', marginInlineStart:'6px', fontWeight:'700'}}>(كلمة المرور: super@admin)</span>}
                     {(role !== 'admin' && role !== 'superadmin') && <span style={{fontSize:'12px', color:'#666'}}>(الافتراضية هي رقم الهوية)</span>}
                   </label>
                   <input 
@@ -688,62 +687,11 @@ export default function Login() {
                   />
                 </div>
 
-                {role === 'superadmin' && (
-                  <div style={{
-                    background: 'rgba(14, 116, 144, 0.08)',
-                    border: '1px solid rgba(14, 116, 144, 0.2)',
-                    borderRadius: '10px',
-                    padding: '8px 12px',
-                    marginBottom: '15px',
-                    fontSize: '12px',
-                    color: '#0e7490',
-                    fontWeight: '600',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px'
-                  }}>
-                    <span>🔑 الحساب: <strong>super@admin.com</strong></span>
-                    <span>🔒 كلمة المرور: <strong>super@admin</strong></span>
-                  </div>
-                )}
-
                 <button type="submit" className="btn btn-primary btn-block" disabled={loading} style={{ marginBottom: '15px' }}>
                   {loading ? t('login.loading') : (
                     <><LogIn size={18} /> {role === 'superadmin' ? 'دخول لوحة الماستر العام' : t('login.loginButton')}</>
                   )}
                 </button>
-
-                {role === 'superadmin' && (
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      if (loginAsSuperAdmin) {
-                        loginAsSuperAdmin({ name: 'حساب الماستر العام', email: 'super@admin.com', role: 'superadmin', schoolId: 'ALL' });
-                        navigate('/superadmin', { replace: true });
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      background: 'linear-gradient(135deg, #0e7490, #0369a1)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '12px',
-                      padding: '10px 16px',
-                      fontWeight: '700',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      marginBottom: '15px',
-                      boxShadow: '0 3px 10px rgba(14, 116, 144, 0.25)'
-                    }}
-                  >
-                    <span>⚡ الدخول السريع المباشر كـ ماستر (Super Master Quick Access)</span>
-                  </button>
-                )}
               </form>
             )}
         </div>

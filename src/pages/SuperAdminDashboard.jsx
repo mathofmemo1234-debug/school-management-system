@@ -641,34 +641,63 @@ function SuperAdminHome() {
     setAdminMessage('');
     setAdminError('');
 
-    if (adminNationalId.length < 10) {
+    if (adminNationalId.trim().length < 10) {
       setAdminError('رقم الهوية يجب ألا يقل عن 10 أرقام');
       return;
     }
-    if (adminPassword.length < 6) {
+    if (adminPassword.trim().length < 6) {
       setAdminError('كلمة المرور يجب ألا تقل عن 6 خانات');
       return;
     }
 
     setIsAddingAdmin(true);
     try {
-      const adminEmail = adminNationalId.includes('@') ? adminNationalId : `${adminNationalId}@school.local`;
-      const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
-      const user = userCredential.user;
-
+      const cleanNid = adminNationalId.trim();
+      const adminEmail = cleanNid.includes('@') ? cleanNid : `${cleanNid}@school.local`;
       const selectedSchool = schools.find(s => s.id === selectedSchoolId);
+      let targetUid = null;
 
-      await setDoc(doc(db, 'users', user.uid), {
-        name: adminName,
-        nationalId: adminNationalId,
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword.trim());
+        targetUid = userCredential.user.uid;
+      } catch (authErr) {
+        if (authErr.code === 'auth/email-already-in-use') {
+          // If already registered in auth, reuse the existing account
+          console.log('Account exists in Auth, updating Firestore records directly');
+          const existingSnap = await getDocs(query(collection(db, 'users'), where('email', '==', adminEmail)));
+          if (!existingSnap.empty) {
+            targetUid = existingSnap.docs[0].id;
+          }
+        } else {
+          throw authErr;
+        }
+      }
+
+      // Check if document already exists by nationalId or email to overwrite/update
+      let docRef;
+      if (targetUid) {
+        docRef = doc(db, 'users', targetUid);
+      } else {
+        const qDoc = await getDocs(query(collection(db, 'users'), where('nationalId', '==', cleanNid)));
+        if (!qDoc.empty) {
+          docRef = doc(db, 'users', qDoc.docs[0].id);
+        } else {
+          docRef = doc(collection(db, 'users'));
+        }
+      }
+
+      await setDoc(docRef, {
+        name: adminName.trim(),
+        nationalId: cleanNid,
         email: adminEmail,
-        phone: adminPhone || '',
+        phone: adminPhone.trim() || '',
         role: 'admin',
         schoolId: selectedSchoolId,
         schoolName: selectedSchool?.name || '',
         schoolSubTitle: selectedSchool?.subTitle || '',
+        updatedAt: new Date(),
         createdAt: new Date()
-      });
+      }, { merge: true });
 
       setAdminName('');
       setAdminNationalId('');
@@ -676,28 +705,48 @@ function SuperAdminHome() {
       setAdminPhone('');
       setSelectedSchoolId('');
       setShowAddAdminModal(false);
-      alert('تم إنشاء حساب المدير وتعيينه للمدرسة بنجاح!');
+      alert('تم إنشاء وتعيين حساب المدير بنجاح!');
     } catch (error) {
       console.error('Error adding admin:', error);
-      if (error.code === 'auth/email-already-in-use') {
-        setAdminError('رقم الهوية / اسم المستخدم مسجل مسبقاً في النظام.');
-      } else {
-        setAdminError('حدث خطأ أثناء إنشاء الحساب: ' + error.message);
-      }
+      setAdminError('حدث خطأ أثناء إنشاء الحساب: ' + error.message);
     } finally {
       setIsAddingAdmin(false);
     }
   };
 
-  // Handle Delete Admin
-  const handleDeleteAdmin = async (id, name) => {
-    if (window.confirm(`هل أنت متأكد من حذف حساب المدير "${name}" من قاعدة البيانات؟`)) {
+  // Handle Delete Admin - Completely wipes all records for this admin
+  const handleDeleteAdmin = async (admin) => {
+    const adminName = admin.name || 'المدير';
+    if (window.confirm(`هل أنت متأكد من حذف حساب المدير "${adminName}" بالكامل من قاعدة البيانات؟`)) {
       try {
-        await deleteDoc(doc(db, 'users', id));
-        alert('تم حذف حساب المدير بنجاح.');
+        const nid = String(admin.nationalId || '').trim();
+        const email = String(admin.email || '').trim();
+
+        // 1. Delete by document ID
+        if (admin.id) {
+          await deleteDoc(doc(db, 'users', admin.id));
+        }
+
+        // 2. Delete any matching documents by nationalId (string and number) or email
+        if (nid) {
+          const qNidStr = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
+          qNidStr.forEach(async (d) => { if (d.id !== admin.id) await deleteDoc(doc(db, 'users', d.id)); });
+
+          if (!isNaN(nid)) {
+            const qNidNum = await getDocs(query(collection(db, 'users'), where('nationalId', '==', Number(nid))));
+            qNidNum.forEach(async (d) => { await deleteDoc(doc(db, 'users', d.id)); });
+          }
+        }
+
+        if (email) {
+          const qEmail = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
+          qEmail.forEach(async (d) => { await deleteDoc(doc(db, 'users', d.id)); });
+        }
+
+        alert('تم حذف حساب المدير بالكامل من قاعدة البيانات بنجاح.');
       } catch (error) {
         console.error('Error deleting admin:', error);
-        alert('حدث خطأ أثناء الحذف.');
+        alert('حدث خطأ أثناء الحذف: ' + error.message);
       }
     }
   };
@@ -1778,7 +1827,7 @@ function SuperAdminHome() {
                       </td>
                       <td>
                         <button
-                          onClick={() => handleDeleteAdmin(admin.id, admin.name)}
+                          onClick={() => handleDeleteAdmin(admin)}
                           className="btn-icon delete"
                           title="حذف حساب المدير"
                         >
