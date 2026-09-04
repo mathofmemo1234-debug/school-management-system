@@ -21,6 +21,354 @@ import AchievementPortfolioPage from './AchievementPortfolioPage';
 import SchoolMessagingHub from './SchoolMessagingHub';
 import SchoolExcellenceDashboard from './SchoolExcellenceDashboard';
 
+// Comprehensive Official Catalog for MSC (شركة المدارس المتقدمة)
+const ADVANCED_SCHOOLS_CATALOG = [
+  {
+    name: "مجمع مدارس المتقدمة للتعلم الذكي للبنين - جدة",
+    subTitle: "فرع حي الزهراء - المسار الأهلي والدبلومة الأمريكية",
+    city: "جدة",
+    track: "أهلي متقدم + STEM",
+    code: "msc_jed_smart_boys",
+    address: "حي الزهراء، جدة"
+  },
+  {
+    name: "مجمع مدارس المتقدمة للتعلم الذكي للبنات - جدة",
+    subTitle: "فرع حي الزهراء - المسار الأهلي والدبلومة الأمريكية",
+    city: "جدة",
+    track: "أهلي متقدم + STEM",
+    code: "msc_jed_smart_girls",
+    address: "حي الزهراء، جدة"
+  },
+  {
+    name: "مجمع مدارس المتقدمة العالمية - جدة",
+    subTitle: "فرع حي الشاطئ - المسار العالمي والدولي",
+    city: "جدة",
+    track: "مسار عالمي ودولي",
+    code: "msc_jed_intl",
+    address: "حي الشاطئ، جدة"
+  },
+  {
+    name: "مجمع مدارس العقيق الأهلية للبنين - المدينة المنورة",
+    subTitle: "فرع حي الهجرة - المسار الأهلي المتقدم",
+    city: "المدينة المنورة",
+    track: "أهلي متقدم",
+    code: "msc_med_aqeeq_boys",
+    address: "حي الهجرة، المدينة المنورة"
+  },
+  {
+    name: "مجمع مدارس العقيق الأهلية للبنات - المدينة المنورة",
+    subTitle: "فرع حي الهجرة - المسار الأهلي المتقدم",
+    city: "المدينة المنورة",
+    track: "أهلي متقدم",
+    code: "msc_med_aqeeq_girls",
+    address: "حي الهجرة، المدينة المنورة"
+  },
+  {
+    name: "مجمع مدارس العقيق العالمية - المدينة المنورة",
+    subTitle: "فرع طريق السلام - المسار العالمي",
+    city: "المدينة المنورة",
+    track: "مسار عالمي",
+    code: "msc_med_aqeeq_intl",
+    address: "طريق السلام، المدينة المنورة"
+  },
+  {
+    name: "مجمع مدارس المتقدمة للتعلم الذكي - حي القيروان",
+    subTitle: "فرع شمال الرياض - مسار STEM والتعلم الذكي",
+    city: "الرياض",
+    track: "أهلي متقدم + STEM",
+    code: "msc_ruh_qairawan",
+    address: "حي القيروان، الرياض"
+  },
+  {
+    name: "مجمع مدارس أمجاد قرطبة الأهلية للبنين - حي قرطبة",
+    subTitle: "فرع شرق الرياض - المسار الأهلي المطور",
+    city: "الرياض",
+    track: "أهلي مطور",
+    code: "msc_ruh_qurtuba_boys",
+    address: "حي قرطبة، الرياض"
+  },
+  {
+    name: "مجمع مدارس أمجاد قرطبة الأهلية للبنات - حي قرطبة",
+    subTitle: "فرع شرق الرياض - المسار الأهلي المطور",
+    city: "الرياض",
+    track: "أهلي مطور",
+    code: "msc_ruh_qurtuba_girls",
+    address: "حي قرطبة، الرياض"
+  },
+  {
+    name: "مجمع مدارس أمجاد قرطبة العالمية - حي قرطبة",
+    subTitle: "فرع شرق الرياض - المسار الدولي والعالمي",
+    city: "الرياض",
+    track: "مسار عالمي ودولي",
+    code: "msc_ruh_qurtuba_intl",
+    address: "حي قرطبة، الرياض"
+  },
+  {
+    name: "مجمع مدارس نيار الأهلية للبنين - حي الرائد",
+    subTitle: "فرع وسط الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_niyar_boys",
+    address: "حي الرائد، الرياض"
+  },
+  {
+    name: "مجمع مدارس نيار الأهلية للبنات - حي الرائد",
+    subTitle: "فرع وسط الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_niyar_girls",
+    address: "حي الرائد، الرياض"
+  },
+  {
+    name: "مجمع مدارس نيار العالمية - حي الرائد",
+    subTitle: "فرع وسط الرياض - المسار العالمي",
+    city: "الرياض",
+    track: "مسار عالمي",
+    code: "msc_ruh_niyar_intl",
+    address: "حي الرائد، الرياض"
+  },
+  {
+    name: "مجمع مدارس علوم الرياض الأهلية - حي الصحافة",
+    subTitle: "فرع شمال الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_oloum_sahafa",
+    address: "حي الصحافة، الرياض"
+  },
+  {
+    name: "مجمع مدارس علوم الرياض الأهلية - حي الملز",
+    subTitle: "فرع وسط الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_oloum_malaz",
+    address: "حي الملز، الرياض"
+  },
+  {
+    name: "مجمع مدارس علوم الرياض العالمية - حي الصحافة",
+    subTitle: "فرع شمال الرياض - المسار العالمي",
+    city: "الرياض",
+    track: "مسار عالمي",
+    code: "msc_ruh_oloum_intl",
+    address: "حي الصحافة، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية - حي العقيق",
+    subTitle: "فرع شمال الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_aqeeq_local",
+    address: "حي العقيق، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة العالمية - حي العقيق",
+    subTitle: "فرع شمال الرياض - المسار العالمي",
+    city: "الرياض",
+    track: "مسار عالمي",
+    code: "msc_ruh_aqeeq_intl",
+    address: "حي العقيق، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية - حي حطين",
+    subTitle: "فرع شمال الرياض - المسار الأهلي المتقدم",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_hittin",
+    address: "حي حطين، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية - حي النرجس",
+    subTitle: "فرع شمال الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_narjis_local",
+    address: "حي النرجس، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة العالمية - حي النرجس",
+    subTitle: "فرع شمال الرياض - المسار العالمي",
+    city: "الرياض",
+    track: "مسار عالمي",
+    code: "msc_ruh_narjis_intl",
+    address: "حي النرجس، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية - حي الياسمين",
+    subTitle: "فرع شمال الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_yasmin",
+    address: "حي الياسمين، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية - حي المونسية",
+    subTitle: "فرع شرق الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_mounsiya_local",
+    address: "حي المونسية، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة العالمية - حي المونسية",
+    subTitle: "فرع شرق الرياض - المسار العالمي",
+    city: "الرياض",
+    track: "مسار عالمي",
+    code: "msc_ruh_mounsiya_intl",
+    address: "حي المونسية، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية - حي اليرموك",
+    subTitle: "فرع شرق الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_yarmouk",
+    address: "حي اليرموك، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية - حي الشهداء (غرناطة)",
+    subTitle: "فرع شرق الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_shuhada",
+    address: "حي الشهداء، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية - حي النهضة",
+    subTitle: "فرع شرق الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_nahda",
+    address: "حي النهضة، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية - حي الروابي",
+    subTitle: "فرع شرق الرياض - المسار الأهلي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_rawabi",
+    address: "حي الروابي، الرياض"
+  },
+  {
+    name: "مجمع مدارس التضامن الأهلية للبنين - الرياض",
+    subTitle: "فرع جنوب الرياض - حي الشفا",
+    city: "الرياض",
+    track: "أهلي مطور",
+    code: "msc_ruh_tadamun_boys",
+    address: "حي الشفا، الرياض"
+  },
+  {
+    name: "مجمع مدارس التضامن الأهلية للبنات - الرياض",
+    subTitle: "فرع جنوب الرياض - حي الشفا",
+    city: "الرياض",
+    track: "أهلي مطور",
+    code: "msc_ruh_tadamun_girls",
+    address: "حي الشفا، الرياض"
+  },
+  {
+    name: "مجمع مدارس الركائز الأهلية - الرياض",
+    subTitle: "فرع جنوب الرياض - حي السويدي",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_rakaez",
+    address: "حي السويدي، الرياض"
+  },
+  {
+    name: "مجمع مدارس المطورون الأهلية - الرياض",
+    subTitle: "فرع شمال الرياض - حي الملقا",
+    city: "الرياض",
+    track: "أهلي مطور",
+    code: "msc_ruh_motaweroon_local",
+    address: "حي الملقا، الرياض"
+  },
+  {
+    name: "مجمع مدارس المطورون العالمية - الرياض",
+    subTitle: "فرع شمال الرياض - حي الملقا",
+    city: "الرياض",
+    track: "مسار عالمي",
+    code: "msc_ruh_motaweroon_intl",
+    address: "حي الملقا، الرياض"
+  },
+  {
+    name: "مجمع مدارس الإبداع الأهلية - الرياض",
+    subTitle: "فرع شرق الرياض - حي الروضة",
+    city: "الرياض",
+    track: "أهلي متقدم",
+    code: "msc_ruh_ibda",
+    address: "حي الروضة، الرياض"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية للبنين - الخرج",
+    subTitle: "فرع محافظة الخرج - المسار الأهلي المتقدم",
+    city: "الخرج",
+    track: "أهلي متقدم",
+    code: "msc_kharj_boys",
+    address: "محافظة الخرج"
+  },
+  {
+    name: "مجمع مدارس المتقدمة الأهلية للبنات - الخرج",
+    subTitle: "فرع محافظة الخرج - المسار الأهلي المتقدم",
+    city: "الخرج",
+    track: "أهلي متقدم",
+    code: "msc_kharj_girls",
+    address: "محافظة الخرج"
+  },
+  {
+    name: "مجمع مدارس دار العلوم الأهلية - الخرج",
+    subTitle: "فرع محافظة الخرج - المسار الأهلي",
+    city: "الخرج",
+    track: "أهلي متقدم",
+    code: "msc_kharj_dar_uloom",
+    address: "محافظة الخرج"
+  },
+  {
+    name: "مجمع مدارس جواثا الأهلية للبنين - الأحساء",
+    subTitle: "فرع مدينة الهفوف - المسار الأهلي",
+    city: "الأحساء",
+    track: "أهلي متقدم",
+    code: "msc_ahsa_jawatha_boys",
+    address: "الهفوف، الأحساء"
+  },
+  {
+    name: "مجمع مدارس جواثا الأهلية للبنات - الأحساء",
+    subTitle: "فرع مدينة الهفوف - المسار الأهلي",
+    city: "الأحساء",
+    track: "أهلي متقدم",
+    code: "msc_ahsa_jawatha_girls",
+    address: "الهفوف، الأحساء"
+  },
+  {
+    name: "مجمع مدارس جواثا العالمية - الأحساء",
+    subTitle: "فرع مدينة الهفوف - المسار الدولي",
+    city: "الأحساء",
+    track: "مسار عالمي ودولي",
+    code: "msc_ahsa_jawatha_intl",
+    address: "الهفوف، الأحساء"
+  },
+  {
+    name: "مجمع مدارس المتقدمة - الدمام",
+    subTitle: "فرع المنطقة الشرقية - المسار الأهلي والعالمي",
+    city: "الدمام",
+    track: "أهلي متقدم + عالمي",
+    code: "msc_dammam",
+    address: "الدمام، المنطقة الشرقية"
+  },
+  {
+    name: "مجمع مدارس مناهل البكيرية الأهلية للبنين - البكيرية",
+    subTitle: "فرع منطقة القصيم - المسار الأهلي",
+    city: "البكيرية",
+    track: "أهلي متقدم",
+    code: "msc_buk_manahel_boys",
+    address: "البكيرية، القصيم"
+  },
+  {
+    name: "مجمع مدارس مناهل البكيرية الأهلية للبنات - البكيرية",
+    subTitle: "فرع منطقة القصيم - المسار الأهلي",
+    city: "البكيرية",
+    track: "أهلي متقدم",
+    code: "msc_buk_manahel_girls",
+    address: "البكيرية، القصيم"
+  }
+];
+
 function SuperAdminHome() {
   const { userData, currentUser } = useAuth();
   const { t, isRTL } = useLanguage();
@@ -159,6 +507,59 @@ function SuperAdminHome() {
       unsubC();
     };
   }, [selectedSchoolScope]);
+
+  const [isSeedingSchools, setIsSeedingSchools] = useState(false);
+  const [seedingProgress, setSeedingProgress] = useState(null);
+
+  // Restore / Seed all 43+ Advanced Schools Complexes
+  const handleSeedAllAdvancedSchools = async () => {
+    if (isSeedingSchools) return;
+    if (!window.confirm('هل ترغب في استعادة وإضافة كافة مجمعات وفروع شركة المدارس المتقدمة (43 مجمع تعليمي مستقل) إلى قاعدة البيانات الآن؟')) {
+      return;
+    }
+
+    setIsSeedingSchools(true);
+    setSeedingProgress('جاري فحص المدارس الحالية...');
+    try {
+      const snap = await getDocs(collection(db, 'schools'));
+      const existingNames = new Set(snap.docs.map(d => (d.data().name || '').trim().toLowerCase()));
+
+      let addedCount = 0;
+      let skippedCount = 0;
+
+      for (let i = 0; i < ADVANCED_SCHOOLS_CATALOG.length; i++) {
+        const item = ADVANCED_SCHOOLS_CATALOG[i];
+        setSeedingProgress(`جاري الإضافة (${i + 1}/${ADVANCED_SCHOOLS_CATALOG.length}): ${item.name}`);
+
+        if (existingNames.has(item.name.trim().toLowerCase())) {
+          skippedCount++;
+          continue;
+        }
+
+        await addDoc(collection(db, 'schools'), {
+          name: item.name,
+          subTitle: item.subTitle,
+          city: item.city,
+          track: item.track,
+          code: item.code,
+          address: item.address,
+          isStandalone: true,
+          createdAt: new Date()
+        });
+        existingNames.add(item.name.trim().toLowerCase());
+        addedCount++;
+      }
+
+      setSeedingProgress(null);
+      alert(`تمت استعادة مجمعات شركة المدارس المتقدمة بنجاح!\n• المجمعات الجديدة المضافة: ${addedCount}\n• المجمعات المسجلة مسبقاً: ${skippedCount}`);
+    } catch (err) {
+      console.error('Error seeding schools:', err);
+      alert('حدث خطأ أثناء استعادة المدارس: ' + err.message);
+    } finally {
+      setIsSeedingSchools(false);
+      setSeedingProgress(null);
+    }
+  };
 
   // Handle Add School
   const handleAddSchool = async (e) => {
@@ -1011,16 +1412,42 @@ function SuperAdminHome() {
         </div>
 
         {/* Tab Specific Quick Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {activeTab === 'schools' && (
-            <button 
-              className="btn btn-primary"
-              onClick={() => setShowAddSchoolModal(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
-            >
-              <Plus size={16} />
-              <span>إضافة مدرسة</span>
-            </button>
+            <>
+              <button 
+                className="btn"
+                onClick={handleSeedAllAdvancedSchools}
+                disabled={isSeedingSchools}
+                style={{
+                  background: 'linear-gradient(135deg, #0e7490, #0284c7)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '8px 14px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: isSeedingSchools ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 2px 8px rgba(14, 116, 144, 0.25)'
+                }}
+                title="استعادة وإضافة كافة مجمعات وفروع شركة المدارس المتقدمة"
+              >
+                {isSeedingSchools ? <RefreshCw size={15} className="animate-spin" /> : <Sparkles size={15} color="#fed7aa" />}
+                <span>{isSeedingSchools ? 'جاري الاستعادة...' : 'استعادة مجمعات المدارس المتقدمة (43 مجمع)'}</span>
+              </button>
+
+              <button 
+                className="btn btn-primary"
+                onClick={() => setShowAddSchoolModal(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+              >
+                <Plus size={16} />
+                <span>إضافة مدرسة</span>
+              </button>
+            </>
           )}
 
           {activeTab === 'admins' && (
@@ -1047,21 +1474,64 @@ function SuperAdminHome() {
         </div>
       </div>
 
+      {/* Seeding Progress Notification */}
+      {seedingProgress && (
+        <div style={{
+          background: 'linear-gradient(135deg, #0e7490, #0369a1)',
+          color: '#ffffff',
+          padding: '12px 20px',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          fontWeight: '600',
+          fontSize: '13px',
+          boxShadow: '0 4px 12px rgba(14, 116, 144, 0.3)'
+        }}>
+          <RefreshCw size={18} className="animate-spin" />
+          <span>{seedingProgress}</span>
+        </div>
+      )}
+
       {/* 5. Tab Content Sections */}
 
       {/* Tab 1: المدارس والمجمعات */}
       {activeTab === 'schools' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {filteredSchools.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '48px 24px', textAlign: 'center', background: '#ffffff', borderRadius: '16px' }}>
-              <Building2 size={48} color="#94a3b8" style={{ margin: '0 auto 12px' }} />
-              <h3 style={{ margin: '0 0 6px', color: '#0f172a', fontWeight: 700 }}>لا توجد مدارس مسجلة</h3>
-              <p style={{ margin: '0 0 18px', color: '#64748b', fontSize: '13px' }}>
-                ابدأ بإضافة أول مدرسة أو مجمع تعليمي مستقل للمنظومة الآن.
+            <div className="glass-panel" style={{ padding: '48px 24px', textAlign: 'center', background: '#ffffff', borderRadius: '16px', border: '2px dashed #cbd5e1' }}>
+              <Building2 size={56} color="#0e7490" style={{ margin: '0 auto 12px' }} />
+              <h3 style={{ margin: '0 0 6px', color: '#0f172a', fontWeight: 800, fontSize: '18px' }}>لا توجد مدارس مسجلة حالياً</h3>
+              <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: '14px', maxWidth: '520px', marginInline: 'auto' }}>
+                يمكنك بنقرة زر واحدة استعادة كافة مجمعات وفروع <strong>شركة المدارس المتقدمة</strong> المعتمدة (43 مجمع تعليمي مستقل) مع عناوينها الفرعية ومساراتها التعليمية ومدنها.
               </p>
-              <button className="btn btn-primary" onClick={() => setShowAddSchoolModal(true)}>
-                <Plus size={16} /> إضافة مدرسة جديدة
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <button 
+                  className="btn"
+                  onClick={handleSeedAllAdvancedSchools}
+                  disabled={isSeedingSchools}
+                  style={{
+                    background: 'linear-gradient(135deg, #0e7490, #0284c7)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '10px 22px',
+                    fontWeight: 700,
+                    fontSize: '14px',
+                    cursor: isSeedingSchools ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 14px rgba(14, 116, 144, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {isSeedingSchools ? <RefreshCw size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                  <span>{isSeedingSchools ? 'جاري الاستعادة...' : 'استعادة كافة مجمعات شركة المدارس المتقدمة فوراً (43 مجمع)'}</span>
+                </button>
+                <button className="btn btn-secondary" onClick={() => setShowAddSchoolModal(true)} style={{ padding: '10px 18px', fontSize: '14px' }}>
+                  <Plus size={16} /> إضافة مدرسة يدوياً
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))', gap: '16px' }}>

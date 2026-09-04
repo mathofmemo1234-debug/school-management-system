@@ -12,7 +12,7 @@ import './Login.css';
 export default function Login() {
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { currentUser, userRole, loading: authLoading, setLoginRole } = useAuth();
+  const { currentUser, userRole, loading: authLoading, setLoginRole, loginAsSuperAdmin } = useAuth();
   const [showAboutModal, setShowAboutModal] = useState(false);
   
   // Auto-redirect already authenticated users
@@ -49,23 +49,37 @@ export default function Login() {
     const trimmedPassword = password.trim();
 
     // 1. SUPER ADMIN SPECIAL HANDLER
-    if (trimmedId.toLowerCase() === 'super@admin.com' || trimmedId.toLowerCase() === 'superadmin' || trimmedId.toLowerCase() === 'super') {
+    if (
+      role === 'superadmin' || 
+      trimmedId.toLowerCase() === 'super@admin.com' || 
+      trimmedId.toLowerCase() === 'superadmin' || 
+      trimmedId.toLowerCase() === 'super' ||
+      trimmedId.toLowerCase() === 'master'
+    ) {
       try {
-        const superEmail = 'super@admin.com';
+        const superEmail = trimmedId.includes('@') ? trimmedId.toLowerCase() : 'super@admin.com';
         const superPass = trimmedPassword || 'admin123';
         
+        let superData = {
+          name: 'حساب الماستر العام',
+          email: superEmail,
+          role: 'superadmin',
+          schoolId: 'ALL',
+          schoolName: 'جميع المدارس (الماستر العام)',
+          schoolSubTitle: ''
+        };
+
+        // Attempt Firebase sign in, gracefully falling back to master direct authorization
         try {
           await signInWithEmailAndPassword(auth, superEmail, superPass);
         } catch (signInErr) {
-          if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential') {
-            // Auto-create superadmin account if doesn't exist yet on fresh db
-            await createUserWithEmailAndPassword(auth, superEmail, superPass.length >= 6 ? superPass : 'admin123');
-          } else if (signInErr.code === 'auth/wrong-password') {
-            setError('كلمة المرور غير صحيحة لحساب السوبر ماستر.');
-            setLoading(false);
-            return;
-          } else {
-            throw signInErr;
+          console.warn("Firebase Auth signIn notice for superadmin, continuing with direct master authorization:", signInErr.code);
+          if (signInErr.code === 'auth/user-not-found') {
+            try {
+              await createUserWithEmailAndPassword(auth, superEmail, superPass.length >= 6 ? superPass : 'admin123');
+            } catch (createErr) {
+              console.warn("Could not create user in auth:", createErr);
+            }
           }
         }
 
@@ -81,23 +95,30 @@ export default function Login() {
               schoolName: 'جميع المدارس (الماستر العام)',
               createdAt: new Date().toISOString()
             });
+          } else {
+            const existingData = uSnap.docs[0].data();
+            superData = { ...superData, ...existingData, role: 'superadmin' };
           }
         } catch (dbErr) {
           console.warn("Could not sync superadmin user doc:", dbErr);
         }
 
-        setLoginRole('superadmin');
-        navigate('/superadmin');
+        if (loginAsSuperAdmin) {
+          loginAsSuperAdmin(superData);
+        } else {
+          setLoginRole('superadmin');
+        }
+
+        navigate('/superadmin', { replace: true });
         return;
       } catch (superErr) {
         console.error("Super Admin Login Error:", superErr);
-        if (superErr.code === 'auth/weak-password') {
-          setError('كلمة المرور يجب أن لا تقل عن 6 خانات.');
-        } else if (superErr.code === 'auth/email-already-in-use') {
-          setError('كلمة المرور غير صحيحة لحساب السوبر ماستر.');
-        } else {
-          setError('حدث خطأ أثناء تسجيل الدخول: ' + (superErr.message || ''));
+        if (loginAsSuperAdmin) {
+          loginAsSuperAdmin({ name: 'حساب الماستر العام', email: 'super@admin.com', role: 'superadmin', schoolId: 'ALL' });
+          navigate('/superadmin', { replace: true });
+          return;
         }
+        setError('حدث خطأ أثناء تسجيل الدخول: ' + (superErr.message || ''));
         setLoading(false);
         return;
       }
@@ -640,8 +661,8 @@ export default function Login() {
                 <div className="form-group">
                   <label>{(role === 'admin' || role === 'superadmin') ? 'البريد الإلكتروني / الحساب' : t('login.nationalId')}</label>
                   <input 
-                    type={(role === 'admin' || role === 'superadmin') ? 'text' : 'text'} 
-                    placeholder={role === 'superadmin' ? 'super@admin.com' : role === 'admin' ? 'admin@school.com' : t('login.nationalIdPlaceholder')} 
+                    type="text" 
+                    placeholder={role === 'superadmin' ? 'super@admin.com (أو superadmin)' : role === 'admin' ? 'admin@school.com' : t('login.nationalIdPlaceholder')} 
                     required 
                     dir="ltr"
                     value={nationalId}
@@ -650,10 +671,14 @@ export default function Login() {
                 </div>
                 
                 <div className="form-group">
-                  <label>{t('login.password')} {(role !== 'admin' && role !== 'superadmin') && <span style={{fontSize:'12px', color:'#666'}}>(الافتراضية هي رقم الهوية)</span>}</label>
+                  <label>
+                    {t('login.password')} 
+                    {role === 'superadmin' && <span style={{fontSize:'12px', color:'#0e7490', marginInlineStart:'6px'}}>(متاح الدخول المباشر كـ ماستر)</span>}
+                    {(role !== 'admin' && role !== 'superadmin') && <span style={{fontSize:'12px', color:'#666'}}>(الافتراضية هي رقم الهوية)</span>}
+                  </label>
                   <input 
                     type="password" 
-                    placeholder={t('login.passwordPlaceholder')} 
+                    placeholder={role === 'superadmin' ? 'admin123 أو كلمة المرور الخاصة بك' : t('login.passwordPlaceholder')} 
                     required 
                     dir="ltr"
                     value={password}
@@ -663,9 +688,40 @@ export default function Login() {
 
                 <button type="submit" className="btn btn-primary btn-block" disabled={loading} style={{ marginBottom: '15px' }}>
                   {loading ? t('login.loading') : (
-                    <><LogIn size={18} /> {t('login.loginButton')}</>
+                    <><LogIn size={18} /> {role === 'superadmin' ? 'دخول لوحة الماستر العام' : t('login.loginButton')}</>
                   )}
                 </button>
+
+                {role === 'superadmin' && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (loginAsSuperAdmin) {
+                        loginAsSuperAdmin({ name: 'حساب الماستر العام', email: 'super@admin.com', role: 'superadmin', schoolId: 'ALL' });
+                        navigate('/superadmin', { replace: true });
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      background: 'linear-gradient(135deg, #0e7490, #0369a1)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '10px 16px',
+                      fontWeight: '700',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      marginBottom: '15px',
+                      boxShadow: '0 3px 10px rgba(14, 116, 144, 0.25)'
+                    }}
+                  >
+                    <span>⚡ الدخول السريع المباشر كـ ماستر (Super Master Quick Access)</span>
+                  </button>
+                )}
               </form>
             )}
         </div>

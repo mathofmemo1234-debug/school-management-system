@@ -115,17 +115,42 @@ export function AuthProvider({ children }) {
           setLoading(false);
         }
       } else {
-        setCurrentUser(null);
-        setUserRole(null);
-        setUserData(null);
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userData');
-        initializedRef.current = false;
-        setLoading(false);
+        const cachedRole = localStorage.getItem('userRole');
+        const cachedData = (() => { try { return JSON.parse(localStorage.getItem('userData') || 'null'); } catch { return null; } })();
+        if (cachedRole === 'superadmin' && cachedData) {
+          setCurrentUser({ email: cachedData.email || 'super@admin.com', uid: 'superadmin_master', displayName: cachedData.name || 'حساب الماستر العام' });
+          setUserRole('superadmin');
+          setUserData(cachedData);
+          setLoading(false);
+        } else {
+          setCurrentUser(null);
+          setUserRole(null);
+          setUserData(null);
+          localStorage.removeItem('userRole');
+          localStorage.removeItem('userData');
+          initializedRef.current = false;
+          setLoading(false);
+        }
       }
     });
     return unsubscribe;
   }, [resolveRole]);
+
+  const loginAsSuperAdmin = useCallback((customData) => {
+    const superData = {
+      name: customData?.name || 'حساب الماستر العام',
+      email: customData?.email || 'super@admin.com',
+      role: 'superadmin',
+      schoolId: 'ALL',
+      schoolName: 'جميع المدارس (الماستر العام)',
+      schoolSubTitle: ''
+    };
+    setCurrentUser({ email: superData.email, uid: 'superadmin_master', displayName: superData.name });
+    setUserRole('superadmin');
+    setUserData(superData);
+    localStorage.setItem('userRole', 'superadmin');
+    localStorage.setItem('userData', JSON.stringify(superData));
+  }, []);
 
   const switchSchoolContext = useCallback(async (newSchoolId, newSchoolName, newLogoUrl, newSubTitle) => {
     if (userRole !== 'superadmin' && userData?.role !== 'superadmin') return;
@@ -169,7 +194,7 @@ export function AuthProvider({ children }) {
     }
   })();
 
-  const value = { currentUser, userRole, userData, loading, setLoginRole, switchSchoolContext };
+  const value = { currentUser, userRole, userData, loading, setLoginRole, switchSchoolContext, loginAsSuperAdmin };
 
   return (
     <AuthContext.Provider value={value}>

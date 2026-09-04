@@ -32,7 +32,7 @@ export const translations = {
     "sidebar.studentPreparations": "عرض التحاضير",
     "sidebar.noorSystem": "بوابة نظام نور",
     "sidebar.logout": "تسجيل الخروج",
-    "login.title": "بوابة مدرسة النور للتعلم الذكي والإدارة المدرسية",
+    "login.title": "بوابة شركة المدارس المتقدمة للتعلم الذكي والإدارة المدرسية",
     "login.signupSubtitle": "إنشاء حساب جديد",
     "login.loginSubtitle": "بوابة الدخول الموحدة",
     "login.error": "يوجد خطأ في البيانات",
