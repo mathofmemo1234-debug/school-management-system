@@ -21,8 +21,16 @@ import AchievementPortfolioPage from './AchievementPortfolioPage';
 import SchoolMessagingHub from './SchoolMessagingHub';
 import SchoolExcellenceDashboard from './SchoolExcellenceDashboard';
 
-// Comprehensive Official Catalog for MSC (شركة المدارس المتقدمة)
+// Comprehensive Official Catalog for MSC (شركة المدارس المتقدمة) & Al-Noor School
 const ADVANCED_SCHOOLS_CATALOG = [
+  {
+    name: "مجمع مدارس النور الأهلية للتعلم الذكي",
+    subTitle: "فرع مجمع النور - المسار الأهلي المتقدم",
+    city: "جدة",
+    track: "أهلي متقدم + STEM",
+    code: "al_noor_main",
+    address: "جدة، المملكة العربية السعودية"
+  },
   {
     name: "مجمع مدارس المتقدمة للتعلم الذكي للبنين - جدة",
     subTitle: "فرع حي الزهراء - المسار الأهلي والدبلومة الأمريكية",

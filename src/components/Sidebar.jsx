@@ -8,15 +8,24 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Sidebar({ role }) {
   const navigate = useNavigate();
-  const { userData } = useAuth();
+  const { userData, logout } = useAuth();
   const { t } = useLanguage();
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
-      navigate('/login');
+      if (logout) {
+        await logout();
+      } else {
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userData');
+        await signOut(auth);
+      }
+      navigate('/login', { replace: true });
     } catch (error) {
       console.error('Logout error', error);
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userData');
+      navigate('/login', { replace: true });
     }
   };
 

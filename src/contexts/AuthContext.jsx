@@ -115,26 +115,37 @@ export function AuthProvider({ children }) {
           setLoading(false);
         }
       } else {
-        const cachedRole = localStorage.getItem('userRole');
-        const cachedData = (() => { try { return JSON.parse(localStorage.getItem('userData') || 'null'); } catch { return null; } })();
-        if (cachedRole === 'superadmin' && cachedData) {
-          setCurrentUser({ email: cachedData.email || 'super@admin.com', uid: 'superadmin_master', displayName: cachedData.name || 'حساب الماستر العام' });
-          setUserRole('superadmin');
-          setUserData(cachedData);
-          setLoading(false);
-        } else {
-          setCurrentUser(null);
-          setUserRole(null);
-          setUserData(null);
-          localStorage.removeItem('userRole');
-          localStorage.removeItem('userData');
-          initializedRef.current = false;
-          setLoading(false);
-        }
+        // When user is not authenticated or logged out
+        setCurrentUser(null);
+        setUserRole(null);
+        setUserData(null);
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userData');
+        initializedRef.current = false;
+        setLoading(false);
       }
     });
     return unsubscribe;
   }, [resolveRole]);
+
+  const logout = useCallback(async () => {
+    try {
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userData');
+      setCurrentUser(null);
+      setUserRole(null);
+      setUserData(null);
+      initializedRef.current = false;
+      await signOut(auth);
+    } catch (e) {
+      console.warn('Error in logout:', e);
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userData');
+      setCurrentUser(null);
+      setUserRole(null);
+      setUserData(null);
+    }
+  }, []);
 
   const loginAsSuperAdmin = useCallback((customData) => {
     const superData = {
@@ -194,7 +205,7 @@ export function AuthProvider({ children }) {
     }
   })();
 
-  const value = { currentUser, userRole, userData, loading, setLoginRole, switchSchoolContext, loginAsSuperAdmin };
+  const value = { currentUser, userRole, userData, loading, setLoginRole, switchSchoolContext, loginAsSuperAdmin, logout };
 
   return (
     <AuthContext.Provider value={value}>
