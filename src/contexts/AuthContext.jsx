@@ -78,6 +78,7 @@ export function AuthProvider({ children }) {
         if (data.role==='staff'){try{const sfQ=query(collection(db,'staff'),where('nationalId','==',nid));const sfS=await getDocs(sfQ);if(!sfS.empty){const sfd=sfS.docs[0].data();data.roleTitle=sfd.roleTitle||data.roleTitle||'';data.permissions=sfd.permissions||data.permissions||[];if(sfd.name)data.name=sfd.name;}}catch(e){}}
         if (data.role==='student'){try{const stQ=query(collection(db,'students'),where('nationalId','==',nid));const stS=await getDocs(stQ);if(!stS.empty){const std=stS.docs[0].data();data.class=std.class||std.className||data.class||'';if(std.name)data.name=std.name;}}catch(e){}}
         if (data.role==='supervisor'){try{const spQ=query(collection(db,'supervisors'),where('nationalId','==',nid));const spS=await getDocs(spQ);if(!spS.empty){const spd=spS.docs[0].data();data.specialty=spd.specialty||data.specialty||'';if(spd.name)data.name=spd.name;}}catch(e){}}
+        if (data.role==='superadmin'){data.schoolId = data.schoolId || 'ALL'; if(!data.name) data.name='الماستر العام';}
         if (data.schoolId && data.schoolId!=='ALL'){try{const sd=await getDoc(doc(db,'schools',data.schoolId));if(sd.exists()){data.schoolName=sd.data().name;data.logoUrl=sd.data().logoUrl||null;}}catch(e){}}
         setUserRole(data.role);
         setUserData(data);
@@ -126,6 +127,33 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, [resolveRole]);
 
+  const switchSchoolContext = useCallback(async (newSchoolId, newSchoolName, newLogoUrl) => {
+    if (userRole !== 'superadmin' && userData?.role !== 'superadmin') return;
+    
+    if (newSchoolId === 'ALL' || !newSchoolId) {
+      const updated = { ...userData, schoolId: 'ALL', schoolName: 'جميع المدارس (الماستر العام)', logoUrl: null, activePreviewSchoolId: null };
+      setUserData(updated);
+      localStorage.setItem('userData', JSON.stringify(updated));
+    } else {
+      let sName = newSchoolName;
+      let sLogo = newLogoUrl;
+      if (!sName) {
+        try {
+          const sd = await getDoc(doc(db, 'schools', newSchoolId));
+          if (sd.exists()) {
+            sName = sd.data().name;
+            sLogo = sd.data().logoUrl || null;
+          }
+        } catch (e) {
+          console.warn('Error fetching school data in switchSchoolContext:', e);
+        }
+      }
+      const updated = { ...userData, schoolId: newSchoolId, schoolName: sName || 'المدرسة المحددة', logoUrl: sLogo || null, activePreviewSchoolId: newSchoolId };
+      setUserData(updated);
+      localStorage.setItem('userData', JSON.stringify(updated));
+    }
+  }, [userRole, userData]);
+
   const setLoginRole = useCallback((role) => {
     setUserRole(role);
     localStorage.setItem('userRole', role);
@@ -139,7 +167,7 @@ export function AuthProvider({ children }) {
     }
   })();
 
-  const value = { currentUser, userRole, userData, loading, setLoginRole };
+  const value = { currentUser, userRole, userData, loading, setLoginRole, switchSchoolContext };
 
   return (
     <AuthContext.Provider value={value}>
@@ -150,7 +178,7 @@ export function AuthProvider({ children }) {
             {cachedUserData?.name ? `مرحباً بعودتك، ${cachedUserData.name}` : 'مرحباً بعودتك'}
           </h2>
           <p style={{ margin:0, color:'#4A93A6', fontWeight:600, fontSize:'1.05rem' }}>
-            في {cachedUserData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي'}
+            في {cachedUserData?.schoolName || 'المنظومة التعليمية الذكية'}
           </p>
         </div>
       ) : children}

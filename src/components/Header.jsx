@@ -124,6 +124,34 @@ export default function Header({ title, role }) {
       <div className="header-title">{title}</div>
       
       <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {(userData?.role === 'superadmin' || userRole === 'superadmin') && effectiveRole !== 'superadmin' && (
+          <button
+            className="btn"
+            onClick={async () => {
+              if (switchSchoolContext) await switchSchoolContext('ALL');
+              navigate('/superadmin');
+            }}
+            style={{
+              background: 'linear-gradient(135deg, #0e7490, #0369a1)',
+              color: '#ffffff',
+              borderRadius: '20px',
+              padding: '6px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              border: 'none',
+              boxShadow: '0 2px 8px rgba(14, 116, 144, 0.3)'
+            }}
+            title="العودة إلى لوحة الماستر العام المركزية"
+          >
+            <ShieldCheck size={16} />
+            <span>لوحة الماستر العام</span>
+          </button>
+        )}
+
         <button 
           className="btn" 
           onClick={toggleLanguage}

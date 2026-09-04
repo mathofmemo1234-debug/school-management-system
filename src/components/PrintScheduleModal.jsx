@@ -63,8 +63,8 @@ export default function PrintScheduleModal({
   
   const [isColorMode, setIsColorMode] = useState(true);
 
-  const schoolName = userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي';
-  const principalName = userData?.principalName || 'أنس الجهني';
+  const schoolName = userData?.schoolName || 'المجمع التعليمي';
+  const principalName = userData?.principalName || 'إدارة المدرسة';
 
   // Lookup Maps
   const teacherMap = useMemo(() => {

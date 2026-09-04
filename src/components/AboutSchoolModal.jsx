@@ -4,11 +4,17 @@ import {
   Sparkles, CheckCircle2, MapPin, Compass, Users, Phone 
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function AboutSchoolModal({ isOpen, onClose }) {
   const { isRTL } = useLanguage();
+  const { userData } = useAuth();
 
   if (!isOpen) return null;
+
+  const currentSchoolName = userData?.schoolName && userData.schoolName !== 'ALL' 
+    ? userData.schoolName 
+    : 'منظومة المدارس الذكية المتكاملة';
 
   return (
     <div 
@@ -112,14 +118,18 @@ export default function AboutSchoolModal({ isOpen, onClose }) {
               justifyContent: 'center',
               border: '1px solid rgba(255, 255, 255, 0.3)'
             }}>
-              <Building2 size={28} color="#ffffff" />
+              {userData?.logoUrl ? (
+                <img src={userData.logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              ) : (
+                <Building2 size={28} color="#ffffff" />
+              )}
             </div>
             <div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.85)', letterSpacing: '0.5px' }}>
-                المملكة العربية السعودية • صرح تعليمي رائد
+                المملكة العربية السعودية • بيئة تعليمية ذكية متكاملة
               </div>
               <h2 style={{ margin: '2px 0 0 0', fontSize: '22px', fontWeight: 800, color: '#ffffff' }}>
-                شركة المدارس المتقدمة (MSC)
+                {currentSchoolName}
               </h2>
             </div>
           </div>
@@ -128,7 +138,7 @@ export default function AboutSchoolModal({ isOpen, onClose }) {
         {/* Introduction Text */}
         <div style={{ marginBottom: '22px', lineHeight: 1.7, color: '#334155', fontSize: '14px' }}>
           <p style={{ margin: 0, fontWeight: 500 }}>
-            تُعد <strong>شركة المدارس المتقدمة</strong> إحدى كبرى المنظومات والمؤسسات التعليمية الرائدة في المملكة العربية السعودية منذ تأسيسها عام <strong>1416هـ (1995م)</strong>، حيث تقدم نموذجاً تعليمياً متميزاً ومنافساً يجمع بين الأصالة والحداثة، وترعى آلاف الطلاب والطالبات عبر مجمعاتها وفروعها المتكاملة في مختلف مدن المملكة.
+            تُعد <strong>{currentSchoolName}</strong> صرحاً تعليمياً متميزاً يقدم نموذجاً تعليمياً وإدارياً رائداً يجمع بين الأصالة وأحدث التقنيات والتحول الرقمي، موفراً للطلاب والطالبات والمعلمين بيئة تفاعلية محفزة على الإبداع والتميز الأكاديمي.
           </p>
         </div>
 

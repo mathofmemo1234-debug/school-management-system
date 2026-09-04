@@ -79,7 +79,7 @@ export default function AchievementPortfolioPage({ targetRole, targetUser }) {
               } else if (item.key === 'nationalId') {
                 initialData[domain.id][item.key] = effectiveUser.nationalId || '';
               } else if (item.key === 'schoolName') {
-                initialData[domain.id][item.key] = effectiveUser.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي';
+                initialData[domain.id][item.key] = effectiveUser.schoolName || 'المجمع التعليمي';
               } else if (item.key === 'specialty' && effectiveUser.subject) {
                 initialData[domain.id][item.key] = effectiveUser.subject;
               } else if (item.key === 'roleTitle' && effectiveUser.roleTitle) {

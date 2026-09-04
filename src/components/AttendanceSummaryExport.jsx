@@ -1290,8 +1290,8 @@ export default function AttendanceSummaryExport({ schoolId }) {
               <div style={{ textAlign: 'right', fontSize: '12px', lineHeight: '1.6' }}>
                 <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#0e7490' }}>المملكة العربية السعودية</div>
                 <div>وزارة التعليم</div>
-                <div>الإدارة العامة للتعليم بمحافظة جدة</div>
-                <div style={{ fontWeight: 'bold' }}>{userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي'}</div>
+                <div>إدارة التعليم</div>
+                <div style={{ fontWeight: 'bold' }}>{userData?.schoolName || 'المجمع التعليمي'}</div>
               </div>
 
               <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>

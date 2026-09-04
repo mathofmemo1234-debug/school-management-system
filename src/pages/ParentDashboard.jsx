@@ -233,7 +233,7 @@ function ParentStudentPortfolio() {
     name: userData?.studentName || 'الطالب',
     nationalId: userData?.studentNationalId || '',
     class: userData?.studentClass || '',
-    schoolName: userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي'
+    schoolName: userData?.schoolName || 'المجمع التعليمي'
   };
   return <AchievementPortfolioPage targetRole="student" targetUser={studentUser} />;
 }

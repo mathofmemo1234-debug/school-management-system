@@ -25,7 +25,7 @@ export default function Layout({ role, title, children }) {
         type="button"
         className="floating-about-btn"
         onClick={() => setShowAboutModal(true)}
-        title="عن شركة المدارس المتقدمة (MSC) - من نحن"
+        title="عن المدرسة والمنظومة التعليمية - من نحن"
       >
         <span className="flash-dot-indicator" />
         <Building2 size={18} className="flash-icon" />

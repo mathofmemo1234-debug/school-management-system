@@ -41,11 +41,11 @@ export default function PrintPortfolioModal({
   );
 
   const [customSchoolName, setCustomSchoolName] = useState(
-    schoolName || userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي'
+    schoolName || userData?.schoolName || 'المجمع التعليمي'
   );
   const [academicYear, setAcademicYear] = useState('1447 - 1448 هـ');
   const [personName, setPersonName] = useState(userData?.name || portfolioData?.profile?.fullName || 'عضو الكادر التعليمي');
-  const [principalName, setPrincipalName] = useState(userData?.principalName || 'أنس الجهني');
+  const [principalName, setPrincipalName] = useState(userData?.principalName || 'إدارة المدرسة');
   const [supervisorName, setSupervisorName] = useState('المشرف التربوي المعتمد');
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'settings'
 

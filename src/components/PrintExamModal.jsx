@@ -17,7 +17,7 @@ export default function PrintExamModal({
   const [semesterTitle, setSemesterTitle] = useState('الفصل الدراسي الثاني');
   const [academicYear, setAcademicYear] = useState('1447 - 1448 هـ');
 
-  const schoolName = userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي';
+  const schoolName = userData?.schoolName || 'المجمع التعليمي';
   const logoUrl = userData?.logoUrl || `${import.meta.env.BASE_URL}logo.webp`;
   const teacherName = userData?.name || exam?.teacherName || 'معلم المادة';
 

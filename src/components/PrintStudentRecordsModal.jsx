@@ -10,8 +10,8 @@ export default function PrintStudentRecordsModal({ students = [], classesList = 
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('list'); // 'list' (كشف مجمع) | 'cards' (بطاقات فردية)
 
-  const schoolName = userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي';
-  const principalName = userData?.principalName || 'أنس الجهني';
+  const schoolName = userData?.schoolName || 'المجمع التعليمي';
+  const principalName = userData?.principalName || 'إدارة المدرسة';
 
   const filteredStudents = useMemo(() => {
     return students.filter(s => {

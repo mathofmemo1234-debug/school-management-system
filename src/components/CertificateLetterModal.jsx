@@ -23,10 +23,8 @@ export default function CertificateLetterModal({ person, type = 'student', onClo
   const [schoolYear, setSchoolYear] = useState('1447 / 1448 هـ - 2026 م');
   const [nationality, setNationality] = useState(person.nationality || 'سعودي');
 
-  if (!person) return null;
-
-  const schoolName = userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي';
-  const principalName = userData?.principalName || (userData?.role === 'admin' ? userData?.name : 'أنس الجهني');
+  const schoolName = userData?.schoolName || 'المجمع التعليمي';
+  const principalName = userData?.principalName || (userData?.role === 'admin' ? userData?.name : 'إدارة المدرسة');
   
   const finalRecipient = recipient === 'مخصص' ? (customRecipient || 'إلى من يهمه الأمر') : recipient;
 
@@ -446,8 +444,8 @@ export default function CertificateLetterModal({ person, type = 'student', onClo
                 transform: 'rotate(-8deg)'
               }}>
                 <div>الختم الرسمي</div>
-                <div style={{ fontSize: '9px', marginTop: '2px' }}>مجمع المدارس المتقدمة</div>
-                <div style={{ fontSize: '8px' }}>معتمد وزارياً</div>
+                <div style={{ fontSize: '9px', marginTop: '2px' }}>{schoolName}</div>
+                <div style={{ fontSize: '8px' }}>معتمد رسمياً</div>
               </div>
             </div>
 

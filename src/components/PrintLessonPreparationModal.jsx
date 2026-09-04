@@ -8,8 +8,8 @@ export default function PrintLessonPreparationModal({ prep, onClose }) {
   const { userData } = useAuth();
   if (!prep) return null;
 
-  const schoolName = userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي';
-  const principalName = userData?.principalName || 'أنس الجهني';
+  const schoolName = userData?.schoolName || 'المجمع التعليمي';
+  const principalName = userData?.principalName || 'إدارة المدرسة';
 
   const handlePrint = () => {
     window.print();
