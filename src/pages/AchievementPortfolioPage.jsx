@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  collection, 
+  query, 
+  where, 
+  onSnapshot 
+} from 'firebase/firestore';
 import { 
   Award, 
   Printer, 
@@ -18,12 +26,53 @@ import {
   Building,
   CheckCircle2,
   Layers,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Search,
+  Users,
+  GraduationCap,
+  Briefcase,
+  ShieldCheck,
+  Zap,
+  RefreshCw,
+  Clock,
+  ArrowRight
 } from 'lucide-react';
 import { DEFAULT_PORTFOLIO_DOMAINS, PORTFOLIO_ROLES } from '../data/portfolioData';
 import PrintPortfolioModal from '../components/PrintPortfolioModal';
 
 export default function AchievementPortfolioPage({ targetRole, targetUser }) {
+  const { currentUser, userRole, userData } = useAuth();
+  
+  const [selectedTargetUser, setSelectedTargetUser] = useState(targetUser || null);
+  const [selectedTargetRole, setSelectedTargetRole] = useState(targetRole || null);
+
+  const isAdminView = (userRole === 'admin' || userRole === 'superadmin') && !targetUser && !selectedTargetUser;
+
+  if (isAdminView) {
+    return (
+      <AdminPortfoliosHub 
+        schoolId={userData?.schoolId || 'default_school_1'} 
+        onSelectUser={(u, r) => {
+          setSelectedTargetUser(u);
+          setSelectedTargetRole(r);
+        }}
+      />
+    );
+  }
+
+  return (
+    <PortfolioEditor 
+      targetRole={selectedTargetRole || targetRole} 
+      targetUser={selectedTargetUser || targetUser}
+      onBackToHub={((userRole === 'admin' || userRole === 'superadmin') && selectedTargetUser) ? () => {
+        setSelectedTargetUser(null);
+        setSelectedTargetRole(null);
+      } : null}
+    />
+  );
+}
+
+function PortfolioEditor({ targetRole, targetUser, onBackToHub }) {
   const { currentUser, userRole, userData } = useAuth();
   
   // Effective role and user
@@ -60,8 +109,14 @@ export default function AchievementPortfolioPage({ targetRole, targetUser }) {
           try {
             const docRef = doc(db, 'portfolios', `${effectiveRole}_${userId}`);
             const snap = await getDoc(docRef);
-            if (snap.exists()) {
+            if (snap.exists() && snap.data()?.portfolioData) {
               initialData = snap.data().portfolioData;
+            } else if (effectiveUser?.nationalId) {
+              const docRef2 = doc(db, 'portfolios', `${effectiveRole}_${effectiveUser.nationalId}`);
+              const snap2 = await getDoc(docRef2);
+              if (snap2.exists() && snap2.data()?.portfolioData) {
+                initialData = snap2.data().portfolioData;
+              }
             }
           } catch (e) {
             console.warn('Firestore load portfolio warning:', e);
@@ -79,7 +134,7 @@ export default function AchievementPortfolioPage({ targetRole, targetUser }) {
               } else if (item.key === 'nationalId') {
                 initialData[domain.id][item.key] = effectiveUser.nationalId || '';
               } else if (item.key === 'schoolName') {
-                initialData[domain.id][item.key] = effectiveUser.schoolName || 'المجمع التعليمي';
+                initialData[domain.id][item.key] = effectiveUser.schoolName || userData?.schoolName || 'المجمع التعليمي';
               } else if (item.key === 'specialty' && effectiveUser.subject) {
                 initialData[domain.id][item.key] = effectiveUser.subject;
               } else if (item.key === 'roleTitle' && effectiveUser.roleTitle) {
@@ -106,7 +161,7 @@ export default function AchievementPortfolioPage({ targetRole, targetUser }) {
     }
 
     loadPortfolio();
-  }, [effectiveRole, userId, defaultDomains]);
+  }, [effectiveRole, userId, defaultDomains, effectiveUser, userData]);
 
   // Save changes
   const handleSave = async () => {
@@ -117,14 +172,28 @@ export default function AchievementPortfolioPage({ targetRole, targetUser }) {
 
       if (db) {
         try {
-          const docRef = doc(db, 'portfolios', `${effectiveRole}_${userId}`);
-          await setDoc(docRef, {
+          const payload = {
             portfolioData,
             role: effectiveRole,
             userId,
+            nationalId: effectiveUser.nationalId || userData?.nationalId || '',
+            userName: effectiveUser.name || userData?.name || '',
+            schoolId: effectiveUser.schoolId || userData?.schoolId || '',
+            schoolName: effectiveUser.schoolName || userData?.schoolName || '',
+            subject: effectiveUser.subject || portfolioData?.profile?.specialty || '',
+            className: effectiveUser.className || effectiveUser.class || portfolioData?.profile?.class || '',
+            roleTitle: effectiveUser.roleTitle || '',
             updatedAt: new Date().toISOString(),
-            userName: effectiveUser.name || ''
-          }, { merge: true });
+            isCompleted: true
+          };
+
+          const docRef = doc(db, 'portfolios', `${effectiveRole}_${userId}`);
+          await setDoc(docRef, payload, { merge: true });
+
+          if (effectiveUser.nationalId && effectiveUser.nationalId !== userId) {
+            const docRef2 = doc(db, 'portfolios', `${effectiveRole}_${effectiveUser.nationalId}`);
+            await setDoc(docRef2, payload, { merge: true });
+          }
         } catch (e) {
           console.warn('Firestore save warning:', e);
         }
@@ -289,6 +358,29 @@ export default function AchievementPortfolioPage({ targetRole, targetUser }) {
       }}>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {onBackToHub && (
+            <button
+              onClick={onBackToHub}
+              style={{
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: '#0e7490',
+                fontWeight: 'bold',
+                fontSize: '0.88rem',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
+              }}
+              title="العودة إلى مركز القيادة والمتابعة"
+            >
+              <ArrowRight size={18} />
+              <span>العودة للمركز</span>
+            </button>
+          )}
           <div style={{
             background: 'linear-gradient(135deg, #0e7490, #0284c7)',
             padding: '14px',
@@ -679,8 +771,625 @@ export default function AchievementPortfolioPage({ targetRole, targetUser }) {
           role={effectiveRole}
           userData={effectiveUser}
           portfolioData={portfolioData}
-          schoolName={effectiveUser.schoolName}
+          schoolName={effectiveUser.schoolName || userData?.schoolName}
           onClose={() => setShowPrintModal(false)}
+        />
+      )}
+
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
+// 1. Admin & Principal Real-time Portfolios Command Center Hub
+// -------------------------------------------------------------
+function AdminPortfoliosHub({ schoolId, onSelectUser }) {
+  const { userData } = useAuth();
+  const [activeTab, setActiveTab] = useState('teachers'); // 'teachers' | 'students' | 'staff' | 'supervisors' | 'admin_personal'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterClassOrSubj, setFilterClassOrSubj] = useState('');
+  
+  // Real-time collections state
+  const [teachers, setTeachers] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
+  const [portfoliosMap, setPortfoliosMap] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  // Printing modal state
+  const [printingPerson, setPrintingPerson] = useState(null);
+  const [printingRole, setPrintingRole] = useState('teacher');
+
+  // Real-time Firestore Listeners
+  useEffect(() => {
+    if (!schoolId) return;
+    setLoading(true);
+
+    const qTeachers = query(collection(db, 'teachers'), where('schoolId', '==', schoolId));
+    const qStudents = query(collection(db, 'students'), where('schoolId', '==', schoolId));
+    const qStaff = query(collection(db, 'staff'), where('schoolId', '==', schoolId));
+    const qSupervisors = query(collection(db, 'supervisors'), where('schoolId', '==', schoolId));
+    const qPortfolios = collection(db, 'portfolios');
+
+    const unsubTeachers = onSnapshot(qTeachers, (snap) => {
+      setTeachers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const unsubStudents = onSnapshot(qStudents, (snap) => {
+      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const unsubStaff = onSnapshot(qStaff, (snap) => {
+      setStaff(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const unsubSupervisors = onSnapshot(qSupervisors, (snap) => {
+      setSupervisors(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const unsubPortfolios = onSnapshot(qPortfolios, (snap) => {
+      const map = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        map[d.id] = data;
+        if (data.nationalId) map[data.nationalId] = data;
+        if (data.userId) map[data.userId] = data;
+      });
+      setPortfoliosMap(map);
+      setLoading(false);
+    });
+
+    return () => {
+      unsubTeachers();
+      unsubStudents();
+      unsubStaff();
+      unsubSupervisors();
+      unsubPortfolios();
+    };
+  }, [schoolId]);
+
+  // Helper to check if a user has a saved live portfolio
+  const getPortfolioStatus = (role, user) => {
+    const key1 = `${role}_${user.id}`;
+    const key2 = `${role}_${user.nationalId}`;
+    const key3 = user.nationalId ? String(user.nationalId).trim() : null;
+    const key4 = user.id;
+
+    const entry = portfoliosMap[key1] || portfoliosMap[key2] || (key3 ? portfoliosMap[key3] : null) || portfoliosMap[key4];
+    return entry || null;
+  };
+
+  // Compute Metrics
+  const teacherPortfoliosCount = teachers.filter(t => getPortfolioStatus('teacher', t)).length;
+  const studentPortfoliosCount = students.filter(s => getPortfolioStatus('student', s)).length;
+  const staffPortfoliosCount = staff.filter(s => getPortfolioStatus('staff', s)).length;
+  const supervisorPortfoliosCount = supervisors.filter(s => getPortfolioStatus('supervisor', s)).length;
+
+  // Filter lists based on tab and search
+  const currentList = useMemo(() => {
+    let list = [];
+    if (activeTab === 'teachers') list = teachers;
+    else if (activeTab === 'students') list = students;
+    else if (activeTab === 'staff') list = staff;
+    else if (activeTab === 'supervisors') list = supervisors;
+
+    return list.filter(item => {
+      const matchSearch = !searchQuery.trim() || 
+        (item.name && item.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.nationalId && item.nationalId.includes(searchQuery)) ||
+        (item.subject && item.subject.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.class && item.class.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.className && item.className.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.roleTitle && item.roleTitle.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchFilter = !filterClassOrSubj || 
+        (item.class === filterClassOrSubj || item.className === filterClassOrSubj || item.subject === filterClassOrSubj);
+
+      return matchSearch && matchFilter;
+    });
+  }, [activeTab, teachers, students, staff, supervisors, searchQuery, filterClassOrSubj]);
+
+  // Unique Classes or Subjects for Filter Dropdown
+  const filterOptions = useMemo(() => {
+    if (activeTab === 'students') {
+      return Array.from(new Set(students.map(s => s.class || s.className).filter(Boolean)));
+    }
+    if (activeTab === 'teachers') {
+      return Array.from(new Set(teachers.map(t => t.subject).filter(Boolean)));
+    }
+    return [];
+  }, [activeTab, students, teachers]);
+
+  const formatUpdateTime = (isoString) => {
+    if (!isoString) return 'غير محدد';
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleDateString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return isoString;
+    }
+  };
+
+  return (
+    <div className="page-container animate-fade-in" style={{ paddingBottom: '60px' }} dir="rtl">
+      
+      {/* Hub Top Banner */}
+      <div className="glass-panel" style={{
+        padding: '24px 30px',
+        borderRadius: '20px',
+        marginBottom: '24px',
+        background: 'linear-gradient(135deg, rgba(14, 116, 144, 0.12), rgba(99, 178, 198, 0.2))',
+        border: '1px solid rgba(14, 116, 144, 0.25)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #0e7490, #0284c7)',
+            padding: '16px',
+            borderRadius: '16px',
+            color: '#fff',
+            display: 'flex',
+            boxShadow: '0 8px 20px rgba(14, 116, 144, 0.3)'
+          }}>
+            <Award size={36} />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', color: '#0f172a' }}>
+                مركز القيادة والمتابعة اللحظية لملفات الإنجاز (E-Portfolio Hub)
+              </h1>
+              <span style={{
+                background: '#ecfdf5',
+                color: '#065f46',
+                border: '1px solid #a7f3d0',
+                padding: '3px 10px',
+                borderRadius: '12px',
+                fontSize: '0.8rem',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}>
+                <Zap size={13} /> نفاذية ومزامنة لحظية مباشرة
+              </span>
+            </div>
+            <p style={{ margin: '6px 0 0 0', color: '#475569', fontSize: '0.92rem' }}>
+              الاطلاع الفوري، المتابعة، والتوثيق المعتمد لكافة ملفات إنجاز المعلمين والطلاب والكادر التعليمي والإداري.
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Personal Portfolio Action */}
+        <button
+          onClick={() => setActiveTab('admin_personal')}
+          className="btn"
+          style={{
+            background: activeTab === 'admin_personal' ? '#0f172a' : '#ffffff',
+            color: activeTab === 'admin_personal' ? '#ffffff' : '#0e7490',
+            border: '1px solid rgba(14, 116, 144, 0.3)',
+            padding: '10px 18px',
+            borderRadius: '12px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+          }}
+        >
+          <Award size={18} />
+          <span>ملف إنجاز الإدارة والقيادة الخاص بي</span>
+        </button>
+      </div>
+
+      {/* Metric Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '16px',
+        marginBottom: '24px'
+      }}>
+        {/* Teachers Metric */}
+        <div 
+          onClick={() => setActiveTab('teachers')}
+          style={{
+            background: activeTab === 'teachers' ? 'linear-gradient(135deg, #eff6ff, #dbeafe)' : '#ffffff',
+            border: activeTab === 'teachers' ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '16px 20px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#1e40af' }}>ملفات إنجاز المعلمين</span>
+            <Users size={20} color="#3b82f6" />
+          </div>
+          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span style={{ fontSize: '1.8rem', fontWeight: '800', color: '#0f172a' }}>{teacherPortfoliosCount}</span>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>من إجمالي {teachers.length} معلم</span>
+          </div>
+          <div style={{ marginTop: '6px', fontSize: '0.78rem', color: '#2563eb', fontWeight: '600' }}>
+            {teachers.length > 0 ? `${Math.round((teacherPortfoliosCount / teachers.length) * 100)}% تم التوثيق` : 'لا يوجد معلمون'}
+          </div>
+        </div>
+
+        {/* Students Metric */}
+        <div 
+          onClick={() => setActiveTab('students')}
+          style={{
+            background: activeTab === 'students' ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)' : '#ffffff',
+            border: activeTab === 'students' ? '2px solid #22c55e' : '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '16px 20px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#166534' }}>ملفات إنجاز الطلاب</span>
+            <GraduationCap size={20} color="#22c55e" />
+          </div>
+          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span style={{ fontSize: '1.8rem', fontWeight: '800', color: '#0f172a' }}>{studentPortfoliosCount}</span>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>من إجمالي {students.length} طالب</span>
+          </div>
+          <div style={{ marginTop: '6px', fontSize: '0.78rem', color: '#16a34a', fontWeight: '600' }}>
+            {students.length > 0 ? `${Math.round((studentPortfoliosCount / students.length) * 100)}% تم التوثيق` : 'لا يوجد طلاب'}
+          </div>
+        </div>
+
+        {/* Staff Metric */}
+        <div 
+          onClick={() => setActiveTab('staff')}
+          style={{
+            background: activeTab === 'staff' ? 'linear-gradient(135deg, #faf5ff, #f3e8ff)' : '#ffffff',
+            border: activeTab === 'staff' ? '2px solid #a855f7' : '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '16px 20px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#6b21a8' }}>ملفات الكادر الإداري</span>
+            <Briefcase size={20} color="#a855f7" />
+          </div>
+          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span style={{ fontSize: '1.8rem', fontWeight: '800', color: '#0f172a' }}>{staffPortfoliosCount}</span>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>من إجمالي {staff.length} إداري</span>
+          </div>
+          <div style={{ marginTop: '6px', fontSize: '0.78rem', color: '#9333ea', fontWeight: '600' }}>
+            {staff.length > 0 ? `${Math.round((staffPortfoliosCount / staff.length) * 100)}% تم التوثيق` : 'لا يوجد كادر إداري'}
+          </div>
+        </div>
+
+        {/* Supervisors Metric */}
+        <div 
+          onClick={() => setActiveTab('supervisors')}
+          style={{
+            background: activeTab === 'supervisors' ? 'linear-gradient(135deg, #fffbeb, #fef3c7)' : '#ffffff',
+            border: activeTab === 'supervisors' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '16px 20px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#92400e' }}>ملفات المشرفين التربويين</span>
+            <ShieldCheck size={20} color="#f59e0b" />
+          </div>
+          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span style={{ fontSize: '1.8rem', fontWeight: '800', color: '#0f172a' }}>{supervisorPortfoliosCount}</span>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>من إجمالي {supervisors.length} مشرف</span>
+          </div>
+          <div style={{ marginTop: '6px', fontSize: '0.78rem', color: '#d97706', fontWeight: '600' }}>
+            {supervisors.length > 0 ? `${Math.round((supervisorPortfoliosCount / supervisors.length) * 100)}% تم التوثيق` : 'لا يوجد مشرفون'}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      {activeTab === 'admin_personal' ? (
+        <PortfolioEditor 
+          targetRole="admin" 
+          targetUser={userData} 
+          onBackToHub={() => setActiveTab('teachers')} 
+        />
+      ) : (
+        <div className="glass-panel" style={{ padding: '24px', borderRadius: '18px' }}>
+          
+          {/* Tabs bar and filters */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px',
+            marginBottom: '20px',
+            borderBottom: '1px solid #e2e8f0',
+            paddingBottom: '16px'
+          }}>
+            {/* Category Tabs */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => { setActiveTab('teachers'); setFilterClassOrSubj(''); }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: activeTab === 'teachers' ? '#0e7490' : '#f1f5f9',
+                  color: activeTab === 'teachers' ? '#ffffff' : '#334155',
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Users size={16} />
+                <span>ملفات المعلمين ({teachers.length})</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('students'); setFilterClassOrSubj(''); }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: activeTab === 'students' ? '#0e7490' : '#f1f5f9',
+                  color: activeTab === 'students' ? '#ffffff' : '#334155',
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <GraduationCap size={16} />
+                <span>ملفات الطلاب ({students.length})</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('staff'); setFilterClassOrSubj(''); }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: activeTab === 'staff' ? '#0e7490' : '#f1f5f9',
+                  color: activeTab === 'staff' ? '#ffffff' : '#334155',
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Briefcase size={16} />
+                <span>الكادر الإداري ({staff.length})</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('supervisors'); setFilterClassOrSubj(''); }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: activeTab === 'supervisors' ? '#0e7490' : '#f1f5f9',
+                  color: activeTab === 'supervisors' ? '#ffffff' : '#334155',
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <ShieldCheck size={16} />
+                <span>المشرفين التربويين ({supervisors.length})</span>
+              </button>
+            </div>
+
+            {/* Search and Filters */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', width: '220px' }}>
+                <Search size={16} style={{ position: 'absolute', right: '10px', top: '10px', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  className="input-field"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="بحث بالاسم أو الهوية..."
+                  style={{ paddingRight: '32px', marginBottom: 0, fontSize: '0.85rem' }}
+                />
+              </div>
+
+              {filterOptions.length > 0 && (
+                <select
+                  className="input-field"
+                  value={filterClassOrSubj}
+                  onChange={e => setFilterClassOrSubj(e.target.value)}
+                  style={{ width: '160px', marginBottom: 0, fontSize: '0.85rem' }}
+                >
+                  <option value="">{activeTab === 'students' ? 'كافة الفصول' : 'كافة التخصصات'}</option>
+                  {filterOptions.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+
+          {/* List of Persons Table/Cards */}
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+              <RefreshCw size={28} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+              <p>جاري تحميل وتحديث ملفات الإنجاز لحظياً...</p>
+            </div>
+          ) : currentList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+              <p style={{ fontSize: '1rem', fontWeight: '600' }}>لم يتم العثور على سجلات مطابقة للبحث.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: '12px' }}>
+              {currentList.map(item => {
+                const effectiveItemRole = activeTab === 'teachers' ? 'teacher' : activeTab === 'students' ? 'student' : activeTab === 'staff' ? 'staff' : 'supervisor';
+                const pStatus = getPortfolioStatus(effectiveItemRole, item);
+                const isCompleted = !!pStatus;
+
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '14px',
+                      padding: '16px 20px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                    }}
+                  >
+                    {/* Person Details */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: '#0f172a' }}>
+                          {item.name}
+                        </h3>
+                        
+                        {(item.subject || item.class || item.className || item.roleTitle || item.specialty) && (
+                          <span style={{
+                            background: '#f1f5f9',
+                            color: '#334155',
+                            padding: '2px 10px',
+                            borderRadius: '8px',
+                            fontSize: '0.8rem',
+                            fontWeight: '600'
+                          }}>
+                            {item.subject || item.class || item.className || item.roleTitle || item.specialty}
+                          </span>
+                        )}
+
+                        {/* Real-time Status Badge */}
+                        {isCompleted ? (
+                          <span style={{
+                            background: '#f0fdf4',
+                            color: '#166534',
+                            border: '1px solid #bbf7d0',
+                            padding: '3px 10px',
+                            borderRadius: '10px',
+                            fontSize: '0.78rem',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px'
+                          }}>
+                            <CheckCircle2 size={13} />
+                            <span>مكتمل وموثق ({formatUpdateTime(pStatus.updatedAt)})</span>
+                          </span>
+                        ) : (
+                          <span style={{
+                            background: '#fef3c7',
+                            color: '#92400e',
+                            border: '1px solid #fde68a',
+                            padding: '3px 10px',
+                            borderRadius: '10px',
+                            fontSize: '0.78rem',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px'
+                          }}>
+                            <Clock size={13} />
+                            <span>قيد الإعداد والتحديث</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+                        الهوية الوطنية: <strong>{item.nationalId || 'غير مسجل'}</strong> 
+                        {item.nationality ? ` • الجنسية: ${item.nationality}` : ''}
+                      </p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => {
+                          setPrintingPerson(item);
+                          setPrintingRole(effectiveItemRole);
+                        }}
+                        className="btn"
+                        style={{
+                          background: '#eff6ff',
+                          color: '#1d4ed8',
+                          border: '1px solid #bfdbfe',
+                          padding: '7px 14px',
+                          fontSize: '0.85rem',
+                          fontWeight: 'bold',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          cursor: 'pointer'
+                        }}
+                        title="معاينة وطباعة وتصدير ملف الإنجاز"
+                      >
+                        <Printer size={15} />
+                        <span>معاينة وطباعة</span>
+                      </button>
+
+                      <button
+                        onClick={() => onSelectUser(item, effectiveItemRole)}
+                        className="btn btn-primary"
+                        style={{
+                          padding: '7px 14px',
+                          fontSize: '0.85rem',
+                          fontWeight: 'bold',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          cursor: 'pointer'
+                        }}
+                        title="فتح ملف الإنجاز الكامل للمراجعة والتوثيق والتحرير"
+                      >
+                        <Edit3 size={15} />
+                        <span>مراجعة وتوثيق</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* Live Print Portfolio Modal */}
+      {printingPerson && (
+        <PrintPortfolioModal
+          role={printingRole}
+          userData={printingPerson}
+          schoolName={printingPerson.schoolName || userData?.schoolName}
+          onClose={() => setPrintingPerson(null)}
         />
       )}
 

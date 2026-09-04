@@ -32,7 +32,7 @@ function SupervisorHome({ schoolId }) {
       setStats(prev => ({ ...prev, teachers: snap.size }));
     });
 
-    const qPrep = query(collection(db, 'lesson_preparations'), where('schoolId', '==', schoolId));
+    const qPrep = query(collection(db, 'preparations'), where('schoolId', '==', schoolId));
     const unsubPrep = onSnapshot(qPrep, (snap) => {
       setStats(prev => ({ ...prev, preparations: snap.size }));
     });

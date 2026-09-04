@@ -1,5 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { db } from '../firebase';
+import { doc, getDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { 
   Printer, 
   Download, 
@@ -15,7 +17,9 @@ import {
   FileText,
   Eye,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw,
+  Zap
 } from 'lucide-react';
 import { DEFAULT_PORTFOLIO_DOMAINS, PORTFOLIO_ROLES } from '../data/portfolioData';
 
@@ -40,11 +44,78 @@ export default function PrintPortfolioModal({
       : 'ملف الإنجاز المهني والتربوي للمعلم'
   );
 
+  const [livePortfolioData, setLivePortfolioData] = useState(portfolioData || {});
+  const [isLoadingLive, setIsLoadingLive] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+
+  // Live real-time Firestore sync with onSnapshot
+  useEffect(() => {
+    if (!db) return;
+    const idToTry = userData?.id || userData?.nationalId;
+    const nidToTry = userData?.nationalId;
+
+    if (!idToTry && !nidToTry) {
+      if (portfolioData && Object.keys(portfolioData).length > 0) {
+        setLivePortfolioData(portfolioData);
+      }
+      return;
+    }
+
+    setIsLoadingLive(true);
+    let unsubPrimary = null;
+    let unsubSecondary = null;
+
+    try {
+      if (idToTry) {
+        const docRef = doc(db, 'portfolios', `${role}_${idToTry}`);
+        unsubPrimary = onSnapshot(docRef, (snap) => {
+          if (snap.exists() && snap.data()?.portfolioData) {
+            setLivePortfolioData(snap.data().portfolioData);
+            setLastSyncTime(snap.data().updatedAt || new Date().toISOString());
+            setIsLoadingLive(false);
+          }
+        }, (err) => {
+          console.warn('Live portfolio snapshot error:', err);
+        });
+      }
+
+      if (nidToTry && nidToTry !== idToTry) {
+        const docRef2 = doc(db, 'portfolios', `${role}_${nidToTry}`);
+        unsubSecondary = onSnapshot(docRef2, (snap) => {
+          if (snap.exists() && snap.data()?.portfolioData) {
+            setLivePortfolioData(snap.data().portfolioData);
+            setLastSyncTime(snap.data().updatedAt || new Date().toISOString());
+            setIsLoadingLive(false);
+          }
+        });
+      }
+
+      // Also fallback initial fetch by nationalId query if not found
+      if (nidToTry) {
+        const q = query(collection(db, 'portfolios'), where('nationalId', '==', String(nidToTry).trim()));
+        getDocs(q).then((qSnap) => {
+          if (!qSnap.empty && qSnap.docs[0].data()?.portfolioData) {
+            setLivePortfolioData(qSnap.docs[0].data().portfolioData);
+            setLastSyncTime(qSnap.docs[0].data().updatedAt || new Date().toISOString());
+          }
+        }).catch(err => console.warn(err)).finally(() => setIsLoadingLive(false));
+      }
+    } catch (err) {
+      console.warn('Error setting up live portfolio listener:', err);
+      setIsLoadingLive(false);
+    }
+
+    return () => {
+      if (unsubPrimary) unsubPrimary();
+      if (unsubSecondary) unsubSecondary();
+    };
+  }, [role, userData]);
+
   const [customSchoolName, setCustomSchoolName] = useState(
     schoolName || userData?.schoolName || 'المجمع التعليمي'
   );
   const [academicYear, setAcademicYear] = useState('1447 - 1448 هـ');
-  const [personName, setPersonName] = useState(userData?.name || portfolioData?.profile?.fullName || 'عضو الكادر التعليمي');
+  const [personName, setPersonName] = useState(userData?.name || livePortfolioData?.profile?.fullName || portfolioData?.profile?.fullName || 'عضو الكادر التعليمي');
   const [principalName, setPrincipalName] = useState(userData?.principalName || 'إدارة المدرسة');
   const [supervisorName, setSupervisorName] = useState('المشرف التربوي المعتمد');
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'settings'
@@ -222,9 +293,24 @@ export default function PrintPortfolioModal({
                 <Award size={24} />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
-                  طباعة وتصدير ملف الإنجاز الإلكتروني الشامل
-                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
+                    طباعة وتصدير ملف الإنجاز الإلكتروني الشامل
+                  </h3>
+                  <span style={{ 
+                    background: '#059669', 
+                    color: '#ecfdf5', 
+                    padding: '2px 8px', 
+                    borderRadius: '8px', 
+                    fontSize: '0.72rem', 
+                    fontWeight: 'bold', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '4px' 
+                  }}>
+                    <Zap size={12} /> متصل لحظياً
+                  </span>
+                </div>
                 <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: '#94a3b8' }}>
                   وثيقة إنجاز رسمية موثقة وفق المعايير العالمية وهيئة تقويم التعليم والتدريب (ETEC)
                 </p>

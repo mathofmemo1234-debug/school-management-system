@@ -366,7 +366,8 @@ function ManageTeachers({ schoolId }) {
   useEffect(() => {
     if (!schoolId || teachers.length === 0) return;
 
-    const qPrep = schoolId === 'ALL' ? collection(db, 'lesson_preparations') : query(collection(db, 'lesson_preparations'), where('schoolId', '==', schoolId));
+    const qPrep = schoolId === 'ALL' ? collection(db, 'preparations') : query(collection(db, 'preparations'), where('schoolId', '==', schoolId));
+    const qPrepOld = schoolId === 'ALL' ? collection(db, 'lesson_preparations') : query(collection(db, 'lesson_preparations'), where('schoolId', '==', schoolId));
     const qPlans = schoolId === 'ALL' ? collection(db, 'weekly_plans') : query(collection(db, 'weekly_plans'), where('schoolId', '==', schoolId));
     const qAssign = schoolId === 'ALL' ? collection(db, 'assignments') : query(collection(db, 'assignments'), where('schoolId', '==', schoolId));
     const qExams = schoolId === 'ALL' ? collection(db, 'exams') : query(collection(db, 'exams'), where('schoolId', '==', schoolId));
@@ -375,13 +376,14 @@ function ManageTeachers({ schoolId }) {
 
     Promise.all([
       getDocs(qPrep),
+      getDocs(qPrepOld),
       getDocs(qPlans),
       getDocs(qAssign),
       getDocs(qExams),
       getDocs(qMat),
       getDocs(qAtt)
-    ]).then(([snapPrep, snapPlans, snapAssign, snapExams, snapMat, snapAtt]) => {
-      const preps = snapPrep.docs.map(d => d.data());
+    ]).then(([snapPrep, snapPrepOld, snapPlans, snapAssign, snapExams, snapMat, snapAtt]) => {
+      const preps = [...snapPrep.docs.map(d => d.data()), ...snapPrepOld.docs.map(d => d.data())];
       const plans = snapPlans.docs.map(d => d.data());
       const assigns = snapAssign.docs.map(d => d.data());
       const exams = snapExams.docs.map(d => d.data());
