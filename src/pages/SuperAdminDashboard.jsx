@@ -10,7 +10,8 @@ import {
   Users, BookOpen, GraduationCap, Lock, Download, Search, Plus, 
   Edit, Key, FileSpreadsheet, Printer, ExternalLink, Sparkles, 
   Filter, CheckCircle2, RefreshCw, Globe, Award, Mail, Star, 
-  Layers, MapPin, Phone, AlertCircle, X, Compass, ChevronRight, Eye
+  Layers, MapPin, Phone, AlertCircle, X, Compass, ChevronRight, Eye,
+  Shield, Check
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -36,6 +37,16 @@ function SuperAdminHome() {
     supervisors: 0
   });
 
+  // Selected School Scope Dropdown (ALL or specific school ID)
+  const [selectedSchoolScope, setSelectedSchoolScope] = useState('ALL');
+  const [selectedSchoolCounts, setSelectedSchoolCounts] = useState({
+    teachers: 0,
+    students: 0,
+    staff: 0,
+    supervisors: 0,
+    classes: 0
+  });
+
   // Active Tab: 'schools' | 'admins' | 'superadmins' | 'reports'
   const [activeTab, setActiveTab] = useState('schools');
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,11 +56,10 @@ function SuperAdminHome() {
   const [showAddAdminModal, setShowAddAdminModal] = useState(false);
   const [showAddSuperAdminModal, setShowAddSuperAdminModal] = useState(false);
   const [editingSchool, setEditingSchool] = useState(null);
-  const [passwordResetUser, setPasswordResetUser] = useState(null);
-  const [newCustomPassword, setNewCustomPassword] = useState('');
 
   // New School Form State
   const [schoolName, setSchoolName] = useState('');
+  const [schoolSubTitle, setSchoolSubTitle] = useState('');
   const [schoolCode, setSchoolCode] = useState('');
   const [schoolCity, setSchoolCity] = useState('جدة');
   const [schoolTrack, setSchoolTrack] = useState('أهلي متقدم + STEM');
@@ -122,6 +132,34 @@ function SuperAdminHome() {
     };
   }, []);
 
+  // Isolated Listener when a specific school scope is selected
+  useEffect(() => {
+    if (selectedSchoolScope === 'ALL') {
+      setSelectedSchoolCounts({ teachers: 0, students: 0, staff: 0, supervisors: 0, classes: 0 });
+      return;
+    }
+
+    const qT = query(collection(db, 'teachers'), where('schoolId', '==', selectedSchoolScope));
+    const qS = query(collection(db, 'students'), where('schoolId', '==', selectedSchoolScope));
+    const qSt = query(collection(db, 'staff'), where('schoolId', '==', selectedSchoolScope));
+    const qSp = query(collection(db, 'supervisors'), where('schoolId', '==', selectedSchoolScope));
+    const qC = query(collection(db, 'classes'), where('schoolId', '==', selectedSchoolScope));
+
+    const unsubT = onSnapshot(qT, snap => setSelectedSchoolCounts(prev => ({ ...prev, teachers: snap.size })));
+    const unsubS = onSnapshot(qS, snap => setSelectedSchoolCounts(prev => ({ ...prev, students: snap.size })));
+    const unsubSt = onSnapshot(qSt, snap => setSelectedSchoolCounts(prev => ({ ...prev, staff: snap.size })));
+    const unsubSp = onSnapshot(qSp, snap => setSelectedSchoolCounts(prev => ({ ...prev, supervisors: snap.size })));
+    const unsubC = onSnapshot(qC, snap => setSelectedSchoolCounts(prev => ({ ...prev, classes: snap.size })));
+
+    return () => {
+      unsubT();
+      unsubS();
+      unsubSt();
+      unsubSp();
+      unsubC();
+    };
+  }, [selectedSchoolScope]);
+
   // Handle Add School
   const handleAddSchool = async (e) => {
     e.preventDefault();
@@ -131,18 +169,21 @@ function SuperAdminHome() {
       const cleanCode = schoolCode.trim() || `school_${Date.now().toString().slice(-5)}`;
       await addDoc(collection(db, 'schools'), {
         name: schoolName.trim(),
+        subTitle: schoolSubTitle.trim() || 'فرع مستقل - المسار التعليمي المعتمد',
         code: cleanCode,
         city: schoolCity.trim() || 'جدة',
         track: schoolTrack || 'أهلي متقدم + STEM',
         address: schoolAddress.trim() || 'المملكة العربية السعودية',
+        isStandalone: true,
         createdAt: new Date()
       });
 
       setSchoolName('');
+      setSchoolSubTitle('');
       setSchoolCode('');
       setSchoolAddress('');
       setShowAddSchoolModal(false);
-      alert('تمت إضافة المدرسة/المجمع التعليمي بنجاح!');
+      alert('تمت إضافة المدرسة/المجمع التعليمي المستقل بنجاح!');
     } catch (error) {
       console.error('Error adding school:', error);
       alert('حدث خطأ أثناء إضافة المدرسة: ' + error.message);
@@ -158,13 +199,14 @@ function SuperAdminHome() {
     try {
       await updateDoc(doc(db, 'schools', editingSchool.id), {
         name: editingSchool.name,
+        subTitle: editingSchool.subTitle || '',
         city: editingSchool.city || 'جدة',
         track: editingSchool.track || 'أهلي متقدم',
         address: editingSchool.address || '',
         updatedAt: new Date()
       });
       setEditingSchool(null);
-      alert('تم تحديث بيانات المدرسة بنجاح!');
+      alert('تم تحديث بيانات المدرسة وعنوانها الفرعي بنجاح!');
     } catch (error) {
       console.error('Error updating school:', error);
       alert('حدث خطأ أثناء تحديث المدرسة: ' + error.message);
@@ -181,6 +223,9 @@ function SuperAdminHome() {
     if (window.confirm(confirmMsg)) {
       try {
         await deleteDoc(doc(db, 'schools', school.id));
+        if (selectedSchoolScope === school.id) {
+          setSelectedSchoolScope('ALL');
+        }
         alert('تم حذف المدرسة بنجاح.');
       } catch (error) {
         console.error('Error deleting school:', error);
@@ -220,6 +265,7 @@ function SuperAdminHome() {
         role: 'admin',
         schoolId: selectedSchoolId,
         schoolName: selectedSchool?.name || '',
+        schoolSubTitle: selectedSchool?.subTitle || '',
         createdAt: new Date()
       });
 
@@ -290,27 +336,36 @@ function SuperAdminHome() {
     }
   };
 
-  // Filtered lists based on search query
+  // Filtered lists based on search query and selected school scope
   const filteredSchools = useMemo(() => {
-    if (!searchQuery.trim()) return schools;
+    let list = schools;
+    if (selectedSchoolScope !== 'ALL') {
+      list = list.filter(s => s.id === selectedSchoolScope);
+    }
+    if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase().trim();
-    return schools.filter(s => 
+    return list.filter(s => 
       s.name?.toLowerCase().includes(q) || 
+      s.subTitle?.toLowerCase().includes(q) ||
       s.code?.toLowerCase().includes(q) || 
       s.city?.toLowerCase().includes(q) ||
       s.id?.toLowerCase().includes(q)
     );
-  }, [schools, searchQuery]);
+  }, [schools, selectedSchoolScope, searchQuery]);
 
   const filteredAdmins = useMemo(() => {
-    if (!searchQuery.trim()) return admins;
+    let list = admins;
+    if (selectedSchoolScope !== 'ALL') {
+      list = list.filter(a => a.schoolId === selectedSchoolScope);
+    }
+    if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase().trim();
-    return admins.filter(a => 
+    return list.filter(a => 
       a.name?.toLowerCase().includes(q) || 
       a.nationalId?.toLowerCase().includes(q) || 
       schools.find(s => s.id === a.schoolId)?.name?.toLowerCase().includes(q)
     );
-  }, [admins, schools, searchQuery]);
+  }, [admins, selectedSchoolScope, schools, searchQuery]);
 
   const filteredSuperAdmins = useMemo(() => {
     if (!searchQuery.trim()) return superAdmins;
@@ -322,22 +377,29 @@ function SuperAdminHome() {
     );
   }, [superAdmins, searchQuery]);
 
+  // Active School Object (if single school is selected in dropdown)
+  const activeScopeSchool = useMemo(() => {
+    if (selectedSchoolScope === 'ALL') return null;
+    return schools.find(s => s.id === selectedSchoolScope);
+  }, [schools, selectedSchoolScope]);
+
   // Quick Export Data as CSV
   const handleExportData = (type) => {
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
     let filename = `export_${type}_${new Date().toISOString().slice(0, 10)}.csv`;
 
     if (type === 'schools') {
-      csvContent += "اسم المدرسة / المجمع,المعرف (Code),المدينة,المسار التعليمي,المدير المعين\n";
+      csvContent += "اسم المدرسة / المجمع,العنوان الفرعي للمدرسة,المعرف (Code),المدينة,المسار التعليمي,المدير المعين\n";
       schools.forEach(s => {
         const assignedAdmin = admins.find(a => a.schoolId === s.id)?.name || 'غير معين';
-        csvContent += `"${s.name || ''}","${s.code || s.id || ''}","${s.city || ''}","${s.track || ''}","${assignedAdmin}"\n`;
+        csvContent += `"${s.name || ''}","${s.subTitle || ''}","${s.code || s.id || ''}","${s.city || ''}","${s.track || ''}","${assignedAdmin}"\n`;
       });
     } else if (type === 'admins') {
       csvContent += "اسم المدير,رقم الهوية,المدرسة / المجمع المعين,البريد الإلكتروني,رقم الهاتف\n";
       admins.forEach(a => {
-        const schoolName = schools.find(s => s.id === a.schoolId)?.name || 'غير محدد';
-        csvContent += `"${a.name || ''}","${a.nationalId || ''}","${schoolName}","${a.email || ''}","${a.phone || ''}"\n`;
+        const school = schools.find(s => s.id === a.schoolId);
+        const schoolDisplay = school ? `${school.name} (${school.subTitle || school.city || ''})` : 'غير محدد';
+        csvContent += `"${a.name || ''}","${a.nationalId || ''}","${schoolDisplay}","${a.email || ''}","${a.phone || ''}"\n`;
       });
     } else {
       csvContent += "المؤشر,العدد الإجمالي\n";
@@ -418,7 +480,7 @@ function SuperAdminHome() {
 
           {/* Subtitle description */}
           <p style={{
-            margin: '0 0 24px 0',
+            margin: '0 0 20px 0',
             fontSize: '14px',
             lineHeight: '1.7',
             color: 'rgba(255, 255, 255, 0.92)',
@@ -427,6 +489,68 @@ function SuperAdminHome() {
           }}>
             إدارة المنظومة التعليمية الشاملة متعددة المدارس — إضافة وتخصيص أي مدرسة أو مجمع تعليمي، تعيين وتوزيع المدراء، والمتابعة المركزية لكافة الحسابات والإحصائيات.
           </p>
+
+          {/* Standalone School Selector Dropdown */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '16px',
+            padding: '12px 18px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                background: 'rgba(255,255,255,0.2)',
+                padding: '6px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Building2 size={20} color="#ffffff" />
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff' }}>
+                  تصفح مدرسة مستقلة (انفصال معلوماتي تام):
+                </div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)' }}>
+                  اختر أي مدرسة لاستعراض عنوانها الفرعي وبياناتها المنفصلة
+                </div>
+              </div>
+            </div>
+
+            <select
+              value={selectedSchoolScope}
+              onChange={(e) => setSelectedSchoolScope(e.target.value)}
+              style={{
+                background: '#ffffff',
+                color: '#0f172a',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '10px 16px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                minWidth: '320px',
+                maxWidth: '100%',
+                outline: 'none',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.1)'
+              }}
+            >
+              <option value="ALL">🌐 كافة المدارس والمجمعات (المنظومة المركزية الكاملة)</option>
+              {schools.map(s => (
+                <option key={s.id} value={s.id}>
+                  🏫 {s.name} — {s.subTitle || s.city || 'مدرسة مستقلة'}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Action Buttons in Banner */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
@@ -493,6 +617,70 @@ function SuperAdminHome() {
         </div>
       </div>
 
+      {/* Standalone School Scope Active Alert Box */}
+      {activeScopeSchool && (
+        <div style={{
+          background: '#f0fdf4',
+          border: '1px solid #bbf7d0',
+          borderRadius: '16px',
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              background: '#dcfce7',
+              color: '#166534',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <ShieldCheck size={24} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#166534' }}>
+                  {activeScopeSchool.name}
+                </h3>
+                <span style={{
+                  background: '#166534',
+                  color: '#ffffff',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '10px'
+                }}>
+                  مدرسة مستقلة بذاتها
+                </span>
+              </div>
+              <div style={{ fontSize: '13px', color: '#15803d', fontWeight: 600, marginTop: '2px' }}>
+                📍 العنوان الفرعي: {activeScopeSchool.subTitle || 'المسار الأهلي والدبلومة الأمريكية'} • المدينة: {activeScopeSchool.city || 'جدة'} • كود: {activeScopeSchool.code || activeScopeSchool.id}
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setSelectedSchoolScope('ALL')}
+            className="btn btn-outline"
+            style={{
+              fontSize: '12px',
+              padding: '6px 14px',
+              color: '#166534',
+              borderColor: '#86efac',
+              background: '#ffffff'
+            }}
+          >
+            عرض كافة المدارس
+          </button>
+        </div>
+      )}
+
       {/* 2. Five Real-time Stat Cards */}
       <div style={{ 
         display: 'grid', 
@@ -514,10 +702,10 @@ function SuperAdminHome() {
         }}>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
-              إجمالي المدارس
+              {selectedSchoolScope === 'ALL' ? 'إجمالي المدارس' : 'المدرسة المحددة'}
             </div>
             <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
-              {schools.length}
+              {selectedSchoolScope === 'ALL' ? schools.length : 1}
             </div>
           </div>
           <div style={{
@@ -549,10 +737,10 @@ function SuperAdminHome() {
         }}>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
-              مدراء المدارس
+              {selectedSchoolScope === 'ALL' ? 'مدراء المدارس' : 'المدير المسؤول'}
             </div>
             <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
-              {admins.length}
+              {filteredAdmins.length}
             </div>
           </div>
           <div style={{
@@ -584,10 +772,10 @@ function SuperAdminHome() {
         }}>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
-              إجمالي المعلمين
+              {selectedSchoolScope === 'ALL' ? 'إجمالي المعلمين' : 'معلمو المدرسة'}
             </div>
             <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
-              {stats.teachers}
+              {selectedSchoolScope === 'ALL' ? stats.teachers : selectedSchoolCounts.teachers}
             </div>
           </div>
           <div style={{
@@ -619,10 +807,10 @@ function SuperAdminHome() {
         }}>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
-              إجمالي الطلاب
+              {selectedSchoolScope === 'ALL' ? 'إجمالي الطلاب' : 'طلاب المدرسة'}
             </div>
             <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
-              {stats.students}
+              {selectedSchoolScope === 'ALL' ? stats.students : selectedSchoolCounts.students}
             </div>
           </div>
           <div style={{
@@ -654,10 +842,10 @@ function SuperAdminHome() {
         }}>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
-              الكوادر والمشرفين
+              {selectedSchoolScope === 'ALL' ? 'الكوادر والمشرفين' : 'كوادر المدرسة'}
             </div>
             <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
-              {stats.staff + stats.supervisors}
+              {selectedSchoolScope === 'ALL' ? (stats.staff + stats.supervisors) : (selectedSchoolCounts.staff + selectedSchoolCounts.supervisors)}
             </div>
           </div>
           <div style={{
@@ -704,7 +892,7 @@ function SuperAdminHome() {
           }}
         >
           <Building2 size={17} />
-          <span>المدارس والمجمعات ({schools.length})</span>
+          <span>المدارس والمجمعات ({filteredSchools.length})</span>
         </button>
 
         <button
@@ -726,7 +914,7 @@ function SuperAdminHome() {
           }}
         >
           <ShieldCheck size={17} />
-          <span>مدراء المدارس ({admins.length})</span>
+          <span>مدراء المدارس ({filteredAdmins.length})</span>
         </button>
 
         <button
@@ -795,7 +983,7 @@ function SuperAdminHome() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={
-              activeTab === 'schools' ? "البحث عن مدرسة، مجمع، أو كود..." :
+              activeTab === 'schools' ? "البحث عن مدرسة، عنوان فرعي، مجمع، أو كود..." :
               activeTab === 'admins' ? "البحث باسم المدير أو رقم الهوية أو المدرسة..." :
               activeTab === 'superadmins' ? "البحث في حسابات الماستر..." :
               "البحث في بيانات التقارير..."
@@ -869,14 +1057,14 @@ function SuperAdminHome() {
               <Building2 size={48} color="#94a3b8" style={{ margin: '0 auto 12px' }} />
               <h3 style={{ margin: '0 0 6px', color: '#0f172a', fontWeight: 700 }}>لا توجد مدارس مسجلة</h3>
               <p style={{ margin: '0 0 18px', color: '#64748b', fontSize: '13px' }}>
-                ابدأ بإضافة أول مدرسة أو مجمع تعليمي للمنظومة الآن.
+                ابدأ بإضافة أول مدرسة أو مجمع تعليمي مستقل للمنظومة الآن.
               </p>
               <button className="btn btn-primary" onClick={() => setShowAddSchoolModal(true)}>
                 <Plus size={16} /> إضافة مدرسة جديدة
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))', gap: '16px' }}>
               {filteredSchools.map(school => {
                 const assignedAdmin = admins.find(a => a.schoolId === school.id);
                 return (
@@ -898,11 +1086,11 @@ function SuperAdminHome() {
                   >
                     <div>
                       {/* Top row with school icon and track */}
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div style={{
-                            width: '42px',
-                            height: '42px',
+                            width: '44px',
+                            height: '44px',
                             borderRadius: '12px',
                             background: 'linear-gradient(135deg, rgba(0, 130, 166, 0.1), rgba(2, 132, 199, 0.15))',
                             color: '#0082a6',
@@ -911,13 +1099,13 @@ function SuperAdminHome() {
                             justifyContent: 'center',
                             fontWeight: 800
                           }}>
-                            <Building2 size={22} />
+                            <Building2 size={24} />
                           </div>
                           <div>
                             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
                               {school.name}
                             </h3>
-                            <span style={{ fontSize: '12px', color: '#64748b' }}>
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>
                               كود المجمع: <strong style={{ color: '#0082a6' }}>{school.code || school.id}</strong>
                             </span>
                           </div>
@@ -933,6 +1121,24 @@ function SuperAdminHome() {
                         }}>
                           {school.city || 'جدة'}
                         </span>
+                      </div>
+
+                      {/* School Sub-title (العنوان الفرعي) */}
+                      <div style={{
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        padding: '6px 10px',
+                        fontSize: '12px',
+                        color: '#0e7490',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        marginBottom: '10px'
+                      }}>
+                        <MapPin size={14} color="#0e7490" />
+                        <span>العنوان الفرعي: <strong>{school.subTitle || 'فرع مستقل - المسار المعتمد'}</strong></span>
                       </div>
 
                       {/* Educational Track badge */}
@@ -970,42 +1176,63 @@ function SuperAdminHome() {
                     {/* School Actions Bottom Bar */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
                       <button
-                        onClick={() => setEditingSchool(school)}
+                        onClick={() => setSelectedSchoolScope(school.id)}
                         style={{
-                          background: 'transparent',
+                          background: selectedSchoolScope === school.id ? '#0082a6' : 'rgba(0, 130, 166, 0.08)',
+                          color: selectedSchoolScope === school.id ? '#ffffff' : '#0082a6',
                           border: 'none',
-                          color: '#0082a6',
-                          fontSize: '13px',
+                          fontSize: '12px',
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '4px',
-                          padding: '4px 8px',
-                          borderRadius: '6px'
+                          padding: '6px 12px',
+                          borderRadius: '8px'
                         }}
                       >
-                        <Edit size={14} /> تعديل
+                        <Eye size={13} /> {selectedSchoolScope === school.id ? 'معروضة حالياً' : 'تصفح بياناتها'}
                       </button>
 
-                      <button
-                        onClick={() => handleDeleteSchool(school)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#ef4444',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '4px 8px',
-                          borderRadius: '6px'
-                        }}
-                      >
-                        <Trash2 size={14} /> حذف
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          onClick={() => setEditingSchool(school)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#0082a6',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 8px',
+                            borderRadius: '6px'
+                          }}
+                        >
+                          <Edit size={14} /> تعديل
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteSchool(school)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#ef4444',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 8px',
+                            borderRadius: '6px'
+                          }}
+                        >
+                          <Trash2 size={14} /> حذف
+                        </button>
+                      </div>
                     </div>
 
                   </div>
@@ -1024,7 +1251,7 @@ function SuperAdminHome() {
               <ShieldCheck size={20} color="#2563eb" /> قائمة مدراء المدارس والمجمعات التعليمية
             </h3>
             <span style={{ fontSize: '13px', color: '#64748b' }}>
-              إجمالي المدراء: <strong>{admins.length}</strong>
+              إجمالي المدراء: <strong>{filteredAdmins.length}</strong>
             </span>
           </div>
 
@@ -1034,7 +1261,7 @@ function SuperAdminHome() {
                 <tr>
                   <th>اسم المدير</th>
                   <th>رقم الهوية (اسم المستخدم)</th>
-                  <th>المدرسة / المجمع المعين</th>
+                  <th>المدرسة / المجمع والعنوان الفرعي</th>
                   <th>البريد الإلكتروني</th>
                   <th>الإجراءات</th>
                 </tr>
@@ -1052,19 +1279,26 @@ function SuperAdminHome() {
                       </td>
                       <td>
                         {assignedSchool ? (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            background: '#eff6ff',
-                            color: '#1d4ed8',
-                            padding: '3px 10px',
-                            borderRadius: '12px',
-                            fontSize: '12px',
-                            fontWeight: 600
-                          }}>
-                            <Building2 size={13} /> {assignedSchool.name}
-                          </span>
+                          <div>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              background: '#eff6ff',
+                              color: '#1d4ed8',
+                              padding: '3px 10px',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: 700
+                            }}>
+                              <Building2 size={13} /> {assignedSchool.name}
+                            </span>
+                            {assignedSchool.subTitle && (
+                              <span style={{ display: 'block', fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
+                                📍 {assignedSchool.subTitle}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span style={{ color: '#94a3b8', fontSize: '12px' }}>غير مخصص</span>
                         )}
@@ -1135,7 +1369,7 @@ function SuperAdminHome() {
                         fontSize: '11px',
                         fontWeight: 700
                       }}>
-                        صلاحية كاملة على كافة المدارس (ALL)
+                        صلاحية عليا وإشراف عام على كافة المدارس (ALL)
                       </span>
                     </td>
                     <td>
@@ -1173,10 +1407,10 @@ function SuperAdminHome() {
               <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>
                 <div>
                   <h4 style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
-                    بيانات المدارس والمجمعات
+                    بيانات المدارس والمجمعات والعناوين الفرعية
                   </h4>
                   <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-                    تصدير قائمة كاملة بالمدارس، الأكواد، المدن، والمدراء المعينين.
+                    تصدير قائمة كاملة بالمدارس، العناوين الفرعية، الأكواد، المدن، والمدراء المعينين.
                   </p>
                 </div>
                 <button
@@ -1252,7 +1486,7 @@ function SuperAdminHome() {
             className="glass-panel"
             style={{
               background: '#ffffff',
-              width: '520px',
+              width: '540px',
               maxWidth: '100%',
               borderRadius: '20px',
               padding: '28px',
@@ -1300,7 +1534,7 @@ function SuperAdminHome() {
                   إضافة مدرسة / مجمع تعليمي جديد
                 </h3>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  تضمين مدرسة جديدة للمنظومة التعليمية وتحديد مساراتها
+                  تضمين صرح تعليمي مستقل بذاته مع عنوانه الفرعي ومساراته
                 </span>
               </div>
             </div>
@@ -1313,9 +1547,23 @@ function SuperAdminHome() {
                 <input
                   type="text"
                   className="input-field"
-                  placeholder="مثال: مدارس المتقدمة للتعلم الذكي - حي الزهراء"
+                  placeholder="مثال: مدارس المتقدمة للتعلم الذكي"
                   value={schoolName}
                   onChange={(e) => setSchoolName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  العنوان الفرعي للمدرسة (الفرع والمسار) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="مثال: فرع حي الزهراء - المسار الأهلي والدبلومة الأمريكية"
+                  value={schoolSubTitle}
+                  onChange={(e) => setSchoolSubTitle(e.target.value)}
                   required
                 />
               </div>
@@ -1367,7 +1615,7 @@ function SuperAdminHome() {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
-                  العنوان والفرع
+                  العنوان التفصيلي
                 </label>
                 <input
                   type="text"
@@ -1471,7 +1719,7 @@ function SuperAdminHome() {
                   إنشاء حساب مدير مدرسة جديد
                 </h3>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  تعيين مدير مسؤول وإسناده إلى مدرسة أو مجمع تعليمي
+                  تعيين مدير مسؤول وإسناده إلى مدرسة مستقلة
                 </span>
               </div>
             </div>
@@ -1531,7 +1779,7 @@ function SuperAdminHome() {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
-                  المدرسة / المجمع التعليمي المسند له <span style={{ color: '#ef4444' }}>*</span>
+                  المدرسة المستقلة المسند له إدارتها <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <select
                   className="input-field"
@@ -1542,7 +1790,7 @@ function SuperAdminHome() {
                   <option value="">-- اختر المدرسة لتسليم إدارتها --</option>
                   {schools.map(s => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.city || 'جدة'})
+                      {s.name} — {s.subTitle || s.city || ''}
                     </option>
                   ))}
                 </select>
@@ -1750,7 +1998,7 @@ function SuperAdminHome() {
             className="glass-panel"
             style={{
               background: '#ffffff',
-              width: '500px',
+              width: '520px',
               maxWidth: '100%',
               borderRadius: '20px',
               padding: '28px',
@@ -1781,7 +2029,7 @@ function SuperAdminHome() {
             </button>
 
             <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
-              تعديل بيانات المدرسة
+              تعديل بيانات المدرسة والعنوان الفرعي
             </h3>
 
             <form onSubmit={handleUpdateSchool} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1795,6 +2043,19 @@ function SuperAdminHome() {
                   value={editingSchool.name || ''}
                   onChange={(e) => setEditingSchool({ ...editingSchool, name: e.target.value })}
                   required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  العنوان الفرعي للمدرسة (الفرع والمسار)
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="مثال: فرع حي الزهراء - المسار الأهلي والدبلومة الأمريكية"
+                  value={editingSchool.subTitle || ''}
+                  onChange={(e) => setEditingSchool({ ...editingSchool, subTitle: e.target.value })}
                 />
               </div>
 

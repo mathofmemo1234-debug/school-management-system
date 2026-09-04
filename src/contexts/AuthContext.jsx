@@ -79,7 +79,7 @@ export function AuthProvider({ children }) {
         if (data.role==='student'){try{const stQ=query(collection(db,'students'),where('nationalId','==',nid));const stS=await getDocs(stQ);if(!stS.empty){const std=stS.docs[0].data();data.class=std.class||std.className||data.class||'';if(std.name)data.name=std.name;}}catch(e){}}
         if (data.role==='supervisor'){try{const spQ=query(collection(db,'supervisors'),where('nationalId','==',nid));const spS=await getDocs(spQ);if(!spS.empty){const spd=spS.docs[0].data();data.specialty=spd.specialty||data.specialty||'';if(spd.name)data.name=spd.name;}}catch(e){}}
         if (data.role==='superadmin'){data.schoolId = data.schoolId || 'ALL'; if(!data.name) data.name='الماستر العام';}
-        if (data.schoolId && data.schoolId!=='ALL'){try{const sd=await getDoc(doc(db,'schools',data.schoolId));if(sd.exists()){data.schoolName=sd.data().name;data.logoUrl=sd.data().logoUrl||null;}}catch(e){}}
+        if (data.schoolId && data.schoolId!=='ALL'){try{const sd=await getDoc(doc(db,'schools',data.schoolId));if(sd.exists()){data.schoolName=sd.data().name;data.schoolSubTitle=sd.data().subTitle||'';data.logoUrl=sd.data().logoUrl||null;}}catch(e){}}
         setUserRole(data.role);
         setUserData(data);
         localStorage.setItem('userRole', data.role);
@@ -127,28 +127,30 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, [resolveRole]);
 
-  const switchSchoolContext = useCallback(async (newSchoolId, newSchoolName, newLogoUrl) => {
+  const switchSchoolContext = useCallback(async (newSchoolId, newSchoolName, newLogoUrl, newSubTitle) => {
     if (userRole !== 'superadmin' && userData?.role !== 'superadmin') return;
     
     if (newSchoolId === 'ALL' || !newSchoolId) {
-      const updated = { ...userData, schoolId: 'ALL', schoolName: 'جميع المدارس (الماستر العام)', logoUrl: null, activePreviewSchoolId: null };
+      const updated = { ...userData, schoolId: 'ALL', schoolName: 'جميع المدارس (الماستر العام)', schoolSubTitle: '', logoUrl: null, activePreviewSchoolId: null };
       setUserData(updated);
       localStorage.setItem('userData', JSON.stringify(updated));
     } else {
       let sName = newSchoolName;
       let sLogo = newLogoUrl;
-      if (!sName) {
+      let sSubTitle = newSubTitle || '';
+      if (!sName || !sSubTitle) {
         try {
           const sd = await getDoc(doc(db, 'schools', newSchoolId));
           if (sd.exists()) {
-            sName = sd.data().name;
-            sLogo = sd.data().logoUrl || null;
+            if (!sName) sName = sd.data().name;
+            if (!sLogo) sLogo = sd.data().logoUrl || null;
+            if (!sSubTitle) sSubTitle = sd.data().subTitle || '';
           }
         } catch (e) {
           console.warn('Error fetching school data in switchSchoolContext:', e);
         }
       }
-      const updated = { ...userData, schoolId: newSchoolId, schoolName: sName || 'المدرسة المحددة', logoUrl: sLogo || null, activePreviewSchoolId: newSchoolId };
+      const updated = { ...userData, schoolId: newSchoolId, schoolName: sName || 'المدرسة المحددة', schoolSubTitle: sSubTitle, logoUrl: sLogo || null, activePreviewSchoolId: newSchoolId };
       setUserData(updated);
       localStorage.setItem('userData', JSON.stringify(updated));
     }

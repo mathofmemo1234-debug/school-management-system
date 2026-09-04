@@ -152,10 +152,11 @@ export default function SchoolMessagingHub() {
     };
   }, [schoolId]);
 
-  // 2. Realtime listener to school_messages - filtered by schoolId
+  // 2. Realtime listener to school_messages - filtered strictly by schoolId with absolute isolation
   useEffect(() => {
-    const msgQuery = schoolId === 'ALL'
-      ? collection(db, 'school_messages')
+    // If superadmin or ALL, only load central broadcasts (schoolId === 'ALL') - never internal school messages
+    const msgQuery = (schoolId === 'ALL' || userRole === 'superadmin' || userData?.role === 'superadmin')
+      ? query(collection(db, 'school_messages'), where('schoolId', '==', 'ALL'))
       : query(collection(db, 'school_messages'), where('schoolId', '==', schoolId));
     const unsub = onSnapshot(msgQuery, snap => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));

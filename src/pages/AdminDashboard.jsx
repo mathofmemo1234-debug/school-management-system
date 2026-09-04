@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Routes, Route, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList } from 'lucide-react';
+import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2 } from 'lucide-react';
 import ManageSchedules from './ManageSchedules';
 import { db } from '../firebase';
 import { collection, addDoc, setDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
@@ -27,11 +27,21 @@ import GamificationBadge from '../components/GamificationBadge';
 import { calculateTeacherActivity, calculateStudentActivity } from '../utils/gamificationEngine';
 
 function AdminHome({ schoolId }) {
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
+  const { userData } = useAuth();
   const [stats, setStats] = useState({ teachers: 0, students: 0, classes: 0, supervisors: 0, staff: 0 });
+  const [schoolInfo, setSchoolInfo] = useState(null);
 
   useEffect(() => {
     if (!schoolId) return;
+    
+    // Fetch School metadata and subtitle
+    const unsubSchool = onSnapshot(doc(db, 'schools', schoolId), snap => {
+      if (snap.exists()) {
+        setSchoolInfo({ id: snap.id, ...snap.data() });
+      }
+    });
+
     const qTeachers = query(collection(db, 'teachers'), where('schoolId', '==', schoolId));
     const qStudents = query(collection(db, 'students'), where('schoolId', '==', schoolId));
     const qClasses = query(collection(db, 'classes'), where('schoolId', '==', schoolId));
@@ -53,7 +63,14 @@ function AdminHome({ schoolId }) {
     const unsubStaff = onSnapshot(qStaff, (snap) => {
       setStats(prev => ({ ...prev, staff: snap.size }));
     });
-    return () => { unsubTeachers(); unsubStudents(); unsubClasses(); unsubSupervisors(); unsubStaff(); };
+    return () => { 
+      if (unsubSchool) unsubSchool();
+      unsubTeachers(); 
+      unsubStudents(); 
+      unsubClasses(); 
+      unsubSupervisors(); 
+      unsubStaff(); 
+    };
   }, [schoolId]);
 
   const handleSeedData = async () => {
@@ -169,8 +186,82 @@ function AdminHome({ schoolId }) {
   };
 
   return (
-    <div>
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      
+      {/* 🏢 Standalone School Identity & Subtitle Banner */}
+      <div 
+        style={{
+          background: 'linear-gradient(135deg, #0e7490 0%, #0284c7 60%, #0369a1 100%)',
+          borderRadius: '20px',
+          padding: '22px 28px',
+          color: '#ffffff',
+          boxShadow: '0 8px 20px -4px rgba(14, 116, 144, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '14px',
+            background: 'rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Building2 size={26} color="#ffffff" />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#ffffff' }}>
+                {schoolInfo?.name || userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي'}
+              </h2>
+              <span style={{
+                background: 'rgba(255, 255, 255, 0.22)',
+                color: '#ffffff',
+                fontSize: '11px',
+                fontWeight: 700,
+                padding: '3px 10px',
+                borderRadius: '10px',
+                border: '1px solid rgba(255, 255, 255, 0.35)'
+              }}>
+                صرح تعليمي مستقل بذاته
+              </span>
+            </div>
+            <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span>📍 العنوان الفرعي: <strong>{schoolInfo?.subTitle || 'فرع حي الزهراء - المسار الأهلي والدبلومة الأمريكية'}</strong></span>
+              <span>•</span>
+              <span>المدينة: <strong>{schoolInfo?.city || 'جدة'}</strong></span>
+              <span>•</span>
+              <span>كود المجمع: <strong dir="ltr">{schoolInfo?.code || schoolId}</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.12)',
+          border: '1px solid rgba(255, 255, 255, 0.25)',
+          borderRadius: '12px',
+          padding: '8px 14px',
+          fontSize: '12px',
+          fontWeight: 700,
+          color: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <ShieldCheck size={16} />
+          <span>انفصال معلوماتي تام وقاعدة بيانات مستقلة</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <Link 
           to="/admin/student-records" 
           className="btn btn-primary"

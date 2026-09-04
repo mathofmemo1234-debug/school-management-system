@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Bell, Globe, Mail, Award } from 'lucide-react';
+import { Bell, Globe, Mail, Award, ShieldCheck, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 
 export default function Header({ title, role }) {
-  const { currentUser, userRole, userData } = useAuth();
+  const { currentUser, userRole, userData, switchSchoolContext } = useAuth();
   const { lang, toggleLanguage, t } = useLanguage();
   const navigate = useNavigate();
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
+  const [schoolMeta, setSchoolMeta] = useState(null);
   
   // Format role & extra info for display
   const effectiveRole = role || userRole;
@@ -34,6 +35,20 @@ export default function Header({ title, role }) {
   const schoolId = userData?.schoolId || 'main_school';
   const myNid = (userData?.nationalId || currentUser?.email?.replace('@school.local', '') || currentUser?.uid || '').trim();
   const myClass = (userData?.class || userData?.className || '')?.trim();
+
+  // Listen to active school metadata for subtitle and standalone status
+  useEffect(() => {
+    if (!schoolId || schoolId === 'ALL') {
+      setSchoolMeta(null);
+      return;
+    }
+    const unsub = onSnapshot(doc(db, 'schools', schoolId), snap => {
+      if (snap.exists()) {
+        setSchoolMeta({ id: snap.id, ...snap.data() });
+      }
+    });
+    return () => unsub();
+  }, [schoolId]);
 
   // Listen to unread messages in real-time across all school messages
   useEffect(() => {
@@ -109,10 +124,13 @@ export default function Header({ title, role }) {
     return () => unsub();
   }, [schoolId, myNid, effectiveRole, myClass, currentUser, userData]);
 
-  const displayRole = effectiveRole === 'superadmin' ? 'الماستر' : 
-                      effectiveRole === 'admin' ? (userData?.schoolName ? `مدير • ${userData.schoolName}` : 'مدير') : 
-                      effectiveRole === 'staff' ? (userData?.schoolName ? `${userData?.roleTitle || 'كادر مدرسي'} • ${userData.schoolName}` : (userData?.roleTitle || 'كادر مدرسي')) :
-                      effectiveRole === 'supervisor' ? (userData?.schoolName ? `مشرف تعليمي${supervisorSpecialty ? ` (${supervisorSpecialty})` : ''} • ${userData.schoolName}` : `مشرف تعليمي${supervisorSpecialty ? ` (${supervisorSpecialty})` : ''}`) :
+  const activeSchoolName = schoolMeta?.name || userData?.schoolName || '';
+  const activeSubTitle = schoolMeta?.subTitle || userData?.schoolSubTitle || '';
+
+  const displayRole = effectiveRole === 'superadmin' ? 'الماستر العام' : 
+                      effectiveRole === 'admin' ? (activeSchoolName ? `مدير • ${activeSchoolName}` : 'مدير') : 
+                      effectiveRole === 'staff' ? (activeSchoolName ? `${userData?.roleTitle || 'كادر مدرسي'} • ${activeSchoolName}` : (userData?.roleTitle || 'كادر مدرسي')) :
+                      effectiveRole === 'supervisor' ? (activeSchoolName ? `مشرف تعليمي${supervisorSpecialty ? ` (${supervisorSpecialty})` : ''} • ${activeSchoolName}` : `مشرف تعليمي${supervisorSpecialty ? ` (${supervisorSpecialty})` : ''}`) :
                       effectiveRole === 'teacher' ? (extraDetail ? `معلم • ${extraDetail}` : 'معلم') : 
                       effectiveRole === 'parent' ? (userData?.studentName ? `ولي أمر • الطالب: ${userData.studentName}` : 'ولي أمر') : 
                       (extraDetail ? `طالب • ${extraDetail}` : 'طالب');
@@ -254,8 +272,25 @@ export default function Header({ title, role }) {
                 </span>
               )}
             </span>
-            <span className="user-role" style={{ color: '#0e7490', fontWeight: '600', fontSize: '13px', display: 'block', marginTop: '2px' }}>
-              {displayRole}
+            <span className="user-role" style={{ color: '#0e7490', fontWeight: '600', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+              <span>{displayRole}</span>
+              {activeSubTitle && effectiveRole !== 'superadmin' && (
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  color: '#0369a1',
+                  background: 'rgba(14, 116, 144, 0.08)',
+                  border: '1px solid rgba(14, 116, 144, 0.2)',
+                  padding: '1px 7px',
+                  borderRadius: '6px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <Building2 size={11} />
+                  {activeSubTitle}
+                </span>
+              )}
             </span>
           </div>
           <div className="user-avatar" style={{ background: 'linear-gradient(135deg, #0e7490, #63B2C6)', color: 'white', fontWeight: 'bold' }}>
