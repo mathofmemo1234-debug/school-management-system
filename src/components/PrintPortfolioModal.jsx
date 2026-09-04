@@ -48,18 +48,31 @@ export default function PrintPortfolioModal({
   const [isLoadingLive, setIsLoadingLive] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(null);
 
-  // Live real-time Firestore sync with onSnapshot
+  // Live real-time Firestore sync with onSnapshot & LocalStorage cache
   useEffect(() => {
-    if (!db) return;
+    // 1. Try LocalStorage for immediate zero-latency load
     const idToTry = userData?.id || userData?.nationalId;
     const nidToTry = userData?.nationalId;
-
-    if (!idToTry && !nidToTry) {
-      if (portfolioData && Object.keys(portfolioData).length > 0) {
-        setLivePortfolioData(portfolioData);
+    if (idToTry || nidToTry) {
+      const cacheKey1 = `portfolio_${role}_${idToTry}`;
+      const cacheKey2 = nidToTry ? `portfolio_${role}_${nidToTry}` : null;
+      const cached = localStorage.getItem(cacheKey1) || (cacheKey2 ? localStorage.getItem(cacheKey2) : null);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && Object.keys(parsed).length > 0) {
+            setLivePortfolioData(parsed);
+          }
+        } catch (e) {}
       }
-      return;
     }
+
+    if (portfolioData && Object.keys(portfolioData).length > 0) {
+      setLivePortfolioData(prev => ({ ...(prev || {}), ...portfolioData }));
+    }
+
+    if (!db) return;
+    if (!idToTry && !nidToTry) return;
 
     setIsLoadingLive(true);
     let unsubPrimary = null;
@@ -109,16 +122,48 @@ export default function PrintPortfolioModal({
       if (unsubPrimary) unsubPrimary();
       if (unsubSecondary) unsubSecondary();
     };
-  }, [role, userData]);
+  }, [role, userData, portfolioData]);
+
+  // Combined and fully merged portfolio data
+  const effectivePortfolioData = useMemo(() => {
+    const merged = {};
+    if (livePortfolioData && typeof livePortfolioData === 'object') {
+      Object.keys(livePortfolioData).forEach(domainKey => {
+        merged[domainKey] = { ...(livePortfolioData[domainKey] || {}) };
+      });
+    }
+    if (portfolioData && typeof portfolioData === 'object') {
+      Object.keys(portfolioData).forEach(domainKey => {
+        merged[domainKey] = {
+          ...(merged[domainKey] || {}),
+          ...(portfolioData[domainKey] || {})
+        };
+      });
+    }
+    return merged;
+  }, [livePortfolioData, portfolioData]);
 
   const [customSchoolName, setCustomSchoolName] = useState(
     schoolName || userData?.schoolName || 'المجمع التعليمي'
   );
   const [academicYear, setAcademicYear] = useState('1447 - 1448 هـ');
-  const [personName, setPersonName] = useState(userData?.name || livePortfolioData?.profile?.fullName || portfolioData?.profile?.fullName || 'عضو الكادر التعليمي');
+  const [personName, setPersonName] = useState(
+    userData?.name || 
+    portfolioData?.profile?.fullName || 
+    livePortfolioData?.profile?.fullName || 
+    'عضو الكادر التعليمي'
+  );
   const [principalName, setPrincipalName] = useState(userData?.principalName || 'إدارة المدرسة');
   const [supervisorName, setSupervisorName] = useState('المشرف التربوي المعتمد');
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'settings'
+
+  // Update name if loaded asynchronously
+  useEffect(() => {
+    const loadedName = effectivePortfolioData?.profile?.fullName || userData?.name;
+    if (loadedName && (!personName || personName === 'عضو الكادر التعليمي')) {
+      setPersonName(loadedName);
+    }
+  }, [effectivePortfolioData, userData, personName]);
 
   const [includeSignatures, setIncludeSignatures] = useState(true);
   const [includeBadges, setIncludeBadges] = useState(true);
@@ -619,12 +664,33 @@ export default function PrintPortfolioModal({
                 {/* Domain Items */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {domain.items.map((item) => {
-                    const savedVal = portfolioData?.[domain.id]?.[item.key];
-                    const val = savedVal !== undefined ? savedVal : item.defaultValue;
+                    const domainObj = effectivePortfolioData?.[domain.id] || {};
+                    const savedVal = domainObj[item.key];
+                    
+                    let val = savedVal;
+                    if (val === undefined || val === null || val === '') {
+                      if (item.key === 'fullName') {
+                        val = userData?.name || personName || '';
+                      } else if (item.key === 'nationalId') {
+                        val = userData?.nationalId || '';
+                      } else if (item.key === 'schoolName') {
+                        val = customSchoolName || userData?.schoolName || 'المجمع التعليمي';
+                      } else if (item.key === 'specialty' && (userData?.subject || userData?.specialty)) {
+                        val = userData.subject || userData.specialty;
+                      } else if (item.key === 'class' && (userData?.className || userData?.class)) {
+                        val = userData.className || userData.class;
+                      } else if (item.key === 'roleTitle' && userData?.roleTitle) {
+                        val = userData.roleTitle;
+                      } else {
+                        val = item.defaultValue || '';
+                      }
+                    }
 
                     if (item.type === 'table') {
                       if (!includeTables) return null;
-                      const rows = Array.isArray(savedVal) ? savedVal : item.defaultRows;
+                      const rows = (Array.isArray(savedVal) && savedVal.length > 0) 
+                        ? savedVal 
+                        : (Array.isArray(item.defaultRows) ? item.defaultRows : []);
                       return (
                         <div key={item.key} style={{ marginTop: '4px' }}>
                           <strong style={{ fontSize: '0.85rem', color: '#1e293b', display: 'block', marginBottom: '6px' }}>
@@ -656,7 +722,9 @@ export default function PrintPortfolioModal({
 
                     if (item.type === 'badges') {
                       if (!includeBadges) return null;
-                      const badges = Array.isArray(savedVal) ? savedVal : item.defaultBadges;
+                      const badges = (Array.isArray(savedVal) && savedVal.length > 0) 
+                        ? savedVal 
+                        : (Array.isArray(item.defaultBadges) ? item.defaultBadges : []);
                       return (
                         <div key={item.key} style={{ marginTop: '4px' }}>
                           <strong style={{ fontSize: '0.85rem', color: '#1e293b', display: 'block', marginBottom: '6px' }}>
