@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { 
-  collection, addDoc, onSnapshot, doc, setDoc, query, where, getDocs, deleteDoc, updateDoc 
+  collection, addDoc, onSnapshot, doc, setDoc, query, where, getDocs, deleteDoc, updateDoc, writeBatch 
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
@@ -511,10 +511,104 @@ function SuperAdminHome() {
   const [isSeedingSchools, setIsSeedingSchools] = useState(false);
   const [seedingProgress, setSeedingProgress] = useState(null);
 
+  const [isPurgingDatabase, setIsPurgingDatabase] = useState(false);
+  const [purgeProgress, setPurgeProgress] = useState(null);
+  const [showPurgeModal, setShowPurgeModal] = useState(false);
+  const [purgeConfirmInput, setPurgeConfirmInput] = useState('');
+
+  // Comprehensive Database Purge: Wipes previous test accounts and data, keeps Master SuperAdmin and registered schools
+  const handlePurgeAllAccountsAndTestData = async () => {
+    if (isPurgingDatabase) return;
+    setIsPurgingDatabase(true);
+    setPurgeProgress('جاري بدء عملية التنظيف الشامل لقاعدة البيانات...');
+    try {
+      const collectionsToClear = [
+        'teachers',
+        'students',
+        'parents',
+        'staff',
+        'supervisors',
+        'classes',
+        'school_messages',
+        'attendance',
+        'lesson_preparations',
+        'weekly_plans',
+        'assignments',
+        'submissions',
+        'exams',
+        'exam_submissions',
+        'materials',
+        'grades',
+        'classroom_visits',
+        'evaluations',
+        'excellence_files',
+        'schedules',
+        'announcements',
+        'honorRoll',
+        'honor_board',
+        'notifications'
+      ];
+
+      let totalDeleted = 0;
+
+      for (const collName of collectionsToClear) {
+        setPurgeProgress(`جاري تنظيف (${collName})...`);
+        try {
+          const snap = await getDocs(collection(db, collName));
+          const docs = snap.docs;
+          for (let i = 0; i < docs.length; i += 300) {
+            const batch = writeBatch(db);
+            const chunk = docs.slice(i, i + 300);
+            chunk.forEach(d => batch.delete(d.ref));
+            await batch.commit();
+            totalDeleted += chunk.length;
+          }
+        } catch (cErr) {
+          console.warn(`Could not clear collection ${collName}:`, cErr);
+        }
+      }
+
+      // Clean users collection while keeping Master SuperAdmin intact
+      setPurgeProgress('جاري تنظيف حسابات المستخدمين والمدراء السابقة (مع الحفاظ على الماستر)...');
+      try {
+        const userSnap = await getDocs(collection(db, 'users'));
+        const userDocs = userSnap.docs;
+        const usersToDelete = userDocs.filter(d => {
+          const data = d.data();
+          const email = String(data.email || '').trim().toLowerCase();
+          const role = String(data.role || '').trim().toLowerCase();
+          const isSuper = role === 'superadmin' || email === 'super@admin.com' || (currentUser?.uid && d.id === currentUser.uid);
+          return !isSuper;
+        });
+
+        for (let i = 0; i < usersToDelete.length; i += 300) {
+          const batch = writeBatch(db);
+          const chunk = usersToDelete.slice(i, i + 300);
+          chunk.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+          totalDeleted += chunk.length;
+        }
+      } catch (uErr) {
+        console.warn('Error cleaning users collection:', uErr);
+      }
+
+      setPurgeProgress(null);
+      setShowPurgeModal(false);
+      setPurgeConfirmInput('');
+      alert(`تم تنظيف وتصفير قاعدة البيانات بنجاح!\n\n• تم مسح كافة الحسابات والبيانات السابقة (${totalDeleted} سجل/حساب).\n• تم الحفاظ على حساب الماستر العام وقائمة المدارس.\n• النظام جاهز تماماً لإضافة الكوادر والحسابات الجديدة.`);
+    } catch (err) {
+      console.error('Error during database purge:', err);
+      alert('حدث خطأ أثناء تنظيف قاعدة البيانات: ' + err.message);
+    } finally {
+      setIsPurgingDatabase(false);
+      setPurgeProgress(null);
+    }
+  };
+
   // Restore / Seed all 43+ Advanced Schools Complexes
   const handleSeedAllAdvancedSchools = async () => {
     if (isSeedingSchools) return;
-    if (!window.confirm('هل ترغب في استعادة وإضافة كافة مجمعات وفروع شركة المدارس المتقدمة (43 مجمع تعليمي مستقل) إلى قاعدة البيانات الآن؟')) {
+    if (!window.confirm('هل ترغب في استعادة وإضافة كافة مجمعات وفروع شركة المدارس المتقدمة (43 مجمع تعليمي معتمد) إلى قاعدة البيانات الآن؟')) {
       return;
     }
 
@@ -570,7 +664,7 @@ function SuperAdminHome() {
       const cleanCode = schoolCode.trim() || `school_${Date.now().toString().slice(-5)}`;
       await addDoc(collection(db, 'schools'), {
         name: schoolName.trim(),
-        subTitle: schoolSubTitle.trim() || 'فرع مستقل - المسار التعليمي المعتمد',
+        subTitle: schoolSubTitle.trim() || 'فرع معتمد - المسار التعليمي',
         code: cleanCode,
         city: schoolCity.trim() || 'جدة',
         track: schoolTrack || 'أهلي متقدم + STEM',
@@ -584,7 +678,7 @@ function SuperAdminHome() {
       setSchoolCode('');
       setSchoolAddress('');
       setShowAddSchoolModal(false);
-      alert('تمت إضافة المدرسة/المجمع التعليمي المستقل بنجاح!');
+      alert('تمت إضافة المدرسة بنجاح!');
     } catch (error) {
       console.error('Error adding school:', error);
       alert('حدث خطأ أثناء إضافة المدرسة: ' + error.message);
@@ -967,10 +1061,10 @@ function SuperAdminHome() {
               </div>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff' }}>
-                  تصفح مدرسة مستقلة (انفصال معلوماتي تام):
+                  تصفح واستعراض مدرسة محددة:
                 </div>
                 <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)' }}>
-                  اختر أي مدرسة لاستعراض عنوانها الفرعي وبياناتها المنفصلة
+                  اختر أي مدرسة لاستعراض عنوانها الفرعي وبياناتها وإحصائياتها
                 </div>
               </div>
             </div>
@@ -996,7 +1090,7 @@ function SuperAdminHome() {
               <option value="ALL">🌐 كافة المدارس والمجمعات (المنظومة المركزية الكاملة)</option>
               {schools.map(s => (
                 <option key={s.id} value={s.id}>
-                  🏫 {s.name} — {s.subTitle || s.city || 'مدرسة مستقلة'}
+                  🏫 {s.name} — {s.subTitle || s.city || 'الفرع المعتمد'}
                 </option>
               ))}
             </select>
@@ -1063,6 +1157,37 @@ function SuperAdminHome() {
               <UserPlus size={18} />
               <span>إنشاء حساب مدير</span>
             </button>
+
+            <button
+              onClick={() => { setPurgeConfirmInput(''); setShowPurgeModal(true); }}
+              style={{
+                background: 'rgba(239, 68, 68, 0.22)',
+                color: '#fee2e2',
+                border: '1px solid rgba(239, 68, 68, 0.5)',
+                borderRadius: '30px',
+                padding: '10px 22px',
+                fontSize: '14px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                backdropFilter: 'blur(6px)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.38)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.22)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+              title="تنظيف وتصفير كافة الحسابات والبيانات السابقة"
+            >
+              <Trash2 size={18} color="#fca5a5" />
+              <span>تنظيف وتصفير قاعدة البيانات</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1099,14 +1224,14 @@ function SuperAdminHome() {
                   {activeScopeSchool.name}
                 </h3>
                 <span style={{
-                  background: '#166534',
+                  background: '#0e7490',
                   color: '#ffffff',
                   fontSize: '11px',
                   fontWeight: 700,
                   padding: '2px 8px',
                   borderRadius: '10px'
                 }}>
-                  مدرسة مستقلة بذاتها
+                  فرع معتمد
                 </span>
               </div>
               <div style={{ fontSize: '13px', color: '#15803d', fontWeight: 600, marginTop: '2px' }}>
@@ -1550,9 +1675,9 @@ function SuperAdminHome() {
           {filteredSchools.length === 0 ? (
             <div className="glass-panel" style={{ padding: '48px 24px', textAlign: 'center', background: '#ffffff', borderRadius: '16px', border: '2px dashed #cbd5e1' }}>
               <Building2 size={56} color="#0e7490" style={{ margin: '0 auto 12px' }} />
-              <h3 style={{ margin: '0 0 6px', color: '#0f172a', fontWeight: 800, fontSize: '18px' }}>لا توجد مدارس مسجلة حالياً</h3>
+              <h3 style={{ margin: '0 0 6px', color: '#0f172a', fontWeight: 800, fontSize: '18px' }}>لا توجد مجمعات مسجلة حالياً</h3>
               <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: '14px', maxWidth: '520px', marginInline: 'auto' }}>
-                يمكنك بنقرة زر واحدة استعادة كافة مجمعات وفروع <strong>شركة المدارس المتقدمة</strong> المعتمدة (43 مجمع تعليمي مستقل) مع عناوينها الفرعية ومساراتها التعليمية ومدنها.
+                يمكنك بنقرة زر واحدة استعادة كافة مجمعات وفروع <strong>شركة المدارس المتقدمة</strong> المعتمدة (43 مجمع تعليمي معتمد) مع عناوينها الفرعية ومساراتها التعليمية ومدنها.
               </p>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <button 
@@ -1578,13 +1703,13 @@ function SuperAdminHome() {
                   <span>{isSeedingSchools ? 'جاري الاستعادة...' : 'استعادة كافة مجمعات شركة المدارس المتقدمة فوراً (43 مجمع)'}</span>
                 </button>
                 <button className="btn btn-secondary" onClick={() => setShowAddSchoolModal(true)} style={{ padding: '10px 18px', fontSize: '14px' }}>
-                  <Plus size={16} /> إضافة مدرسة يدوياً
+                  <Plus size={16} /> إضافة مجمع يدوياً
                 </button>
               </div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))', gap: '16px' }}>
-              {filteredSchools.map(school => {
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+              {filteredSchools.map((school) => {
                 const assignedAdmin = admins.find(a => a.schoolId === school.id);
                 return (
                   <div 
@@ -1594,13 +1719,13 @@ function SuperAdminHome() {
                       background: '#ffffff',
                       borderRadius: '16px',
                       padding: '20px',
-                      border: '1px solid #e2e8f0',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
+                      border: selectedSchoolScope === school.id ? '2px solid #0e7490' : '1px solid #e2e8f0',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
-                      gap: '14px',
-                      position: 'relative'
+                      position: 'relative',
+                      transition: 'all 0.2s ease'
                     }}
                   >
                     <div>
@@ -2072,7 +2197,7 @@ function SuperAdminHome() {
                   إضافة مدرسة / مجمع تعليمي جديد
                 </h3>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  تضمين صرح تعليمي مستقل بذاته مع عنوانه الفرعي ومساراته
+                  تضمين مدرسة جديدة مع عنوانها الفرعي ومساراتها التعليمية
                 </span>
               </div>
             </div>
@@ -2109,35 +2234,36 @@ function SuperAdminHome() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
-                    كود / معرف المدرسة
+                    المدينة / المنطقة <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="مثال: jeddah_zahraa"
-                    value={schoolCode}
-                    onChange={(e) => setSchoolCode(e.target.value)}
-                    dir="ltr"
+                    placeholder="مثال: جدة"
+                    value={schoolCity}
+                    onChange={(e) => setSchoolCity(e.target.value)}
+                    required
                   />
                 </div>
 
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
-                    المدينة / المنطقة
+                    كود المجمع / الفرع (اختياري)
                   </label>
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="جدة / الرياض / الدمام..."
-                    value={schoolCity}
-                    onChange={(e) => setSchoolCity(e.target.value)}
+                    placeholder="مثال: msc_jed_smart"
+                    value={schoolCode}
+                    onChange={(e) => setSchoolCode(e.target.value)}
+                    dir="ltr"
                   />
                 </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
-                  المسار التعليمي والبرامج
+                  المسار التعليمي
                 </label>
                 <select
                   className="input-field"
@@ -2153,12 +2279,12 @@ function SuperAdminHome() {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
-                  العنوان التفصيلي
+                  العنوان الجغرافي التفصيلي
                 </label>
                 <input
                   type="text"
                   className="input-field"
-                  placeholder="مثال: المملكة العربية السعودية - جدة - حي الزهراء"
+                  placeholder="مثال: حي الزهراء، شارع الأمير سلطان، جدة"
                   value={schoolAddress}
                   onChange={(e) => setSchoolAddress(e.target.value)}
                 />
@@ -2171,7 +2297,7 @@ function SuperAdminHome() {
                   style={{ flex: 1 }}
                   disabled={isAddingSchool}
                 >
-                  {isAddingSchool ? 'جاري الحفظ...' : 'حفظ وإضافة المدرسة'}
+                  {isAddingSchool ? 'جاري الإضافة...' : 'حفظ وإضافة المدرسة'}
                 </button>
                 <button
                   type="button"
@@ -2186,38 +2312,28 @@ function SuperAdminHome() {
         </div>
       )}
 
-      {/* MODAL 2: Add Principal Modal */}
+      {/* Modal 2: إضافة مدير مدرسة جديد */}
       {showAddAdminModal && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(5px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px'
-          }}
-          onClick={() => setShowAddAdminModal(false)}
-        >
-          <div 
-            className="glass-panel"
-            style={{
-              background: '#ffffff',
-              width: '540px',
-              maxWidth: '100%',
-              borderRadius: '20px',
-              padding: '28px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              position: 'relative'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '520px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+            position: 'relative'
+          }}>
             <button
               onClick={() => setShowAddAdminModal(false)}
               style={{
@@ -2257,7 +2373,7 @@ function SuperAdminHome() {
                   إنشاء حساب مدير مدرسة جديد
                 </h3>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  تعيين مدير مسؤول وإسناده إلى مدرسة مستقلة
+                  تعيين مدير مسؤول وإسناده إلى المدرسة المحددة
                 </span>
               </div>
             </div>
@@ -2317,7 +2433,7 @@ function SuperAdminHome() {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
-                  المدرسة المستقلة المسند له إدارتها <span style={{ color: '#ef4444' }}>*</span>
+                  المدرسة المسند له إدارتها <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <select
                   className="input-field"
@@ -2634,6 +2750,149 @@ function SuperAdminHome() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 4: تنظيف وتصفير قاعدة البيانات */}
+      {showPurgeModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            padding: '28px',
+            width: '100%',
+            maxWidth: '560px',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.3)',
+            position: 'relative',
+            borderTop: '6px solid #dc2626'
+          }}>
+            <button
+              onClick={() => { setShowPurgeModal(false); setPurgeConfirmInput(''); }}
+              style={{
+                position: 'absolute',
+                top: '18px',
+                left: isRTL ? '18px' : 'auto',
+                right: !isRTL ? '18px' : 'auto',
+                background: '#f1f5f9',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+              <div style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '14px',
+                background: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <AlertCircle size={26} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: '#991b1b' }}>
+                  تنظيف وتصفير قاعدة البيانات
+                </h3>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  مسح كافة الحسابات والبيانات السابقة وتجهيز بيئة نظيفة تماماً
+                </span>
+              </div>
+            </div>
+
+            <div style={{
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '12px',
+              padding: '14px 16px',
+              marginBottom: '16px',
+              fontSize: '13px',
+              lineHeight: '1.7',
+              color: '#7f1d1d'
+            }}>
+              <strong>⚠️ تنبيه أمني وإداري حاسم:</strong>
+              <ul style={{ margin: '8px 0 0', paddingRight: '20px' }}>
+                <li>سيتم مسح كافة الحسابات والبيانات السابقة للمدراء والمعلمين والطلاب وأولياء الأمور والكادر والزيارات والرسائل والدرجات.</li>
+                <li><strong>لن يتم حذف حساب الماستر العام (SuperAdmin)</strong> ولا قائمة المدارس والمجمعات المعتمدة.</li>
+                <li>هذا الإجراء يضمن جاهزية المنظومة بدون أي تداخل حسابات سابقة.</li>
+              </ul>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                لتأكيد العملية، يرجى كتابة كلمة <strong style={{ color: '#dc2626' }}>"تنظيف"</strong> في الحقل أدناه:
+              </label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder='اكتب "تنظيف" هنا...'
+                value={purgeConfirmInput}
+                onChange={(e) => setPurgeConfirmInput(e.target.value)}
+                style={{
+                  border: purgeConfirmInput.trim() === 'تنظيف' ? '2px solid #16a34a' : '1px solid #cbd5e1',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '15px'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={handlePurgeAllAccountsAndTestData}
+                disabled={isPurgingDatabase || purgeConfirmInput.trim() !== 'تنظيف'}
+                style={{
+                  flex: 1,
+                  background: (isPurgingDatabase || purgeConfirmInput.trim() !== 'تنظيف') ? '#cbd5e1' : 'linear-gradient(135deg, #dc2626, #b91c1c)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '12px 20px',
+                  fontWeight: 800,
+                  fontSize: '14px',
+                  cursor: (isPurgingDatabase || purgeConfirmInput.trim() !== 'تنظيف') ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                {isPurgingDatabase ? <RefreshCw size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                <span>{isPurgingDatabase ? 'جاري التنظيف الشامل...' : 'تأكيد المسح والتنظيف الآن'}</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => { setShowPurgeModal(false); setPurgeConfirmInput(''); }}
+                disabled={isPurgingDatabase}
+              >
+                إلغاء
+              </button>
+            </div>
           </div>
         </div>
       )}

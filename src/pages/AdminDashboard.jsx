@@ -218,22 +218,9 @@ function AdminHome({ schoolId }) {
             <Building2 size={26} color="#ffffff" />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#ffffff' }}>
-                {schoolInfo?.name || userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي'}
-              </h2>
-              <span style={{
-                background: 'rgba(255, 255, 255, 0.22)',
-                color: '#ffffff',
-                fontSize: '11px',
-                fontWeight: 700,
-                padding: '3px 10px',
-                borderRadius: '10px',
-                border: '1px solid rgba(255, 255, 255, 0.35)'
-              }}>
-                صرح تعليمي مستقل بذاته
-              </span>
-            </div>
+            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#ffffff' }}>
+              {schoolInfo?.name || userData?.schoolName || 'مجمع المدارس المتقدمة للتعلم الذكي'}
+            </h2>
             <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span>📍 العنوان الفرعي: <strong>{schoolInfo?.subTitle || 'فرع حي الزهراء - المسار الأهلي والدبلومة الأمريكية'}</strong></span>
               <span>•</span>
@@ -242,22 +229,6 @@ function AdminHome({ schoolId }) {
               <span>كود المجمع: <strong dir="ltr">{schoolInfo?.code || schoolId}</strong></span>
             </div>
           </div>
-        </div>
-
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.12)',
-          border: '1px solid rgba(255, 255, 255, 0.25)',
-          borderRadius: '12px',
-          padding: '8px 14px',
-          fontSize: '12px',
-          fontWeight: 700,
-          color: '#ffffff',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px'
-        }}>
-          <ShieldCheck size={16} />
-          <span>انفصال معلوماتي تام وقاعدة بيانات مستقلة</span>
         </div>
       </div>
 

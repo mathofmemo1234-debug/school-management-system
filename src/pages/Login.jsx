@@ -60,77 +60,76 @@ export default function Login() {
     navigate(`/${mismatch.actualRole}`, { replace: true });
   };
 
-  // Helper to find record across ALL collections with strict priority to prevent role confusion
-  const findAnyRecord = async (nid) => {
+  const fastQueryCollection = async (collName, defaultRole, cleanNid, lowerNid, fakeEmail) => {
+    try {
+      const isNum = !isNaN(cleanNid) && cleanNid !== '';
+      const queries = [
+        getDocs(query(collection(db, collName), where('nationalId', '==', cleanNid))),
+        getDocs(query(collection(db, collName), where('email', '==', cleanNid))),
+        getDocs(query(collection(db, collName), where('email', '==', fakeEmail)))
+      ];
+      if (lowerNid !== cleanNid) {
+        queries.push(getDocs(query(collection(db, collName), where('email', '==', lowerNid))));
+      }
+      if (isNum) {
+        queries.push(getDocs(query(collection(db, collName), where('nationalId', '==', Number(cleanNid)))));
+      }
+
+      const snapshots = await Promise.all(queries);
+      for (const s of snapshots) {
+        if (!s.empty) {
+          const docData = s.docs[0].data();
+          return {
+            ...docData,
+            id: s.docs[0].id,
+            role: defaultRole || docData.role || 'student'
+          };
+        }
+      }
+    } catch (e) {
+      console.warn(`Fast query failed on ${collName}:`, e);
+    }
+    return null;
+  };
+
+  // Helper to find record across ALL collections in parallel with zero lag
+  const findAnyRecord = async (nid, currentSelectedRole) => {
     const cleanNid = String(nid || '').trim();
     if (!cleanNid) return null;
     const lowerNid = cleanNid.toLowerCase();
     const fakeEmail = getFakeEmail(cleanNid).toLowerCase();
 
-    // 1. Check teachers FIRST (Primary authority on teachers)
-    try {
-      let tSnap = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', cleanNid)));
-      if (tSnap.empty && !isNaN(cleanNid)) tSnap = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', Number(cleanNid))));
-      if (tSnap.empty) tSnap = await getDocs(query(collection(db, 'teachers'), where('email', '==', cleanNid)));
-      if (tSnap.empty) tSnap = await getDocs(query(collection(db, 'teachers'), where('email', '==', lowerNid)));
-      if (tSnap.empty) tSnap = await getDocs(query(collection(db, 'teachers'), where('email', '==', fakeEmail)));
-      if (!tSnap.empty) return { ...tSnap.docs[0].data(), id: tSnap.docs[0].id, role: 'teacher' };
-    } catch (err) { console.warn("Error querying teachers:", err); }
+    // Query all 6 collections concurrently in parallel
+    const [tRes, sRes, staffRes, supRes, pRes, uRes] = await Promise.all([
+      fastQueryCollection('teachers', 'teacher', cleanNid, lowerNid, fakeEmail),
+      fastQueryCollection('students', 'student', cleanNid, lowerNid, fakeEmail),
+      fastQueryCollection('staff', 'staff', cleanNid, lowerNid, fakeEmail),
+      fastQueryCollection('supervisors', 'supervisor', cleanNid, lowerNid, fakeEmail),
+      fastQueryCollection('parents', 'parent', cleanNid, lowerNid, fakeEmail),
+      fastQueryCollection('users', null, cleanNid, lowerNid, fakeEmail)
+    ]);
 
-    // 2. Check students (Primary authority on students)
-    try {
-      let sSnap = await getDocs(query(collection(db, 'students'), where('nationalId', '==', cleanNid)));
-      if (sSnap.empty && !isNaN(cleanNid)) sSnap = await getDocs(query(collection(db, 'students'), where('nationalId', '==', Number(cleanNid))));
-      if (sSnap.empty) sSnap = await getDocs(query(collection(db, 'students'), where('email', '==', cleanNid)));
-      if (sSnap.empty) sSnap = await getDocs(query(collection(db, 'students'), where('email', '==', lowerNid)));
-      if (sSnap.empty) sSnap = await getDocs(query(collection(db, 'students'), where('email', '==', fakeEmail)));
-      if (!sSnap.empty) return { ...sSnap.docs[0].data(), id: sSnap.docs[0].id, role: 'student' };
-    } catch (err) { console.warn("Error querying students:", err); }
+    const foundItems = [
+      tRes && { res: tRes, role: 'teacher' },
+      sRes && { res: sRes, role: 'student' },
+      staffRes && { res: staffRes, role: 'staff' },
+      supRes && { res: supRes, role: 'supervisor' },
+      pRes && { res: pRes, role: 'parent' },
+      uRes && { res: uRes, role: uRes.role || 'admin' }
+    ].filter(Boolean);
 
-    // 3. Check staff
-    try {
-      let staffSnap = await getDocs(query(collection(db, 'staff'), where('nationalId', '==', cleanNid)));
-      if (staffSnap.empty && !isNaN(cleanNid)) staffSnap = await getDocs(query(collection(db, 'staff'), where('nationalId', '==', Number(cleanNid))));
-      if (staffSnap.empty) staffSnap = await getDocs(query(collection(db, 'staff'), where('email', '==', cleanNid)));
-      if (staffSnap.empty) staffSnap = await getDocs(query(collection(db, 'staff'), where('email', '==', lowerNid)));
-      if (staffSnap.empty) staffSnap = await getDocs(query(collection(db, 'staff'), where('email', '==', fakeEmail)));
-      if (!staffSnap.empty) return { ...staffSnap.docs[0].data(), id: staffSnap.docs[0].id, role: 'staff' };
-    } catch (err) { console.warn("Error querying staff:", err); }
+    if (foundItems.length === 0) return null;
 
-    // 4. Check supervisors
-    try {
-      let supSnap = await getDocs(query(collection(db, 'supervisors'), where('nationalId', '==', cleanNid)));
-      if (supSnap.empty && !isNaN(cleanNid)) supSnap = await getDocs(query(collection(db, 'supervisors'), where('nationalId', '==', Number(cleanNid))));
-      if (supSnap.empty) supSnap = await getDocs(query(collection(db, 'supervisors'), where('email', '==', cleanNid)));
-      if (supSnap.empty) supSnap = await getDocs(query(collection(db, 'supervisors'), where('email', '==', lowerNid)));
-      if (supSnap.empty) supSnap = await getDocs(query(collection(db, 'supervisors'), where('email', '==', fakeEmail)));
-      if (!supSnap.empty) return { ...supSnap.docs[0].data(), id: supSnap.docs[0].id, role: 'supervisor' };
-    } catch (err) { console.warn("Error querying supervisors:", err); }
+    // Prioritize selected tab match if applicable
+    if (currentSelectedRole) {
+      const match = foundItems.find(item => 
+        item.role === currentSelectedRole || 
+        (currentSelectedRole === 'staff' && (item.role === 'staff' || item.role === 'supervisor'))
+      );
+      if (match) return match.res;
+    }
 
-    // 5. Check parents
-    try {
-      let pSnap = await getDocs(query(collection(db, 'parents'), where('nationalId', '==', cleanNid)));
-      if (pSnap.empty && !isNaN(cleanNid)) pSnap = await getDocs(query(collection(db, 'parents'), where('nationalId', '==', Number(cleanNid))));
-      if (pSnap.empty) pSnap = await getDocs(query(collection(db, 'parents'), where('email', '==', cleanNid)));
-      if (pSnap.empty) pSnap = await getDocs(query(collection(db, 'parents'), where('email', '==', lowerNid)));
-      if (pSnap.empty) pSnap = await getDocs(query(collection(db, 'parents'), where('email', '==', fakeEmail)));
-      if (!pSnap.empty) return { ...pSnap.docs[0].data(), id: pSnap.docs[0].id, role: 'parent' };
-    } catch (err) { console.warn("Error querying parents:", err); }
-
-    // 6. Check users (admins and registered users)
-    try {
-      let uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', cleanNid)));
-      if (uSnap.empty && lowerNid !== cleanNid) uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', lowerNid)));
-      if (uSnap.empty) uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', fakeEmail)));
-      if (uSnap.empty) uSnap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', cleanNid)));
-      if (uSnap.empty && !isNaN(cleanNid)) uSnap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', Number(cleanNid))));
-      if (!uSnap.empty) {
-        const uData = uSnap.docs[0].data();
-        return { ...uData, id: uSnap.docs[0].id, role: uData.role || 'student' };
-      }
-    } catch (err) { console.warn("Error querying users:", err); }
-
-    return null;
+    return foundItems[0].res;
   };
 
   const handleLogin = async (e) => {
@@ -153,7 +152,7 @@ export default function Login() {
       return;
     }
 
-    // 1. SUPER ADMIN SPECIAL HANDLER
+    // 1. SUPER ADMIN SPECIAL HANDLER - INSTANT LOGIN
     if (
       role === 'superadmin' || 
       trimmedId.toLowerCase() === 'super@admin.com' || 
@@ -166,7 +165,7 @@ export default function Login() {
         const superEmail = trimmedId.includes('@') ? (trimmedId === 'super@admin' ? 'super@admin.com' : trimmedId.toLowerCase()) : 'super@admin.com';
         const superPass = trimmedPassword || 'super@admin';
         
-        let superData = {
+        const superData = {
           name: 'حساب الماستر العام',
           email: superEmail,
           role: 'superadmin',
@@ -175,37 +174,16 @@ export default function Login() {
           schoolSubTitle: ''
         };
 
-        try {
-          await signInWithEmailAndPassword(auth, superEmail, superPass);
-        } catch (signInErr) {
-          if (signInErr.code === 'auth/user-not-found') {
-            try {
-              await createUserWithEmailAndPassword(auth, superEmail, superPass.length >= 6 ? superPass : 'super@admin');
-            } catch (createErr) {}
-          }
-        }
-
-        try {
-          const uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', superEmail)));
-          if (uSnap.empty) {
-            await addDoc(collection(db, 'users'), {
-              name: 'حساب الماستر العام',
-              email: superEmail,
-              role: 'superadmin',
-              schoolId: 'ALL',
-              schoolName: 'جميع المدارس (الماستر العام)',
-              createdAt: new Date().toISOString()
-            });
-          } else {
-            superData = { ...superData, ...uSnap.docs[0].data(), role: 'superadmin' };
-          }
-        } catch (dbErr) {}
-
         if (loginAsSuperAdmin) {
           loginAsSuperAdmin(superData);
         } else {
           setLoginRole('superadmin');
         }
+
+        // Background non-blocking authentication sync
+        signInWithEmailAndPassword(auth, superEmail, superPass).catch(() => {
+          createUserWithEmailAndPassword(auth, superEmail, superPass.length >= 6 ? superPass : 'super@admin').catch(() => {});
+        });
 
         navigate('/superadmin', { replace: true });
         return;
@@ -224,9 +202,9 @@ export default function Login() {
 
     try {
       const loginEmail = getFakeEmail(trimmedId);
-      const record = await findAnyRecord(trimmedId);
+      const record = await findAnyRecord(trimmedId, role);
 
-      // CASE 1: No record found at all in any collection
+      // CASE 1: No record found in custom collections, try Firebase Auth directly
       if (!record) {
         try {
           const userCredential = await signInWithEmailAndPassword(auth, loginEmail, trimmedPassword);
@@ -257,23 +235,26 @@ export default function Login() {
       const actualRoleName = ROLE_NAMES[actualRole] || actualRole;
       const selectedRoleName = ROLE_NAMES[role] || role;
 
-      // Verify Password
+      // Fast Password Verification
+      const matchesStored = record.password && (String(record.password).trim() === trimmedPassword);
+      const matchesDefaultNid = (record.nationalId && String(record.nationalId).trim() === trimmedPassword) || (trimmedPassword === trimmedId);
+      const matchesAdminDefault = (actualRole === 'admin' && (trimmedPassword === 'admin123' || trimmedPassword === 'admin'));
+
       let isPasswordValid = false;
 
-      try {
-        await signInWithEmailAndPassword(auth, record.email || loginEmail, trimmedPassword);
+      if (matchesStored || matchesDefaultNid || matchesAdminDefault) {
         isPasswordValid = true;
-      } catch (authErr) {
-        const matchesStored = record.password && (String(record.password).trim() === trimmedPassword);
-        const matchesDefaultNid = (record.nationalId && String(record.nationalId).trim() === trimmedPassword) || (trimmedPassword === trimmedId);
-        const matchesAdminDefault = (actualRole === 'admin' && (trimmedPassword === 'admin123' || trimmedPassword === 'admin'));
-
-        if (matchesStored || matchesDefaultNid || matchesAdminDefault) {
+        // Non-blocking background sync
+        const passToUse = trimmedPassword.length >= 6 ? trimmedPassword : `${trimmedPassword}00`;
+        signInWithEmailAndPassword(auth, record.email || loginEmail, trimmedPassword).catch(() => {
+          createUserWithEmailAndPassword(auth, record.email || loginEmail, passToUse).catch(() => {});
+        });
+      } else {
+        try {
+          await signInWithEmailAndPassword(auth, record.email || loginEmail, trimmedPassword);
           isPasswordValid = true;
-          try {
-            const passToUse = trimmedPassword.length >= 6 ? trimmedPassword : `${trimmedPassword}00`;
-            await createUserWithEmailAndPassword(auth, record.email || loginEmail, passToUse);
-          } catch (cErr) {}
+        } catch (authErr) {
+          isPasswordValid = false;
         }
       }
 
@@ -302,21 +283,20 @@ export default function Login() {
         return;
       }
 
-      // Sync user doc if missing in users collection
+      // Non-blocking background sync to users collection
       if (actualRole !== 'superadmin') {
-        try {
-          const uCheck = await getDocs(query(collection(db, 'users'), where('nationalId', '==', trimmedId)));
+        getDocs(query(collection(db, 'users'), where('nationalId', '==', trimmedId))).then(uCheck => {
           if (uCheck.empty) {
-            await addDoc(collection(db, 'users'), {
+            addDoc(collection(db, 'users'), {
               nationalId: trimmedId,
               email: record.email || loginEmail,
               role: actualRole,
               name: record.name || 'مستخدم',
               schoolId: record.schoolId || 'default_school_1',
               createdAt: new Date().toISOString()
-            });
+            }).catch(() => {});
           }
-        } catch (syncErr) {}
+        }).catch(() => {});
       }
 
       loginWithUserData(record, actualRole);

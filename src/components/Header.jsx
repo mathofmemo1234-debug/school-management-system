@@ -135,7 +135,17 @@ export default function Header({ title, role }) {
                       effectiveRole === 'parent' ? (userData?.studentName ? `ولي أمر • الطالب: ${userData.studentName}` : 'ولي أمر') : 
                       (extraDetail ? `طالب • ${extraDetail}` : 'طالب');
 
-  const displayName = userData?.name || currentUser?.email?.split('@')[0] || t('header.user');
+  const displayName = userData?.name || 
+                      currentUser?.displayName || 
+                      (effectiveRole === 'superadmin' ? 'الماستر العام' : 
+                       effectiveRole === 'admin' ? (userData?.schoolName ? `مدير ${userData.schoolName}` : 'مدير المدرسة') : 
+                       effectiveRole === 'staff' ? (userData?.roleTitle || 'كادر مدرسي') :
+                       effectiveRole === 'supervisor' ? 'مشرف تعليمي' :
+                       effectiveRole === 'teacher' ? 'معلم' :
+                       effectiveRole === 'parent' ? 'ولي أمر' :
+                       effectiveRole === 'student' ? 'طالب' :
+                       currentUser?.email?.split('@')[0]) || 
+                      t('header.user');
 
   return (
     <header className="top-header">
