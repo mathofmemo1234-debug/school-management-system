@@ -101,6 +101,33 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     notes: ''
   });
 
+  // Teacher Quota & Class Allocation State (Live Real-time Staff Assignment System)
+  const [quotaSubTab, setQuotaSubTab] = useState('teachers_roster'); // 'teachers_roster' | 'subjects_balance' | 'class_coverage'
+  const [selectedTeacherForAssign, setSelectedTeacherForAssign] = useState(null);
+  const [showAssignClassesModal, setShowAssignClassesModal] = useState(false);
+  const [selectedClassIdsToAssign, setSelectedClassIdsToAssign] = useState([]);
+  const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState(null);
+  const [isSavingTeacher, setIsSavingTeacher] = useState(false);
+  const [teacherSearchQuery, setTeacherSearchQuery] = useState('');
+  const [teacherSubjectFilter, setTeacherSubjectFilter] = useState('all');
+  const [teacherLoadFilter, setTeacherLoadFilter] = useState('all'); // 'all' | 'balanced' | 'low' | 'overloaded'
+  const [coverageStageFilter, setCoverageStageFilter] = useState('all');
+  const [coverageSearchQuery, setCoverageSearchQuery] = useState('');
+
+  const [teacherForm, setTeacherForm] = useState({
+    name: '',
+    nationalId: '',
+    subject: 'الرياضيات العامة',
+    track: 'national',
+    gender: 'boys',
+    stage: 'primary',
+    standardLoad: 20,
+    phone: '',
+    email: '',
+    notes: ''
+  });
+
   // Modals
   const [showBuildingModal, setShowBuildingModal] = useState(false);
   const [editingBuilding, setEditingBuilding] = useState(null);
@@ -389,7 +416,31 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       };
     });
 
-    // Subject Quotas & Deficit / Surplus Analysis (Linked directly to real classes)
+    // Teachers with live assigned periods & load analysis
+    const teachersAnalysis = teachersList.map(t => {
+      const curClasses = t.assignedClasses || [];
+      const curPeriods = Number(t.assignedPeriods !== undefined ? t.assignedPeriods : curClasses.reduce((s, c) => s + Number(c.periods || 0), 0));
+      const stdLoad = Number(t.standardLoad || 20);
+      const availablePeriods = Math.max(0, stdLoad - curPeriods);
+      const loadUtilization = stdLoad > 0 ? Math.round((curPeriods / stdLoad) * 100) : 0;
+      const loadStatus = curPeriods > stdLoad ? 'overloaded' : (stdLoad - curPeriods >= 6) ? 'low' : 'balanced';
+
+      return {
+        ...t,
+        assignedClassesList: curClasses,
+        assignedPeriodsCount: curPeriods,
+        standardLoadCount: stdLoad,
+        availablePeriods,
+        loadUtilization,
+        loadStatus
+      };
+    });
+
+    const overloadedTeachersCount = teachersAnalysis.filter(t => t.loadStatus === 'overloaded').length;
+    const lowLoadTeachersCount = teachersAnalysis.filter(t => t.loadStatus === 'low').length;
+    const balancedTeachersCount = teachersAnalysis.filter(t => t.loadStatus === 'balanced').length;
+
+    // Subject Quotas & Deficit / Surplus Analysis (Linked directly to real classes and assigned teachers)
     const subjectAnalysis = combinedQuotasList.map(item => {
       // Find relevant classes for this subject's track
       const relevantClasses = classesList.filter(c => {
@@ -398,7 +449,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       });
       const relevantClassCount = relevantClasses.length > 0 ? relevantClasses.length : classesCount;
 
-      const assignedTeachers = teachersList.filter(t => {
+      const assignedTeachers = teachersAnalysis.filter(t => {
         const subj = (t.subject || '').trim().toLowerCase();
         const itemSubj = (item.subject || '').trim().toLowerCase();
         return subj.includes(itemSubj) || itemSubj.includes(subj);
@@ -407,6 +458,19 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       
       const totalPeriodsNeeded = relevantClassCount * item.periodsPerClass;
       const totalTeachingCapacity = tCount * item.standardTeacherLoad;
+      
+      // Calculate how many periods are actually assigned across classes for this subject
+      let assignedPeriodsForSubj = 0;
+      classesList.forEach(cls => {
+        if (cls.assignedTeachers && cls.assignedTeachers[item.subject]) {
+          assignedPeriodsForSubj += Number(cls.assignedTeachers[item.subject].periods || item.periodsPerClass);
+        }
+      });
+      if (assignedPeriodsForSubj === 0 && assignedTeachers.length > 0) {
+        assignedPeriodsForSubj = assignedTeachers.reduce((acc, t) => acc + t.assignedPeriodsCount, 0);
+      }
+
+      const unassignedPeriodsForSubj = Math.max(0, totalPeriodsNeeded - assignedPeriodsForSubj);
       const diffPeriods = totalTeachingCapacity - totalPeriodsNeeded;
       
       let status = 'balanced'; // 'surplus' | 'deficit' | 'balanced'
@@ -434,14 +498,24 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         periodsPerClass: item.periodsPerClass,
         standardLoad: item.standardTeacherLoad,
         teachersCount: tCount,
+        assignedTeachers,
         relevantClassCount,
         totalPeriodsNeeded,
         totalTeachingCapacity,
+        assignedPeriodsForSubj,
+        unassignedPeriodsForSubj,
         diffPeriods,
         status,
         netTeacherDiff
       };
     });
+
+    const totalRequiredPeriodsAll = subjectAnalysis.reduce((acc, s) => acc + s.totalPeriodsNeeded, 0);
+    const totalAssignedPeriodsAll = teachersAnalysis.reduce((acc, t) => acc + t.assignedPeriodsCount, 0);
+    const totalUnassignedPeriodsAll = Math.max(0, totalRequiredPeriodsAll - totalAssignedPeriodsAll);
+    const quotaCoveragePercent = totalRequiredPeriodsAll > 0 
+      ? Math.min(100, Math.round((totalAssignedPeriodsAll / totalRequiredPeriodsAll) * 100)) 
+      : 100;
 
     const totalSurplusTeachers = subjectAnalysis.filter(s => s.status === 'surplus').reduce((acc, c) => acc + c.netTeacherDiff, 0);
     const totalDeficitTeachers = subjectAnalysis.filter(s => s.status === 'deficit').reduce((acc, c) => acc + c.netTeacherDiff, 0);
@@ -456,6 +530,14 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       studentTeacherRatio,
       stagesBreakdown,
       subjectAnalysis,
+      teachersAnalysis,
+      overloadedTeachersCount,
+      lowLoadTeachersCount,
+      balancedTeachersCount,
+      totalRequiredPeriodsAll,
+      totalAssignedPeriodsAll,
+      totalUnassignedPeriodsAll,
+      quotaCoveragePercent,
       totalSurplusTeachers,
       totalDeficitTeachers
     };
@@ -826,6 +908,315 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     } catch (err) {
       console.error('Error batch creating classes:', err);
       alert('حدث خطأ أثناء تهيئة الفصول.');
+    } finally {
+      setIsSavingClass(false);
+    }
+  };
+
+  // ─── TEACHER QUOTA & CLASS ALLOCATION HANDLERS ───
+
+  // Save / Update Teacher
+  const handleSaveTeacher = async (e) => {
+    e.preventDefault();
+    if (!teacherForm.name.trim()) {
+      alert('يرجى إدخال اسم المعلم.');
+      return;
+    }
+    setIsSavingTeacher(true);
+    try {
+      const targetSchool = isSuperAdmin ? (selectedSchoolId || 'main_school') : (userData?.schoolId || 'main_school');
+      const targetSchoolObj = schoolsList.find(s => s.id === targetSchool);
+
+      const teacherData = {
+        name: teacherForm.name.trim(),
+        nationalId: teacherForm.nationalId.trim() || `T-${Date.now().toString().slice(-6)}`,
+        subject: teacherForm.subject || 'الرياضيات العامة',
+        track: teacherForm.track || 'national',
+        gender: teacherForm.gender || 'boys',
+        stage: teacherForm.stage || 'primary',
+        standardLoad: Number(teacherForm.standardLoad || 20),
+        phone: teacherForm.phone || '',
+        email: teacherForm.email || '',
+        notes: teacherForm.notes || '',
+        schoolId: targetSchool,
+        schoolName: targetSchoolObj?.name || currentSchoolInfo.name,
+        updatedAt: Date.now()
+      };
+
+      if (editingTeacher) {
+        await updateDoc(doc(db, 'teachers', editingTeacher.id), teacherData);
+      } else {
+        await addDoc(collection(db, 'teachers'), {
+          ...teacherData,
+          assignedClasses: [],
+          assignedPeriods: 0,
+          createdAt: Date.now()
+        });
+      }
+
+      setShowAddTeacherModal(false);
+      setEditingTeacher(null);
+      alert(editingTeacher ? 'تم تحديث بيانات المعلم بنجاح.' : 'تمت إضافة المعلم بنجاح إلى منظومة الكوادر والأنصبة!');
+    } catch (err) {
+      console.error('Error saving teacher:', err);
+      alert('حدث خطأ أثناء حفظ بيانات المعلم.');
+    } finally {
+      setIsSavingTeacher(false);
+    }
+  };
+
+  // Delete Teacher
+  const handleDeleteTeacher = async (teacherId) => {
+    if (!window.confirm('هل أنت متأكد من رغبتك في حذف هذا المعلم وسحب كافة الفصول المسكنة عليه؟')) return;
+    try {
+      // 1. Unassign from all classes
+      for (const cls of classesList) {
+        if (cls.assignedTeachers) {
+          const updated = { ...cls.assignedTeachers };
+          let changed = false;
+          Object.keys(updated).forEach(subj => {
+            if (updated[subj]?.teacherId === teacherId) {
+              delete updated[subj];
+              changed = true;
+            }
+          });
+          if (changed) {
+            await updateDoc(doc(db, 'classes', cls.id), {
+              assignedTeachers: updated,
+              updatedAt: Date.now()
+            });
+          }
+        }
+      }
+
+      // 2. Delete teacher doc
+      await deleteDoc(doc(db, 'teachers', teacherId));
+      alert('تم حذف المعلم بنجاح وتحديث جداول الفصول.');
+    } catch (err) {
+      console.error('Error deleting teacher:', err);
+      alert('حدث خطأ أثناء حذف المعلم.');
+    }
+  };
+
+  // Quick Update Teacher Standard Quota / Load
+  const handleUpdateTeacherStandardLoad = async (teacherId, newLoad) => {
+    try {
+      await updateDoc(doc(db, 'teachers', teacherId), {
+        standardLoad: Number(newLoad),
+        updatedAt: Date.now()
+      });
+    } catch (err) {
+      console.error('Error updating teacher standard load:', err);
+    }
+  };
+
+  // Save Teacher-Class Assignments
+  const handleSaveTeacherClassAssignments = async (teacherId, selectedClassIds) => {
+    setIsSavingClass(true);
+    try {
+      const teacher = teachersList.find(t => t.id === teacherId);
+      if (!teacher) return;
+
+      const subjName = teacher.subject || 'الرياضيات العامة';
+      const quotaInfo = combinedQuotasList.find(q => q.subject === subjName) || { periodsPerClass: 3 };
+      const periodsPerClass = Number(quotaInfo.periodsPerClass || 3);
+
+      const newAssignedClasses = selectedClassIds.map(clsId => {
+        const cls = classesList.find(c => c.id === clsId);
+        return {
+          classId: clsId,
+          className: cls?.name || 'فصل',
+          stage: cls?.stage || 'primary',
+          track: cls?.track || 'national',
+          gender: cls?.gender || 'boys',
+          grade: cls?.grade || '',
+          section: cls?.section || '',
+          periods: periodsPerClass,
+          subject: subjName
+        };
+      });
+
+      const newTotalPeriods = newAssignedClasses.length * periodsPerClass;
+
+      // 1. Update Teacher doc
+      await updateDoc(doc(db, 'teachers', teacherId), {
+        assignedClasses: newAssignedClasses,
+        assignedPeriods: newTotalPeriods,
+        updatedAt: Date.now()
+      });
+
+      // 2. Update Classes docs
+      for (const cls of classesList) {
+        const isAssigned = selectedClassIds.includes(cls.id);
+        const currentAssigned = cls.assignedTeachers ? { ...cls.assignedTeachers } : {};
+
+        if (isAssigned) {
+          currentAssigned[subjName] = {
+            teacherId: teacher.id,
+            teacherName: teacher.name || 'معلم',
+            periods: periodsPerClass,
+            assignedAt: Date.now()
+          };
+          await updateDoc(doc(db, 'classes', cls.id), {
+            assignedTeachers: currentAssigned,
+            updatedAt: Date.now()
+          });
+        } else if (currentAssigned[subjName]?.teacherId === teacher.id) {
+          delete currentAssigned[subjName];
+          await updateDoc(doc(db, 'classes', cls.id), {
+            assignedTeachers: currentAssigned,
+            updatedAt: Date.now()
+          });
+        }
+      }
+
+      setShowAssignClassesModal(false);
+      setSelectedTeacherForAssign(null);
+      alert(`تم حفظ وتسكين فصول المعلم (${teacher.name}) بنجاح!\nإجمالي النصاب المسند: ${newTotalPeriods} حصة أسبوعية.`);
+    } catch (err) {
+      console.error('Error saving teacher class assignments:', err);
+      alert('حدث خطأ أثناء تسكين الفصول للمعلم.');
+    } finally {
+      setIsSavingClass(false);
+    }
+  };
+
+  // Quick Remove Single Class Assignment from Teacher
+  const handleQuickRemoveClassFromTeacher = async (teacherId, classId, subjectName) => {
+    try {
+      const teacher = teachersList.find(t => t.id === teacherId);
+      if (!teacher) return;
+
+      const remainingClasses = (teacher.assignedClasses || []).filter(c => c.classId !== classId);
+      const newTotalPeriods = remainingClasses.reduce((acc, c) => acc + Number(c.periods || 0), 0);
+
+      await updateDoc(doc(db, 'teachers', teacherId), {
+        assignedClasses: remainingClasses,
+        assignedPeriods: newTotalPeriods,
+        updatedAt: Date.now()
+      });
+
+      const cls = classesList.find(c => c.id === classId);
+      if (cls && cls.assignedTeachers) {
+        const updatedTeachers = { ...cls.assignedTeachers };
+        if (updatedTeachers[subjectName]?.teacherId === teacherId) {
+          delete updatedTeachers[subjectName];
+          await updateDoc(doc(db, 'classes', classId), {
+            assignedTeachers: updatedTeachers,
+            updatedAt: Date.now()
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error removing class from teacher:', err);
+    }
+  };
+
+  // 1-Click Smart Auto Allocation Engine
+  const handleAutoSmartAllocateQuotas = async () => {
+    if (!window.confirm('هل ترغب في تشغيل خوارزمية التسكين الذكي التلقائي؟\nسيقوم النظام بتوزيع وتسكين المعلمين المتاحين على الفصول الشاغرة لمطابقة الأنصبة المعيارية بدون تجاوز الحد الأقصى.')) return;
+    setIsSavingClass(true);
+    try {
+      let allocatedCount = 0;
+      let allocatedPeriods = 0;
+
+      const teacherStateMap = {};
+      teachersList.forEach(t => {
+        const curClasses = t.assignedClasses || [];
+        const curPeriods = Number(t.assignedPeriods !== undefined ? t.assignedPeriods : curClasses.reduce((s, c) => s + Number(c.periods || 0), 0));
+        teacherStateMap[t.id] = {
+          teacher: t,
+          assignedClasses: [...curClasses],
+          assignedPeriods: curPeriods,
+          standardLoad: Number(t.standardLoad || 20)
+        };
+      });
+
+      const classUpdates = {};
+
+      for (const cls of classesList) {
+        const clsTrack = cls.track || 'national';
+        const clsGender = cls.gender || 'boys';
+        const clsStage = cls.stage || 'primary';
+        const currentAssigned = cls.assignedTeachers ? { ...cls.assignedTeachers } : {};
+
+        const relevantQuotas = combinedQuotasList.filter(q => {
+          if (q.track !== 'both' && q.track !== clsTrack) return false;
+          return true;
+        });
+
+        for (const quota of relevantQuotas) {
+          const subjName = quota.subject;
+          const periodsPerClass = Number(quota.periodsPerClass || 3);
+
+          if (currentAssigned[subjName]) continue;
+
+          const eligibleTeacherKey = Object.keys(teacherStateMap).find(tId => {
+            const tState = teacherStateMap[tId];
+            const tSubj = (tState.teacher.subject || '').trim().toLowerCase();
+            const targetSubj = subjName.trim().toLowerCase();
+            const isMatchSubj = tSubj.includes(targetSubj) || targetSubj.includes(tSubj);
+            if (!isMatchSubj) return false;
+
+            if (tState.teacher.track && tState.teacher.track !== 'both' && tState.teacher.track !== clsTrack) return false;
+            if (tState.teacher.gender && tState.teacher.gender !== clsGender) return false;
+
+            return (tState.assignedPeriods + periodsPerClass) <= tState.standardLoad;
+          });
+
+          if (eligibleTeacherKey) {
+            const tState = teacherStateMap[eligibleTeacherKey];
+            tState.assignedClasses.push({
+              classId: cls.id,
+              className: cls.name,
+              stage: clsStage,
+              track: clsTrack,
+              gender: clsGender,
+              grade: cls.grade || '',
+              section: cls.section || '',
+              periods: periodsPerClass,
+              subject: subjName
+            });
+            tState.assignedPeriods += periodsPerClass;
+
+            if (!classUpdates[cls.id]) {
+              classUpdates[cls.id] = { ...currentAssigned };
+            }
+            classUpdates[cls.id][subjName] = {
+              teacherId: eligibleTeacherKey,
+              teacherName: tState.teacher.name,
+              periods: periodsPerClass,
+              assignedAt: Date.now()
+            };
+
+            allocatedCount++;
+            allocatedPeriods += periodsPerClass;
+          }
+        }
+      }
+
+      for (const tId of Object.keys(teacherStateMap)) {
+        const tState = teacherStateMap[tId];
+        if (tState.assignedClasses.length !== (tState.teacher.assignedClasses || []).length) {
+          await updateDoc(doc(db, 'teachers', tId), {
+            assignedClasses: tState.assignedClasses,
+            assignedPeriods: tState.assignedPeriods,
+            updatedAt: Date.now()
+          });
+        }
+      }
+
+      for (const clsId of Object.keys(classUpdates)) {
+        await updateDoc(doc(db, 'classes', clsId), {
+          assignedTeachers: classUpdates[clsId],
+          updatedAt: Date.now()
+        });
+      }
+
+      alert(`⚡ اكتملت عملية التسكين الذكي بنجاح!\nتم تسكين (${allocatedCount}) مادة وشعبة دراسية، وتوزيع (${allocatedPeriods}) حصة أسبوعية على الكوادر المتاحة.`);
+    } catch (err) {
+      console.error('Error running smart auto allocation:', err);
+      alert('حدث خطأ أثناء التسكين التلقائي.');
     } finally {
       setIsSavingClass(false);
     }
@@ -2449,33 +2840,74 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         </div>
       )}
 
-      {/* TAB 3: CLASSES, STUDENTS & TEACHER QUOTAS */}
+      {/* TAB 3: TEACHER QUOTA, SPECIALTY DISTRIBUTION & CLASS ALLOCATION SYSTEM */}
       {activeTab === 'classes_quotas' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+          {/* Top Header & Global Actions */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--color-primary-dark)' }}>
-                إدارة الفصول والطلاب والأنصبة الأسبوعية وحساب الفائض والعجز
-              </h2>
-              <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-muted)' }}>
-                المطابقة بين الأنصبة المعيارية للمواد وأعداد المعلمين المتاحين لكل تخصص ومسار ({metrics.subjectAnalysis.length} مادة وتخصص مدرج)
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h2 style={{ margin: 0, fontSize: '21px', color: 'var(--color-primary-dark)' }}>
+                  منظومة توزيع أنصبة المعلمين والتخصصات وتسكين الفصول
+                </h2>
+                <span style={{
+                  background: '#ecfdf5',
+                  color: '#059669',
+                  border: '1px solid #a7f3d0',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                  تسكين واحتساب آلي لحظي
+                </span>
+              </div>
+              <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: 'var(--color-text-muted)' }}>
+                توزيع ومطابقة أنصبة الكوادر التعليمية، تسكين المعلمين على الشعب، إضافة التخصصات، وحساب الفائض والعجز تلقائياً
               </p>
             </div>
 
-            {isSuperAdmin && (
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleAutoSmartAllocateQuotas}
+                className="btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                  border: '1px solid #86efac',
+                  color: '#166534',
+                  fontWeight: 800,
+                  padding: '9px 16px',
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 8px rgba(22, 101, 52, 0.08)'
+                }}
+              >
+                <Sparkles size={17} color="#16a34a" />
+                <span>⚡ التسكين الذكي التلقائي لكافة الفصول</span>
+              </button>
+
               <button
                 onClick={() => {
-                  setNewSubjectForm({
+                  setEditingTeacher(null);
+                  setTeacherForm({
                     name: '',
-                    nameEn: '',
-                    category: 'التقنية والذكاء الاصطناعي',
-                    track: filterTrack !== 'all' ? filterTrack : 'both',
-                    stage: 'all',
-                    periodsPerClass: 3,
-                    standardTeacherLoad: 20,
-                    description: ''
+                    nationalId: '',
+                    subject: 'الرياضيات العامة',
+                    track: filterTrack !== 'all' ? filterTrack : 'national',
+                    gender: filterGender !== 'all' ? filterGender : 'boys',
+                    stage: filterStage !== 'all' ? filterStage : 'primary',
+                    standardLoad: 20,
+                    phone: '',
+                    email: '',
+                    notes: ''
                   });
-                  setShowAddSubjectModal(true);
+                  setShowAddTeacherModal(true);
                 }}
                 className="btn btn-primary"
                 style={{
@@ -2490,199 +2922,1137 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                   fontWeight: 700
                 }}
               >
-                <Plus size={17} /> إضافة مادة / تخصص جديد
+                <Plus size={17} /> إضافة معلم جديد
               </button>
-            )}
+
+              <button
+                onClick={() => {
+                  setNewSubjectForm({
+                    name: '',
+                    nameEn: '',
+                    category: 'التقنية والذكاء الاصطناعي',
+                    track: filterTrack !== 'all' ? filterTrack : 'both',
+                    stage: 'all',
+                    periodsPerClass: 3,
+                    standardTeacherLoad: 20,
+                    description: ''
+                  });
+                  setShowAddSubjectModal(true);
+                }}
+                className="btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'white',
+                  border: '1px solid #cbd5e1',
+                  color: '#334155',
+                  padding: '9px 16px',
+                  borderRadius: '12px',
+                  fontWeight: 700
+                }}
+              >
+                <BookOpen size={17} color="#0f766e" />
+                <span>إضافة تخصص / مادة جديدة</span>
+              </button>
+            </div>
           </div>
 
-          {/* Subject Quotas Table Panel */}
-          <div className="glass-panel" style={{ padding: '24px', borderRadius: '18px', overflowX: 'auto' }}>
-            {/* Table Search & Track Filter */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => setFilterTrack('all')}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontSize: '12px',
-                    fontWeight: filterTrack === 'all' ? 700 : 500,
-                    background: filterTrack === 'all' ? 'var(--color-primary)' : '#f1f5f9',
-                    color: filterTrack === 'all' ? 'white' : '#64748b',
-                    cursor: 'pointer'
-                  }}
-                >
-                  الكل ({metrics.subjectAnalysis.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterTrack('national')}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontSize: '12px',
-                    fontWeight: filterTrack === 'national' ? 700 : 500,
-                    background: filterTrack === 'national' ? '#0d9488' : '#f1f5f9',
-                    color: filterTrack === 'national' ? 'white' : '#64748b',
-                    cursor: 'pointer'
-                  }}
-                >
-                  المسار الأهلي ({metrics.subjectAnalysis.filter(s => s.track === 'national' || s.track === 'both').length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterTrack('international')}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontSize: '12px',
-                    fontWeight: filterTrack === 'international' ? 700 : 500,
-                    background: filterTrack === 'international' ? '#7c3aed' : '#f1f5f9',
-                    color: filterTrack === 'international' ? 'white' : '#64748b',
-                    cursor: 'pointer'
-                  }}
-                >
-                  المسار الدولي ({metrics.subjectAnalysis.filter(s => s.track === 'international' || s.track === 'both').length})
-                </button>
+          {/* Real-time KPI Stats Strip */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: '14px'
+          }}>
+            <div className="glass-panel" style={{ padding: '16px 20px', borderRadius: '16px', background: 'white' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>إجمالي الكوادر التعليمية</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#0f766e' }}>
+                {metrics.teachersCount} <span style={{ fontSize: '13px', fontWeight: 500 }}>معلم/معلمة</span>
               </div>
-
-              <div style={{ position: 'relative', minWidth: '220px' }}>
-                <Search size={16} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                <input
-                  type="text"
-                  className="input-field"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="بحث في المواد والتخصصات..."
-                  style={{ paddingRight: '34px', paddingLeft: '12px', paddingBlock: '6px', fontSize: '13px', borderRadius: '10px' }}
-                />
+              <div style={{ display: 'flex', gap: '8px', marginTop: '6px', fontSize: '11px' }}>
+                <span style={{ color: '#16a34a', fontWeight: 700 }}>🟢 {metrics.balancedTeachersCount} متوازن</span>
+                <span style={{ color: '#d97706', fontWeight: 700 }}>🟡 {metrics.lowLoadTeachersCount} نصاب شاغر</span>
+                {metrics.overloadedTeachersCount > 0 && (
+                  <span style={{ color: '#dc2626', fontWeight: 700 }}>🔴 {metrics.overloadedTeachersCount} عبء زائد</span>
+                )}
               </div>
             </div>
 
-            {/* Table */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-              <thead>
-                <tr style={{ background: 'rgba(99, 178, 198, 0.15)', borderBottom: '2px solid var(--color-primary)' }}>
-                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>المادة الدراسية / التخصص</th>
-                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>المسار</th>
-                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>حصص/فصل</th>
-                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>إجمالي الحصص المطلوبة</th>
-                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>المعلمون المتوفرون</th>
-                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>الطاقة التدريسية المتاحة</th>
-                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>الحالة (فائض / عجز)</th>
-                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>إجراء التوزيع</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metrics.subjectAnalysis
-                  .filter(sub => {
-                    if (filterTrack !== 'all') {
-                      if (sub.track !== 'both' && sub.track !== filterTrack) return false;
+            <div className="glass-panel" style={{ padding: '16px 20px', borderRadius: '16px', background: 'white' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>إجمالي الحصص المطلوبة</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb' }}>
+                {metrics.totalRequiredPeriodsAll} <span style={{ fontSize: '13px', fontWeight: 500 }}>حصة أسبوعياً</span>
+              </div>
+              <span style={{ fontSize: '11px', color: '#3b82f6', display: 'block', marginTop: '4px' }}>
+                موزعة على {metrics.classesCount} شعبة دراسية
+              </span>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '16px 20px', borderRadius: '16px', background: 'white' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>الحصص المسندة ونسبة التغطية</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#7c3aed' }}>
+                {metrics.quotaCoveragePercent}% <span style={{ fontSize: '13px', fontWeight: 500 }}>({metrics.totalAssignedPeriodsAll} / {metrics.totalRequiredPeriodsAll})</span>
+              </div>
+              <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${metrics.quotaCoveragePercent}%`,
+                  height: '100%',
+                  background: metrics.quotaCoveragePercent === 100 ? '#10b981' : metrics.quotaCoveragePercent >= 80 ? '#3b82f6' : '#f59e0b',
+                  borderRadius: '3px'
+                }} />
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '16px 20px', borderRadius: '16px', background: 'white' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>الحصص الشاغرة وميزان العجز</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                <div style={{ fontSize: '24px', fontWeight: 800, color: metrics.totalUnassignedPeriodsAll > 0 ? '#dc2626' : '#16a34a' }}>
+                  {metrics.totalUnassignedPeriodsAll} <span style={{ fontSize: '13px', fontWeight: 500 }}>حصة شاغرة</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '6px', fontSize: '11px' }}>
+                <span style={{ color: '#16a34a', fontWeight: 700 }}>+{metrics.totalSurplusTeachers} كادر فائض</span>
+                <span style={{ color: '#dc2626', fontWeight: 700 }}>-{metrics.totalDeficitTeachers} كادر عجز</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Smart AI Quota Recommendations Engine */}
+          {(() => {
+            const quotaRecs = [];
+            
+            // 1. Unassigned subjects with available capacity
+            teachersList.forEach(t => {
+              const curPeriods = Number(t.assignedPeriods !== undefined ? t.assignedPeriods : (t.assignedClasses || []).reduce((s, c) => s + Number(c.periods || 0), 0));
+              const stdLoad = Number(t.standardLoad || 20);
+              const avail = Math.max(0, stdLoad - curPeriods);
+
+              if (avail >= 3) {
+                const unassignedForSubj = classesList.filter(c => {
+                  if (t.track && t.track !== 'both' && (c.track || 'national') !== t.track) return false;
+                  if (t.gender && (c.gender || 'boys') !== t.gender) return false;
+                  const currentAssigned = c.assignedTeachers || {};
+                  return !currentAssigned[t.subject];
+                });
+
+                if (unassignedForSubj.length > 0) {
+                  quotaRecs.push({
+                    id: `rec-assign-${t.id}`,
+                    type: 'opportunity',
+                    title: `تسكين وإكمال نصاب المعلم (${t.name})`,
+                    desc: `المعلم لديه شاغر (${avail} حصة) في تخصص ${t.subject || 'المادة'}، وتوجد (${unassignedForSubj.length}) شعبة دراسية شاغرة يمكن تسكينه عليها فوراً.`,
+                    actionLabel: `تسكين فصول المعلم (${t.name})`,
+                    action: () => {
+                      setSelectedTeacherForAssign(t);
+                      const currentIds = (t.assignedClasses || []).map(c => c.classId);
+                      setSelectedClassIdsToAssign(currentIds);
+                      setShowAssignClassesModal(true);
                     }
-                    if (searchQuery.trim()) {
-                      const q = searchQuery.trim().toLowerCase();
-                      return (sub.subject || '').toLowerCase().includes(q);
+                  });
+                } else if (curPeriods <= 10 && classesList.length > 0) {
+                  quotaRecs.push({
+                    id: `rec-release-${t.id}`,
+                    type: 'info',
+                    title: `فائض تدريسي متاح للندب (${t.name})`,
+                    desc: `المعلم مسكن بنصاب منخفض (${curPeriods} حصة) وكافة شعب المجمع مغطاة في تخصص ${t.subject}. يوصى بندبه لفرع آخر يعاني من عجز.`,
+                    actionLabel: 'إتاحة وندب المعلم الفائض',
+                    action: () => {
+                      setTransferForm(prev => ({
+                        ...prev,
+                        type: 'release',
+                        subject: t.subject || 'الرياضيات',
+                        teacherName: t.name || '',
+                        teacherNationalId: t.nationalId || '',
+                        currentLoad: curPeriods
+                      }));
+                      setShowTransferModal(true);
+                    }
+                  });
+                }
+              }
+
+              if (curPeriods > stdLoad) {
+                quotaRecs.push({
+                  id: `rec-overload-${t.id}`,
+                  type: 'urgent',
+                  title: `تخفيف عبء مرتفع عن المعلم (${t.name})`,
+                  desc: `المعلم مسكن على (${curPeriods} حصة) ويتجاوز النصاب المعياري (${stdLoad} حصة). يوصى بإعادة توزيع بعض الشعب لتحقيق التوازن.`,
+                  actionLabel: 'تعديل وتخفيف النصاب',
+                  action: () => {
+                    setSelectedTeacherForAssign(t);
+                    const currentIds = (t.assignedClasses || []).map(c => c.classId);
+                    setSelectedClassIdsToAssign(currentIds);
+                    setShowAssignClassesModal(true);
+                  }
+                });
+              }
+            });
+
+            // 2. Critical Deficits
+            metrics.subjectAnalysis.filter(s => s.status === 'deficit' && s.netTeacherDiff > 0).forEach(sub => {
+              quotaRecs.push({
+                id: `rec-def-${sub.subject}`,
+                type: 'urgent',
+                title: `عجز تدريسي في تخصص ${sub.subject}`,
+                desc: `المدرسة تحتاج إلى (${sub.netTeacherDiff}) معلم لتغطية (${Math.abs(sub.diffPeriods)}) حصة أسبوعية شاغرة في الجداول.`,
+                actionLabel: `طلب استعانة (سد عجز ${sub.subject})`,
+                action: () => {
+                  setTransferForm(prev => ({
+                    ...prev,
+                    type: 'need',
+                    subject: sub.subject,
+                    requiredPeriods: Math.abs(sub.diffPeriods) || 20
+                  }));
+                  setShowTransferModal(true);
+                }
+              });
+            });
+
+            if (quotaRecs.length === 0) return null;
+
+            return (
+              <div className="glass-panel" style={{
+                padding: '20px 24px',
+                borderRadius: '18px',
+                background: 'linear-gradient(135deg, rgba(240, 253, 250, 0.95) 0%, rgba(245, 243, 255, 0.95) 100%)',
+                border: '1px solid rgba(13, 148, 136, 0.25)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Sparkles size={19} color="#0d9488" />
+                    <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--color-primary-dark)' }}>
+                      المقترحات الذكية للمدير للتحكم بالأنصبة وسد العجز
+                    </h3>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 700, background: 'rgba(13, 148, 136, 0.15)', color: '#0f766e', padding: '3px 10px', borderRadius: '12px' }}>
+                    {quotaRecs.length} مقترحات ذكية
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+                  {quotaRecs.slice(0, 4).map(rec => (
+                    <div key={rec.id} style={{
+                      background: 'white',
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      border: rec.type === 'urgent' ? '1px solid #fecaca' : '1px solid #bfdbfe',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                          {rec.type === 'urgent' ? (
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <AlertCircle size={13} /> تنبيه حرج
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <TrendingUp size={13} /> مقترح تسكين وموازنة
+                            </span>
+                          )}
+                        </div>
+                        <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#1e293b' }}>{rec.title}</h4>
+                        <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>{rec.desc}</p>
+                      </div>
+
+                      <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={rec.action}
+                          className="btn"
+                          style={{
+                            padding: '5px 12px',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            borderRadius: '8px',
+                            background: rec.type === 'urgent' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #0d9488, #0284c7)',
+                            color: 'white',
+                            border: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <span>{rec.actionLabel}</span>
+                          <ArrowRight size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Sub-Navigation Tabs */}
+          <div style={{ display: 'flex', gap: '8px', borderBottom: '2px solid rgba(99, 178, 198, 0.2)', paddingBottom: '6px', overflowX: 'auto' }}>
+            <button
+              onClick={() => setQuotaSubTab('teachers_roster')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                borderRadius: '12px',
+                border: 'none',
+                fontSize: '13.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                background: quotaSubTab === 'teachers_roster' ? '#0d9488' : '#f1f5f9',
+                color: quotaSubTab === 'teachers_roster' ? 'white' : '#475569',
+                boxShadow: quotaSubTab === 'teachers_roster' ? '0 3px 10px rgba(13, 148, 136, 0.25)' : 'none'
+              }}
+            >
+              <Users size={16} />
+              <span>👥 توزيع أنصبة المعلمين وتسكين الفصول ({metrics.teachersCount})</span>
+            </button>
+
+            <button
+              onClick={() => setQuotaSubTab('subjects_balance')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                borderRadius: '12px',
+                border: 'none',
+                fontSize: '13.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                background: quotaSubTab === 'subjects_balance' ? '#0d9488' : '#f1f5f9',
+                color: quotaSubTab === 'subjects_balance' ? 'white' : '#475569',
+                boxShadow: quotaSubTab === 'subjects_balance' ? '0 3px 10px rgba(13, 148, 136, 0.25)' : 'none'
+              }}
+            >
+              <BarChart2 size={16} />
+              <span>📊 ميزان المواد والتخصصات وحساب العجز والزيادة ({metrics.subjectAnalysis.length})</span>
+            </button>
+
+            <button
+              onClick={() => setQuotaSubTab('class_coverage')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                borderRadius: '12px',
+                border: 'none',
+                fontSize: '13.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                background: quotaSubTab === 'class_coverage' ? '#0d9488' : '#f1f5f9',
+                color: quotaSubTab === 'class_coverage' ? 'white' : '#475569',
+                boxShadow: quotaSubTab === 'class_coverage' ? '0 3px 10px rgba(13, 148, 136, 0.25)' : 'none'
+              }}
+            >
+              <School size={16} />
+              <span>🏫 مصفوفة تغطية الفصول والشعب ({classesList.length})</span>
+            </button>
+          </div>
+
+          {/* SUB-TAB 1: TEACHERS ROSTER & LIVE CLASS ALLOCATION */}
+          {quotaSubTab === 'teachers_roster' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Filter & Search Bar */}
+              <div className="glass-panel" style={{
+                padding: '14px 18px',
+                borderRadius: '14px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+                background: 'white'
+              }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {/* Load Filter */}
+                  <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setTeacherLoadFilter('all')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontSize: '11.5px',
+                        fontWeight: teacherLoadFilter === 'all' ? 700 : 500,
+                        background: teacherLoadFilter === 'all' ? 'white' : 'transparent',
+                        color: teacherLoadFilter === 'all' ? '#0d9488' : '#64748b',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      كافة الكوادر ({metrics.teachersAnalysis.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTeacherLoadFilter('balanced')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontSize: '11.5px',
+                        fontWeight: teacherLoadFilter === 'balanced' ? 700 : 500,
+                        background: teacherLoadFilter === 'balanced' ? '#16a34a' : 'transparent',
+                        color: teacherLoadFilter === 'balanced' ? 'white' : '#64748b',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🟢 نصاب متوازن ({metrics.balancedTeachersCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTeacherLoadFilter('low')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontSize: '11.5px',
+                        fontWeight: teacherLoadFilter === 'low' ? 700 : 500,
+                        background: teacherLoadFilter === 'low' ? '#d97706' : 'transparent',
+                        color: teacherLoadFilter === 'low' ? 'white' : '#64748b',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🟡 نصاب شاغر / متاح ({metrics.lowLoadTeachersCount})
+                    </button>
+                    {metrics.overloadedTeachersCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setTeacherLoadFilter('overloaded')}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          fontSize: '11.5px',
+                          fontWeight: teacherLoadFilter === 'overloaded' ? 700 : 500,
+                          background: teacherLoadFilter === 'overloaded' ? '#dc2626' : 'transparent',
+                          color: teacherLoadFilter === 'overloaded' ? 'white' : '#64748b',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🔴 عبء زائد ({metrics.overloadedTeachersCount})
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Subject Selector */}
+                  <select
+                    value={teacherSubjectFilter}
+                    onChange={(e) => setTeacherSubjectFilter(e.target.value)}
+                    className="input-field"
+                    style={{ padding: '5px 12px', fontSize: '12px', borderRadius: '10px', minWidth: '180px' }}
+                  >
+                    <option value="all">كافة التخصصات والمواد</option>
+                    {combinedQuotasList.map((q, i) => (
+                      <option key={i} value={q.subject}>{q.subject}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ position: 'relative', minWidth: '220px' }}>
+                  <Search size={15} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={teacherSearchQuery}
+                    onChange={(e) => setTeacherSearchQuery(e.target.value)}
+                    placeholder="بحث باسم المعلم أو السجل..."
+                    style={{ paddingRight: '32px', paddingLeft: '10px', paddingBlock: '6px', fontSize: '12px', borderRadius: '10px' }}
+                  />
+                </div>
+              </div>
+
+              {/* Teachers Cards Grid */}
+              {(() => {
+                const filteredTeachers = metrics.teachersAnalysis.filter(t => {
+                  if (filterTrack !== 'all' && t.track && t.track !== 'both' && t.track !== filterTrack) return false;
+                  if (filterGender !== 'all' && t.gender && t.gender !== filterGender) return false;
+                  if (teacherLoadFilter !== 'all' && t.loadStatus !== teacherLoadFilter) return false;
+                  if (teacherSubjectFilter !== 'all') {
+                    const tSubj = (t.subject || '').trim().toLowerCase();
+                    const filterSubj = teacherSubjectFilter.trim().toLowerCase();
+                    if (!tSubj.includes(filterSubj) && !filterSubj.includes(tSubj)) return false;
+                  }
+                  if (teacherSearchQuery.trim()) {
+                    const q = teacherSearchQuery.trim().toLowerCase();
+                    const matchName = (t.name || '').toLowerCase().includes(q);
+                    const matchNid = (t.nationalId || '').toString().includes(q);
+                    const matchSubj = (t.subject || '').toLowerCase().includes(q);
+                    if (!matchName && !matchNid && !matchSubj) return false;
+                  }
+                  return true;
+                });
+
+                if (filteredTeachers.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
+                      <Users size={40} style={{ opacity: 0.3, marginBottom: '10px', color: '#64748b' }} />
+                      <h4 style={{ margin: '0 0 6px 0', color: '#475569' }}>لا يوجد معلمون مطابقون لمعايير البحث</h4>
+                      <p style={{ margin: '0 0 14px 0', color: '#64748b', fontSize: '13px' }}>
+                        يمكنك إضافة معلمين جدد للمدرسة وتسكينهم على الفصول والشعب مباشرة.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setEditingTeacher(null);
+                          setTeacherForm({
+                            name: '',
+                            nationalId: '',
+                            subject: 'الرياضيات العامة',
+                            track: 'national',
+                            gender: 'boys',
+                            stage: 'primary',
+                            standardLoad: 20,
+                            phone: '',
+                            email: '',
+                            notes: ''
+                          });
+                          setShowAddTeacherModal(true);
+                        }}
+                        className="btn btn-primary"
+                        style={{ fontSize: '12px', padding: '7px 16px' }}
+                      >
+                        + إضافة معلم جديد للمدرسة
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+                    {filteredTeachers.map(teacher => {
+                      const curClasses = teacher.assignedClassesList || [];
+                      const curPeriods = teacher.assignedPeriodsCount;
+                      const stdLoad = teacher.standardLoadCount;
+                      const util = teacher.loadUtilization;
+                      const isOverloaded = teacher.loadStatus === 'overloaded';
+                      const isLow = teacher.loadStatus === 'low';
+
+                      return (
+                        <div key={teacher.id} className="glass-panel" style={{
+                          padding: '18px',
+                          borderRadius: '16px',
+                          background: 'white',
+                          border: isOverloaded ? '1px solid #fca5a5' : isLow ? '1px solid #fde68a' : '1px solid #e2e8f0',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                        }}>
+                          <div>
+                            {/* Teacher Top Header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                  width: '40px',
+                                  height: '40px',
+                                  borderRadius: '12px',
+                                  background: teacher.gender === 'girls' ? 'linear-gradient(135deg, #ec4899, #db2777)' : 'linear-gradient(135deg, #0d9488, #0284c7)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'white',
+                                  fontWeight: 800,
+                                  fontSize: '15px'
+                                }}>
+                                  {(teacher.name || 'م')[0]}
+                                </div>
+                                <div>
+                                  <h4 style={{ margin: 0, fontSize: '15.5px', color: '#1e293b' }}>{teacher.name}</h4>
+                                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                                    تخصص: <strong style={{ color: '#0f766e' }}>{teacher.subject || 'غير محدد'}</strong>
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                <button
+                                  onClick={() => {
+                                    setEditingTeacher(teacher);
+                                    setTeacherForm({
+                                      name: teacher.name || '',
+                                      nationalId: teacher.nationalId || '',
+                                      subject: teacher.subject || 'الرياضيات العامة',
+                                      track: teacher.track || 'national',
+                                      gender: teacher.gender || 'boys',
+                                      stage: teacher.stage || 'primary',
+                                      standardLoad: teacher.standardLoad || 20,
+                                      phone: teacher.phone || '',
+                                      email: teacher.email || '',
+                                      notes: teacher.notes || ''
+                                    });
+                                    setShowAddTeacherModal(true);
+                                  }}
+                                  style={{ padding: '4px 6px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', color: '#475569' }}
+                                  title="تعديل بيانات المعلم"
+                                >
+                                  <Edit size={13} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTeacher(teacher.id)}
+                                  style={{ padding: '4px 6px', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', color: '#dc2626' }}
+                                  title="حذف المعلم"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Badges */}
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                              <span style={{
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: '6px',
+                                background: teacher.track === 'international' ? 'rgba(124, 58, 237, 0.12)' : 'rgba(13, 148, 136, 0.12)',
+                                color: teacher.track === 'international' ? '#7c3aed' : '#0d9488'
+                              }}>
+                                {teacher.track === 'international' ? 'مسار دولي' : 'مسار أهلي'}
+                              </span>
+                              <span style={{
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: '6px',
+                                background: teacher.gender === 'girls' ? 'rgba(219, 39, 119, 0.12)' : 'rgba(37, 99, 235, 0.12)',
+                                color: teacher.gender === 'girls' ? '#db2777' : '#2563eb'
+                              }}>
+                                {teacher.gender === 'girls' ? 'بنات' : 'بنين'}
+                              </span>
+                              {teacher.phone && (
+                                <span style={{ fontSize: '10.5px', color: '#64748b', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                                  📞 {teacher.phone}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Interactive Quota Load Strip */}
+                            <div style={{
+                              background: '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '10px',
+                              padding: '10px 12px',
+                              marginBottom: '12px'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+                                  النصاب المسند: <strong style={{ fontSize: '14px', color: isOverloaded ? '#dc2626' : isLow ? '#d97706' : '#0f766e' }}>{curPeriods}</strong> / {stdLoad} حصة
+                                </span>
+                                
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontSize: '10.5px', color: '#64748b' }}>النصاب:</span>
+                                  <select
+                                    value={stdLoad}
+                                    onChange={(e) => handleUpdateTeacherStandardLoad(teacher.id, e.target.value)}
+                                    style={{
+                                      padding: '1px 6px',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      borderRadius: '6px',
+                                      border: '1px solid #cbd5e1',
+                                      background: 'white',
+                                      color: '#0f766e',
+                                      cursor: 'pointer'
+                                    }}
+                                    title="تعديل النصاب المعياري"
+                                  >
+                                    <option value="18">18 حصة</option>
+                                    <option value="20">20 حصة</option>
+                                    <option value="22">22 حصة</option>
+                                    <option value="24">24 حصة</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Progress bar */}
+                              <div style={{ width: '100%', height: '7px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', marginBlock: '4px' }}>
+                                <div style={{
+                                  width: `${Math.min(100, util)}%`,
+                                  height: '100%',
+                                  background: isOverloaded ? '#dc2626' : util >= 75 ? '#10b981' : '#f59e0b',
+                                  borderRadius: '4px'
+                                }} />
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginTop: '4px' }}>
+                                <span style={{ color: isOverloaded ? '#dc2626' : isLow ? '#d97706' : '#16a34a', fontWeight: 700 }}>
+                                  {isOverloaded ? `عبء زائد (+${curPeriods - stdLoad} حصة)` : isLow ? `شاغر متاح (${teacher.availablePeriods} حصة)` : 'مكتمل النصاب ومتوازن'}
+                                </span>
+                                <span style={{ fontWeight: 700, color: '#64748b' }}>{util}% إشغال</span>
+                              </div>
+                            </div>
+
+                            {/* Assigned Classes List */}
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569' }}>
+                                  الفصول والشعب المسكنة ({curClasses.length}):
+                                </span>
+                              </div>
+
+                              {curClasses.length === 0 ? (
+                                <div style={{ padding: '8px', background: '#fffbeb', borderRadius: '8px', border: '1px dashed #fde68a', fontSize: '11.5px', color: '#b45309', textAlign: 'center' }}>
+                                  لم يتم تسكين المعلم على أي فصل دراسي حتى الآن
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                                  {curClasses.map((clsItem, cIdx) => (
+                                    <span
+                                      key={cIdx}
+                                      style={{
+                                        fontSize: '11px',
+                                        background: 'white',
+                                        border: '1px solid #cbd5e1',
+                                        padding: '2px 8px',
+                                        borderRadius: '8px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        color: '#334155'
+                                      }}
+                                    >
+                                      <strong>{clsItem.className || 'فصل'}</strong>
+                                      <span style={{ color: '#0d9488', fontSize: '10px' }}>({clsItem.periods || 3}ح)</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleQuickRemoveClassFromTeacher(teacher.id, clsItem.classId, teacher.subject)}
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#ef4444', fontSize: '13px', lineHeight: 1 }}
+                                        title="إلغاء تسكين هذا الفصل"
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Teacher Action Bottom Bar */}
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+                            <button
+                              onClick={() => {
+                                setSelectedTeacherForAssign(teacher);
+                                const currentIds = (teacher.assignedClasses || []).map(c => c.classId);
+                                setSelectedClassIdsToAssign(currentIds);
+                                setShowAssignClassesModal(true);
+                              }}
+                              className="btn btn-primary"
+                              style={{
+                                flex: 1,
+                                padding: '6px 10px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                                border: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <Plus size={14} />
+                              <span>تسكين فصول المعلم</span>
+                            </button>
+
+                            {isLow && (
+                              <button
+                                onClick={() => {
+                                  setTransferForm(prev => ({
+                                    ...prev,
+                                    type: 'release',
+                                    subject: teacher.subject || 'الرياضيات',
+                                    teacherName: teacher.name || '',
+                                    teacherNationalId: teacher.nationalId || '',
+                                    currentLoad: curPeriods
+                                  }));
+                                  setShowTransferModal(true);
+                                }}
+                                className="btn"
+                                style={{
+                                  padding: '6px 10px',
+                                  fontSize: '11.5px',
+                                  fontWeight: 700,
+                                  background: '#eff6ff',
+                                  border: '1px solid #bfdbfe',
+                                  color: '#1d4ed8'
+                                }}
+                                title="إتاحة الكادر الفائض للندب"
+                              >
+                                ندب / إتاحة
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* SUB-TAB 2: SUBJECTS & SPECIALTIES BALANCE TABLE */}
+          {quotaSubTab === 'subjects_balance' && (
+            <div className="glass-panel" style={{ padding: '24px', borderRadius: '18px', overflowX: 'auto', background: 'white' }}>
+              {/* Table Search & Track Filter */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setFilterTrack('all')}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: filterTrack === 'all' ? 700 : 500,
+                      background: filterTrack === 'all' ? 'var(--color-primary)' : '#f1f5f9',
+                      color: filterTrack === 'all' ? 'white' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    الكل ({metrics.subjectAnalysis.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterTrack('national')}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: filterTrack === 'national' ? 700 : 500,
+                      background: filterTrack === 'national' ? '#0d9488' : '#f1f5f9',
+                      color: filterTrack === 'national' ? 'white' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    المسار الأهلي ({metrics.subjectAnalysis.filter(s => s.track === 'national' || s.track === 'both').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterTrack('international')}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: filterTrack === 'international' ? 700 : 500,
+                      background: filterTrack === 'international' ? '#7c3aed' : '#f1f5f9',
+                      color: filterTrack === 'international' ? 'white' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    المسار الدولي ({metrics.subjectAnalysis.filter(s => s.track === 'international' || s.track === 'both').length})
+                  </button>
+                </div>
+
+                <div style={{ position: 'relative', minWidth: '220px' }}>
+                  <Search size={16} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="بحث في المواد والتخصصات..."
+                    style={{ paddingRight: '34px', paddingLeft: '12px', paddingBlock: '6px', fontSize: '13px', borderRadius: '10px' }}
+                  />
+                </div>
+              </div>
+
+              {/* Table */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(99, 178, 198, 0.15)', borderBottom: '2px solid var(--color-primary)' }}>
+                    <th style={{ padding: '12px 16px', fontSize: '13.5px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>المادة / التخصص</th>
+                    <th style={{ padding: '12px 16px', fontSize: '13.5px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>المسار</th>
+                    <th style={{ padding: '12px 16px', fontSize: '13.5px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>حصص/فصل</th>
+                    <th style={{ padding: '12px 16px', fontSize: '13.5px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>الحصص المطلوبة</th>
+                    <th style={{ padding: '12px 16px', fontSize: '13.5px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>المعلمون</th>
+                    <th style={{ padding: '12px 16px', fontSize: '13.5px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>الطاقة التدريسية</th>
+                    <th style={{ padding: '12px 16px', fontSize: '13.5px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>الحصص المسندة</th>
+                    <th style={{ padding: '12px 16px', fontSize: '13.5px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>الحالة والميزان</th>
+                    <th style={{ padding: '12px 16px', fontSize: '13.5px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>إجراء التوزيع</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.subjectAnalysis
+                    .filter(sub => {
+                      if (filterTrack !== 'all') {
+                        if (sub.track !== 'both' && sub.track !== filterTrack) return false;
+                      }
+                      if (searchQuery.trim()) {
+                        const q = searchQuery.trim().toLowerCase();
+                        return (sub.subject || '').toLowerCase().includes(q);
+                      }
+                      return true;
+                    })
+                    .map((sub, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? 'rgba(255,255,255,0.6)' : 'transparent' }}>
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{sub.subject}</span>
+                            {sub.isCustom && (
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '6px',
+                                background: 'rgba(245, 158, 11, 0.15)',
+                                color: '#b45309'
+                              }}>
+                                ✨ مضافة
+                              </span>
+                            )}
+                            {sub.isCustom && isSuperAdmin && (
+                              <button
+                                onClick={() => handleDeleteCustomSubject(sub.id)}
+                                title="حذف هذه المادة المخصصة"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#dc2626' }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '8px',
+                            background: sub.track === 'international' ? 'rgba(124, 58, 237, 0.12)' : sub.track === 'national' ? 'rgba(13, 148, 136, 0.12)' : '#f1f5f9',
+                            color: sub.track === 'international' ? '#7c3aed' : sub.track === 'national' ? '#0d9488' : '#475569'
+                          }}>
+                            {sub.track === 'international' ? 'دولي' : sub.track === 'national' ? 'أهلي' : 'مشترك'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#64748b' }}>{sub.periodsPerClass} حصص</td>
+                        <td style={{ padding: '14px 16px', fontWeight: 700, color: '#1e293b' }}>{sub.totalPeriodsNeeded} حصة</td>
+                        <td style={{ padding: '14px 16px', fontWeight: 700, color: '#0f766e' }}>{sub.teachersCount} معلمين</td>
+                        <td style={{ padding: '14px 16px', color: '#64748b' }}>{sub.totalTeachingCapacity} حصة</td>
+                        <td style={{ padding: '14px 16px', fontWeight: 700, color: sub.unassignedPeriodsForSubj > 0 ? '#dc2626' : '#16a34a' }}>
+                          {sub.assignedPeriodsForSubj} / {sub.totalPeriodsNeeded}
+                          {sub.unassignedPeriodsForSubj > 0 && (
+                            <span style={{ fontSize: '10px', color: '#dc2626', display: 'block' }}>({sub.unassignedPeriodsForSubj} شاغر)</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span style={{
+                            fontSize: '11.5px',
+                            fontWeight: 800,
+                            padding: '4px 10px',
+                            borderRadius: '10px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            background: sub.status === 'surplus' ? '#dbeafe' : sub.status === 'deficit' ? '#fee2e2' : '#dcfce7',
+                            color: sub.status === 'surplus' ? '#1e40af' : sub.status === 'deficit' ? '#b91c1c' : '#15803d'
+                          }}>
+                            {sub.status === 'surplus' && <TrendingUp size={13} />}
+                            {sub.status === 'deficit' && <AlertCircle size={13} />}
+                            {sub.status === 'balanced' && <CheckCircle2 size={13} />}
+                            {sub.status === 'surplus' ? `فائض (+${sub.netTeacherDiff}) كادر` : sub.status === 'deficit' ? `عجز (-${sub.netTeacherDiff}) كادر` : 'متوازن'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          {sub.status === 'deficit' ? (
+                            <button
+                              onClick={() => {
+                                setTransferForm(prev => ({ ...prev, type: 'need', subject: sub.subject, requiredPeriods: Math.abs(sub.diffPeriods) || 20 }));
+                                setShowTransferModal(true);
+                              }}
+                              className="btn btn-primary"
+                              style={{ padding: '5px 10px', fontSize: '11.5px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', border: 'none' }}
+                            >
+                              + طلب استعانة
+                            </button>
+                          ) : sub.status === 'surplus' ? (
+                            <button
+                              onClick={() => {
+                                setTransferForm(prev => ({ ...prev, type: 'release', subject: sub.subject, currentLoad: 8 }));
+                                setShowTransferModal(true);
+                              }}
+                              className="btn"
+                              style={{ padding: '5px 10px', fontSize: '11.5px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}
+                            >
+                              إتاحة للندب
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: 700 }}>✓ متوازن تماماً</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* SUB-TAB 3: CLASS COVERAGE MATRIX */}
+          {quotaSubTab === 'class_coverage' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Stage Filter & Search */}
+              <div className="glass-panel" style={{
+                padding: '12px 18px',
+                borderRadius: '14px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '10px',
+                background: 'white'
+              }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCoverageStageFilter('all')}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: coverageStageFilter === 'all' ? 700 : 500,
+                      background: coverageStageFilter === 'all' ? 'var(--color-primary)' : '#f1f5f9',
+                      color: coverageStageFilter === 'all' ? 'white' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    كافة المراحل ({classesList.length})
+                  </button>
+                  {RESOURCE_STAGES.map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setCoverageStageFilter(s.id)}
+                      style={{
+                        padding: '5px 12px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: coverageStageFilter === 's.id' ? 700 : 500,
+                        background: coverageStageFilter === s.id ? '#0d9488' : '#f1f5f9',
+                        color: coverageStageFilter === s.id ? 'white' : '#64748b',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {s.name} ({classesList.filter(c => (c.stage || 'primary') === s.id).length})
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ position: 'relative', minWidth: '200px' }}>
+                  <Search size={15} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={coverageSearchQuery}
+                    onChange={(e) => setCoverageSearchQuery(e.target.value)}
+                    placeholder="بحث في الشعب الدراسية..."
+                    style={{ paddingRight: '32px', paddingLeft: '10px', paddingBlock: '5px', fontSize: '12px', borderRadius: '8px' }}
+                  />
+                </div>
+              </div>
+
+              {/* Class Coverage Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '16px' }}>
+                {classesList
+                  .filter(cls => {
+                    if (coverageStageFilter !== 'all' && (cls.stage || 'primary') !== coverageStageFilter) return false;
+                    if (filterTrack !== 'all' && (cls.track || 'national') !== filterTrack) return false;
+                    if (filterGender !== 'all' && (cls.gender || 'boys') !== filterGender) return false;
+                    if (coverageSearchQuery.trim()) {
+                      const q = coverageSearchQuery.trim().toLowerCase();
+                      return (cls.name || '').toLowerCase().includes(q) || (cls.grade || '').toLowerCase().includes(q);
                     }
                     return true;
                   })
-                  .map((sub, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? 'rgba(255,255,255,0.6)' : 'transparent' }}>
-                      <td style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{sub.subject}</span>
-                          {sub.isCustom && (
+                  .map(cls => {
+                    const clsTrack = cls.track || 'national';
+                    const relevantQuotas = combinedQuotasList.filter(q => q.track === 'both' || q.track === clsTrack);
+                    const assignedMap = cls.assignedTeachers || {};
+                    const coveredCount = Object.keys(assignedMap).length;
+                    const totalNeeded = relevantQuotas.length;
+
+                    return (
+                      <div key={cls.id} className="glass-panel" style={{
+                        padding: '16px',
+                        borderRadius: '14px',
+                        background: 'white',
+                        border: '1px solid #e2e8f0',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                      }}>
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <div>
+                              <h4 style={{ margin: 0, fontSize: '15px', color: '#1e293b' }}>{cls.name}</h4>
+                              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                {cls.grade || 'الصف'} • شعبة ({cls.section || 'أ'}) • {cls.studentCount || 0} طالباً
+                              </span>
+                            </div>
                             <span style={{
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              padding: '2px 6px',
-                              borderRadius: '6px',
-                              background: 'rgba(245, 158, 11, 0.15)',
-                              color: '#b45309'
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              padding: '2px 8px',
+                              borderRadius: '8px',
+                              background: coveredCount >= totalNeeded ? '#dcfce7' : '#fee2e2',
+                              color: coveredCount >= totalNeeded ? '#15803d' : '#b91c1c'
                             }}>
-                              ✨ مضافة
+                              {coveredCount} / {totalNeeded} مادة مسكنة
                             </span>
-                          )}
-                          {sub.isCustom && isSuperAdmin && (
-                            <button
-                              onClick={() => handleDeleteCustomSubject(sub.id)}
-                              title="حذف هذه المادة المخصصة"
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#dc2626' }}
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
+                          </div>
+
+                          {/* Subjects Coverage Pills */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
+                            {relevantQuotas.slice(0, 8).map((quota, qIdx) => {
+                              const assignedInfo = assignedMap[quota.subject];
+                              return (
+                                <div key={qIdx} style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: '5px 8px',
+                                  borderRadius: '8px',
+                                  background: assignedInfo ? '#f0fdf4' : '#fef2f2',
+                                  border: assignedInfo ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                                  fontSize: '11.5px'
+                                }}>
+                                  <span style={{ fontWeight: 600, color: '#1e293b' }}>{quota.subject} ({quota.periodsPerClass}ح)</span>
+                                  {assignedInfo ? (
+                                    <span style={{ color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <CheckCircle2 size={13} /> {assignedInfo.teacherName}
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: '#dc2626', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <AlertCircle size={13} /> شاغر (غير مسكن)
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '8px',
-                          background: sub.track === 'international' ? 'rgba(124, 58, 237, 0.12)' : sub.track === 'national' ? 'rgba(13, 148, 136, 0.12)' : '#f1f5f9',
-                          color: sub.track === 'international' ? '#7c3aed' : sub.track === 'national' ? '#0d9488' : '#475569'
-                        }}>
-                          {sub.track === 'international' ? 'دولي' : sub.track === 'national' ? 'أهلي' : 'مشترك'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 16px', color: '#64748b' }}>{sub.periodsPerClass} حصص</td>
-                      <td style={{ padding: '14px 16px', fontWeight: 700, color: '#1e293b' }}>{sub.totalPeriodsNeeded} حصة</td>
-                      <td style={{ padding: '14px 16px', fontWeight: 700, color: '#0f766e' }}>{sub.teachersCount} معلمين</td>
-                      <td style={{ padding: '14px 16px', color: '#64748b' }}>{sub.totalTeachingCapacity} حصة (نصاب {sub.standardLoad})</td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span style={{
-                          fontSize: '12px',
-                          fontWeight: 800,
-                          padding: '4px 12px',
-                          borderRadius: '12px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: sub.status === 'surplus' ? '#dbeafe' : sub.status === 'deficit' ? '#fee2e2' : '#dcfce7',
-                          color: sub.status === 'surplus' ? '#1e40af' : sub.status === 'deficit' ? '#b91c1c' : '#15803d'
-                        }}>
-                          {sub.status === 'surplus' && <TrendingUp size={14} />}
-                          {sub.status === 'deficit' && <AlertCircle size={14} />}
-                          {sub.status === 'balanced' && <CheckCircle2 size={14} />}
-                          {sub.status === 'surplus' ? `فائض (${sub.netTeacherDiff}) كادر` : sub.status === 'deficit' ? `عجز (${sub.netTeacherDiff}) كادر` : 'متوازن تماماً'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        {sub.status === 'deficit' ? (
+
+                        <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end' }}>
                           <button
-                            onClick={() => {
-                              setTransferForm(prev => ({ ...prev, type: 'need', subject: sub.subject, requiredPeriods: Math.abs(sub.diffPeriods) || 20 }));
-                              setShowTransferModal(true);
-                            }}
-                            className="btn btn-primary"
-                            style={{ padding: '6px 12px', fontSize: '12px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', border: 'none' }}
+                            onClick={handleAutoSmartAllocateQuotas}
+                            className="btn btn-outline"
+                            style={{ padding: '4px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
                           >
-                            + طلب استعانة
+                            <Sparkles size={12} /> تسكين ذكي للمتبقي
                           </button>
-                        ) : sub.status === 'surplus' ? (
-                          <button
-                            onClick={() => {
-                              setTransferForm(prev => ({ ...prev, type: 'release', subject: sub.subject, currentLoad: 8 }));
-                              setShowTransferModal(true);
-                            }}
-                            className="btn"
-                            style={{ padding: '6px 12px', fontSize: '12px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}
-                          >
-                            إتاحة للندب
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '12px', color: '#94a3b8' }}>متوازن</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -4081,6 +5451,531 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 8: Teacher Class Assignment & Live Quota Allocation Modal */}
+      {showAssignClassesModal && selectedTeacherForAssign && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '780px', maxHeight: '92vh', overflowY: 'auto',
+            background: 'white', padding: '28px', borderRadius: '20px', position: 'relative'
+          }}>
+            <button
+              onClick={() => { setShowAssignClassesModal(false); setSelectedTeacherForAssign(null); }}
+              style={{ position: 'absolute', left: '20px', top: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <X size={20} color="#64748b" />
+            </button>
+
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+              <div style={{
+                width: '44px', height: '44px', borderRadius: '12px',
+                background: selectedTeacherForAssign.gender === 'girls' ? 'linear-gradient(135deg, #ec4899, #db2777)' : 'linear-gradient(135deg, #0d9488, #0284c7)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
+                fontWeight: 800, fontSize: '16px'
+              }}>
+                {(selectedTeacherForAssign.name || 'م')[0]}
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--color-primary-dark)' }}>
+                  تسكين الفصول والشعب للمعلم: {selectedTeacherForAssign.name}
+                </h3>
+                <p style={{ margin: '2px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
+                  تخصص: <strong style={{ color: '#0f766e' }}>{selectedTeacherForAssign.subject}</strong> • {selectedTeacherForAssign.track === 'international' ? 'المسار الدولي' : 'المسار الأهلي'} • {selectedTeacherForAssign.gender === 'girls' ? 'قسم البنات' : 'قسم البنين'}
+                </p>
+              </div>
+            </div>
+
+            {/* Live Load Preview Card */}
+            {(() => {
+              const subjName = selectedTeacherForAssign.subject || 'الرياضيات العامة';
+              const quotaInfo = combinedQuotasList.find(q => q.subject === subjName) || { periodsPerClass: 3 };
+              const periodsPerClass = Number(quotaInfo.periodsPerClass || 3);
+              const totalSelectedPeriods = selectedClassIdsToAssign.length * periodsPerClass;
+              const stdLoad = Number(selectedTeacherForAssign.standardLoad || 20);
+              const diff = totalSelectedPeriods - stdLoad;
+              const isOver = totalSelectedPeriods > stdLoad;
+              const isLow = totalSelectedPeriods < stdLoad;
+
+              return (
+                <div style={{
+                  background: isOver ? '#fef2f2' : isLow ? '#fffbeb' : '#f0fdf4',
+                  border: isOver ? '1px solid #fecaca' : isLow ? '1px solid #fde68a' : '1px solid #bbf7d0',
+                  borderRadius: '14px',
+                  padding: '14px 18px',
+                  marginBottom: '18px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>إجمالي النصاب المختار بعد التسكين:</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: isOver ? '#dc2626' : isLow ? '#d97706' : '#16a34a' }}>
+                      {totalSelectedPeriods} <span style={{ fontSize: '13px', fontWeight: 600 }}>حصة أسبوعية</span>
+                      <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 400 }}> (من أصل {stdLoad} حصة نصاب معياري)</span>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'left' }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 12px',
+                      borderRadius: '10px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      background: isOver ? 'rgba(239, 68, 68, 0.15)' : isLow ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                      color: isOver ? '#dc2626' : isLow ? '#d97706' : '#15803d'
+                    }}>
+                      {isOver ? `⚠️ عبء زائد (+${diff} حصص)` : isLow ? `🟡 متاح ومتبقي (${stdLoad - totalSelectedPeriods} حصص)` : '🟢 نصاب متوازن ومكتمل تماماً'}
+                    </span>
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
+                      تم اختيار: {selectedClassIdsToAssign.length} فصول ({periodsPerClass} حصص/فصل)
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Stage Selector & Search within Classes */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '2px' }}>
+                <button
+                  type="button"
+                  onClick={() => setCoverageStageFilter('all')}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '11.5px',
+                    fontWeight: coverageStageFilter === 'all' ? 700 : 500,
+                    background: coverageStageFilter === 'all' ? '#0d9488' : '#f1f5f9',
+                    color: coverageStageFilter === 'all' ? 'white' : '#64748b',
+                    cursor: 'pointer'
+                  }}
+                >
+                  كافة المراحل
+                </button>
+                {RESOURCE_STAGES.map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setCoverageStageFilter(s.id)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '11.5px',
+                      fontWeight: coverageStageFilter === s.id ? 700 : 500,
+                      background: coverageStageFilter === s.id ? '#0d9488' : '#f1f5f9',
+                      color: coverageStageFilter === s.id ? 'white' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ position: 'relative', minWidth: '180px' }}>
+                <Search size={14} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  value={coverageSearchQuery}
+                  onChange={(e) => setCoverageSearchQuery(e.target.value)}
+                  placeholder="بحث في الفصول..."
+                  style={{
+                    width: '100%',
+                    paddingRight: '26px',
+                    paddingLeft: '8px',
+                    paddingBlock: '4px',
+                    fontSize: '11.5px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Classes Interactive Checkbox List */}
+            <div style={{
+              maxHeight: '340px',
+              overflowY: 'auto',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              background: '#f8fafc'
+            }}>
+              {(() => {
+                const subjName = selectedTeacherForAssign.subject || 'الرياضيات العامة';
+                const availableClasses = classesList.filter(c => {
+                  if (coverageStageFilter !== 'all' && c.stage !== coverageStageFilter) return false;
+                  if (selectedTeacherForAssign.track && selectedTeacherForAssign.track !== 'both' && c.track && c.track !== selectedTeacherForAssign.track) return false;
+                  if (selectedTeacherForAssign.gender && selectedTeacherForAssign.gender !== 'both' && c.gender && c.gender !== selectedTeacherForAssign.gender) return false;
+                  if (coverageSearchQuery.trim()) {
+                    const q = coverageSearchQuery.trim().toLowerCase();
+                    const matchName = (c.name || '').toLowerCase().includes(q);
+                    const matchGrade = (c.grade || '').toLowerCase().includes(q);
+                    if (!matchName && !matchGrade) return false;
+                  }
+                  return true;
+                });
+
+                if (availableClasses.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '30px 10px', color: '#64748b', fontSize: '13px' }}>
+                      لا توجد فصول دراسية مطابقة لمسار وقسم هذا المعلم.
+                    </div>
+                  );
+                }
+
+                return availableClasses.map(cls => {
+                  const isChecked = selectedClassIdsToAssign.includes(cls.id);
+                  const existingAssignee = cls.assignedTeachers?.[subjName];
+                  const isAssignedToOther = existingAssignee && existingAssignee.teacherId !== selectedTeacherForAssign.id;
+
+                  return (
+                    <label
+                      key={cls.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        background: isChecked ? '#f0fdf4' : 'white',
+                        border: isChecked ? '1px solid #86efac' : '1px solid #e2e8f0',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedClassIdsToAssign([...selectedClassIdsToAssign, cls.id]);
+                            } else {
+                              setSelectedClassIdsToAssign(selectedClassIdsToAssign.filter(id => id !== cls.id));
+                            }
+                          }}
+                          style={{ width: '17px', height: '17px', accentColor: '#0d9488', cursor: 'pointer' }}
+                        />
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '13.5px', color: '#1e293b' }}>
+                            {cls.name}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px', marginTop: '2px' }}>
+                            <span>{cls.track === 'international' ? 'دولي' : 'أهلي'}</span>
+                            <span>•</span>
+                            <span>{cls.gender === 'girls' ? 'بنات' : 'بنين'}</span>
+                            <span>•</span>
+                            <span>{cls.studentCount || 0} طالب</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        {isAssignedToOther ? (
+                          <span style={{ fontSize: '11px', color: '#d97706', background: '#fef3c7', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                            مسكن حالياً: {existingAssignee.teacherName} (سيتم استبداله)
+                          </span>
+                        ) : isChecked ? (
+                          <span style={{ fontSize: '11px', color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                            ✓ مسكن للمعلم
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>
+                            شاغر متاح
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  );
+                });
+              })()}
+            </div>
+
+            {/* Modal Bottom Actions */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const matchingIds = classesList.filter(c => {
+                    if (selectedTeacherForAssign.track && selectedTeacherForAssign.track !== 'both' && c.track && c.track !== selectedTeacherForAssign.track) return false;
+                    if (selectedTeacherForAssign.gender && selectedTeacherForAssign.gender !== 'both' && c.gender && c.gender !== selectedTeacherForAssign.gender) return false;
+                    return true;
+                  }).map(c => c.id);
+                  setSelectedClassIdsToAssign(matchingIds);
+                }}
+                className="btn btn-outline"
+                style={{ fontSize: '11.5px', padding: '5px 12px' }}
+              >
+                تحديد كافة فصول المسار والقسم
+              </button>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowAssignClassesModal(false); setSelectedTeacherForAssign(null); }}
+                  className="btn btn-outline"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingClass}
+                  onClick={() => handleSaveTeacherClassAssignments(selectedTeacherForAssign.id, selectedClassIdsToAssign)}
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 700
+                  }}
+                >
+                  <Check size={16} />
+                  <span>{isSavingClass ? 'جاري الحفظ والتسكين...' : 'حفظ وتثبيت التسكين'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 9: Add / Edit Teacher & Quota Profile Modal */}
+      {showAddTeacherModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '640px', maxHeight: '92vh', overflowY: 'auto',
+            background: 'white', padding: '28px', borderRadius: '20px', position: 'relative'
+          }}>
+            <button
+              onClick={() => { setShowAddTeacherModal(false); setEditingTeacher(null); }}
+              style={{ position: 'absolute', left: '20px', top: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <X size={20} color="#64748b" />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+              <div style={{
+                width: '42px', height: '42px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, #0d9488, #0284c7)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
+                boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)'
+              }}>
+                <UserCheck size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--color-primary-dark)' }}>
+                  {editingTeacher ? 'تعديل بيانات المعلم والتخصص' : 'إضافة معلم / كادر تعليمي جديد للمدرسة'}
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  تسجيل المعلم في منظومة الأنصبة الأسبوعية وتحديد التخصص والمسار التعليمي
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveTeacher} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>اسم المعلم الرباعي *</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    required
+                    value={teacherForm.name}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, name: e.target.value })}
+                    placeholder="مثال: أ. أحمد بن محمد الشهري"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>رقم الهوية الوطنية / الإقامة</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={teacherForm.nationalId}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, nationalId: e.target.value })}
+                    placeholder="10XXXXXXXX"
+                  />
+                </div>
+              </div>
+
+              {/* Specialty / Subject Dropdown with all custom subjects */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>
+                  المادة / التخصص التدريسي *
+                </label>
+                <select
+                  className="input-field"
+                  required
+                  value={teacherForm.subject}
+                  onChange={(e) => {
+                    const selectedSubj = e.target.value;
+                    const quotaInfo = combinedQuotasList.find(q => q.subject === selectedSubj);
+                    const defLoad = quotaInfo?.standardTeacherLoad || 20;
+                    setTeacherForm({
+                      ...teacherForm,
+                      subject: selectedSubj,
+                      standardLoad: defLoad
+                    });
+                  }}
+                  style={{ fontWeight: 600 }}
+                >
+                  {Object.entries(subjectsByCategory).map(([cat, list]) => (
+                    <optgroup key={cat} label={`── ${cat} ──`}>
+                      {list.map(s => (
+                        <option key={s.id} value={s.name}>{s.name} ({s.track === 'international' ? 'دولي' : s.track === 'national' ? 'أهلي' : 'مشترك'})</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>المسار *</label>
+                  <select
+                    className="input-field"
+                    value={teacherForm.track}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, track: e.target.value })}
+                    style={{ fontSize: '12px' }}
+                  >
+                    <option value="national">المسار الأهلي</option>
+                    <option value="international">المسار الدولي</option>
+                    <option value="both">كلا المسارين</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>القسم (الجنس) *</label>
+                  <select
+                    className="input-field"
+                    value={teacherForm.gender}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, gender: e.target.value })}
+                    style={{ fontSize: '12px' }}
+                  >
+                    <option value="boys">بنين (Boys)</option>
+                    <option value="girls">بنات (Girls)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>المرحلة التعليمية *</label>
+                  <select
+                    className="input-field"
+                    value={teacherForm.stage}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, stage: e.target.value })}
+                    style={{ fontSize: '12px' }}
+                  >
+                    <option value="primary">الابتدائية</option>
+                    <option value="middle">المتوسطة</option>
+                    <option value="high">الثانوية</option>
+                    <option value="kindergarten">رياض الأطفال</option>
+                    <option value="all">كافة المراحل</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#0d9488', marginBottom: '4px' }}>
+                    النصاب المعياري الأسبوعي *
+                  </label>
+                  <select
+                    className="input-field"
+                    value={teacherForm.standardLoad}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, standardLoad: Number(e.target.value) })}
+                    style={{ fontSize: '13px', fontWeight: 700, color: '#0f766e' }}
+                  >
+                    <option value="18">18 حصة أسبوعية</option>
+                    <option value="20">20 حصة أسبوعية</option>
+                    <option value="22">22 حصة أسبوعية</option>
+                    <option value="24">24 حصة أسبوعية</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>رقم الجوال</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={teacherForm.phone}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, phone: e.target.value })}
+                    placeholder="05XXXXXXXX"
+                    style={{ fontSize: '12px' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>البريد الإلكتروني</label>
+                  <input
+                    type="email"
+                    className="input-field"
+                    value={teacherForm.email}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, email: e.target.value })}
+                    placeholder="teacher@msc.edu.sa"
+                    style={{ fontSize: '12px' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>ملاحظات وتوجيهات خاصة</label>
+                <textarea
+                  className="input-field"
+                  rows="2"
+                  value={teacherForm.notes}
+                  onChange={(e) => setTeacherForm({ ...teacherForm, notes: e.target.value })}
+                  placeholder="ملاحظات حول المهارات، الإشراف على الأنشطة، الجدول الدراسي..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowAddTeacherModal(false); setEditingTeacher(null); }}
+                  className="btn btn-outline"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingTeacher}
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 700
+                  }}
+                >
+                  <Check size={16} />
+                  <span>{isSavingTeacher ? 'جاري الحفظ...' : (editingTeacher ? 'حفظ التعديلات' : 'إضافة المعلم للمنظومة')}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
