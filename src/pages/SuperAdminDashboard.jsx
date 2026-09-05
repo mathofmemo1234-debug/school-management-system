@@ -189,6 +189,7 @@ function SuperAdminHome() {
       if (assignedTeacher && assignedTeacher.trim()) {
         updateData.teacherName = assignedTeacher.trim();
       }
+      setIncomingTransferRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updateData } : r));
       await updateDoc(doc(db, 'resource_transfer_requests', requestId), updateData);
       alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : 'تم تحديث حالة المعاملة'));
       setShowApprovalModal(false);

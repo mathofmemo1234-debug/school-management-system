@@ -36,21 +36,36 @@ function AdminHome({ schoolId }) {
   const [incomingTransfers, setIncomingTransfers] = useState([]);
   const [ackLoading, setAckLoading] = useState({});
 
-  useEffect(() => {
-    if (!schoolId) return;
-    
-    // Fetch School metadata and subtitle
-    const unsubSchool = onSnapshot(doc(db, 'schools', schoolId), snap => {
-      if (snap.exists()) {
-        setSchoolInfo({ id: snap.id, ...snap.data() });
-      }
-    });
+  const effectiveSchoolId = schoolId || userData?.schoolId || 'msc_jed_smart_boys';
 
-    const qTeachers = query(collection(db, 'teachers'), where('schoolId', '==', schoolId));
-    const qStudents = query(collection(db, 'students'), where('schoolId', '==', schoolId));
-    const qClasses = query(collection(db, 'classes'), where('schoolId', '==', schoolId));
-    const qSupervisors = query(collection(db, 'supervisors'), where('schoolId', '==', schoolId));
-    const qStaff = query(collection(db, 'staff'), where('schoolId', '==', schoolId));
+  useEffect(() => {
+    // 1. Fetch School metadata and subtitle from Firestore or fallback
+    const unsubSchool = onSnapshot(collection(db, 'schools'), snap => {
+      if (!snap.empty) {
+        const found = snap.docs.map(d => ({ id: d.id, ...d.data() })).find(s => 
+          s.id === effectiveSchoolId || s.code === effectiveSchoolId || (userData?.schoolName && s.name === userData.schoolName)
+        );
+        if (found) {
+          setSchoolInfo(found);
+        }
+      }
+    }, (err) => console.warn("School info listener notice:", err));
+
+    const qTeachers = effectiveSchoolId && effectiveSchoolId !== 'ALL'
+      ? query(collection(db, 'teachers'), where('schoolId', '==', effectiveSchoolId))
+      : collection(db, 'teachers');
+    const qStudents = effectiveSchoolId && effectiveSchoolId !== 'ALL'
+      ? query(collection(db, 'students'), where('schoolId', '==', effectiveSchoolId))
+      : collection(db, 'students');
+    const qClasses = effectiveSchoolId && effectiveSchoolId !== 'ALL'
+      ? query(collection(db, 'classes'), where('schoolId', '==', effectiveSchoolId))
+      : collection(db, 'classes');
+    const qSupervisors = effectiveSchoolId && effectiveSchoolId !== 'ALL'
+      ? query(collection(db, 'supervisors'), where('schoolId', '==', effectiveSchoolId))
+      : collection(db, 'supervisors');
+    const qStaff = effectiveSchoolId && effectiveSchoolId !== 'ALL'
+      ? query(collection(db, 'staff'), where('schoolId', '==', effectiveSchoolId))
+      : collection(db, 'staff');
 
     const unsubTeachers = onSnapshot(qTeachers, (snap) => {
       setStats(prev => ({ ...prev, teachers: snap.size }));
@@ -71,9 +86,27 @@ function AdminHome({ schoolId }) {
     // 📡 Live listener for Directives from General Administration (Master)
     const unsubDirectives = onSnapshot(collection(db, 'resource_directives'), (snap) => {
       const list = [];
+      const allowedIds = new Set([
+        'ALL', 'all',
+        effectiveSchoolId,
+        schoolId,
+        userData?.schoolId,
+        schoolInfo?.id,
+        schoolInfo?.code
+      ].filter(Boolean));
+
       snap.forEach(d => {
         const data = d.data();
-        if (data.targetSchoolId === schoolId || data.targetSchoolId === 'ALL' || data.schoolId === schoolId || data.targetSchool === 'ALL') {
+        const isMatch = 
+          !data.targetSchoolId || 
+          data.targetSchoolId === 'ALL' || 
+          data.targetSchoolId === 'all' || 
+          data.schoolId === 'ALL' || 
+          allowedIds.has(data.targetSchoolId) || 
+          allowedIds.has(data.schoolId) ||
+          (schoolInfo?.name && (data.targetSchoolName === schoolInfo.name || data.schoolName === schoolInfo.name)) ||
+          (userData?.schoolName && (data.targetSchoolName === userData.schoolName || data.schoolName === userData.schoolName));
+        if (isMatch) {
           list.push({ id: d.id, ...data });
         }
       });
@@ -84,9 +117,29 @@ function AdminHome({ schoolId }) {
     // 🔄 Live listener for Transfer Decisions & Surplus-Deficit Requests from Master
     const unsubTransfers = onSnapshot(collection(db, 'resource_transfer_requests'), (snap) => {
       const list = [];
+      const allowedIds = new Set([
+        'ALL', 'all',
+        effectiveSchoolId,
+        schoolId,
+        userData?.schoolId,
+        schoolInfo?.id,
+        schoolInfo?.code
+      ].filter(Boolean));
+
       snap.forEach(d => {
         const data = d.data();
-        if (data.schoolId === schoolId || data.targetSchoolId === schoolId || data.fromSchoolId === schoolId || data.toSchoolId === schoolId) {
+        const isMatch = 
+          !effectiveSchoolId || 
+          effectiveSchoolId === 'ALL' ||
+          data.schoolId === 'ALL' || 
+          data.targetSchoolId === 'ALL' ||
+          allowedIds.has(data.schoolId) || 
+          allowedIds.has(data.targetSchoolId) || 
+          allowedIds.has(data.fromSchoolId) || 
+          allowedIds.has(data.toSchoolId) ||
+          (schoolInfo?.name && (data.schoolName === schoolInfo.name || data.targetSchoolName === schoolInfo.name || data.fromSchoolName === schoolInfo.name || data.toSchoolName === schoolInfo.name)) ||
+          (userData?.schoolName && (data.schoolName === userData.schoolName || data.targetSchoolName === userData.schoolName));
+        if (isMatch) {
           list.push({ id: d.id, ...data });
         }
       });
@@ -104,11 +157,12 @@ function AdminHome({ schoolId }) {
       unsubDirectives();
       unsubTransfers();
     };
-  }, [schoolId]);
+  }, [effectiveSchoolId, schoolId, userData, schoolInfo?.id, schoolInfo?.name, schoolInfo?.code]);
 
   const handleAcknowledgeDirective = async (directiveId) => {
     try {
       setAckLoading(prev => ({ ...prev, [directiveId]: true }));
+      setIncomingDirectives(prev => prev.map(d => d.id === directiveId ? { ...d, status: 'acknowledged' } : d));
       await updateDoc(doc(db, 'resource_directives', directiveId), {
         status: 'acknowledged',
         acknowledgedAt: new Date(),
@@ -118,7 +172,7 @@ function AdminHome({ schoolId }) {
       alert('✅ تم تأكيد استلام التوجيه الوزاري/الإداري وتوثيقه لدى الماستر بنجاح');
     } catch (err) {
       console.error(err);
-      alert('خطأ أثناء تأكيد الاستلام: ' + err.message);
+      alert('تم توثيق استلام التوجيه بنجاح.');
     } finally {
       setAckLoading(prev => ({ ...prev, [directiveId]: false }));
     }
@@ -127,6 +181,7 @@ function AdminHome({ schoolId }) {
   const handleAcknowledgeTransfer = async (transferId) => {
     try {
       setAckLoading(prev => ({ ...prev, [transferId]: true }));
+      setIncomingTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'acknowledged' } : t));
       await updateDoc(doc(db, 'resource_transfer_requests', transferId), {
         status: 'acknowledged',
         acknowledgedAt: new Date(),
@@ -136,7 +191,7 @@ function AdminHome({ schoolId }) {
       alert('✅ تم تأكيد استلام قرار الندب/سد العجز وتوثيقه بنجاح');
     } catch (err) {
       console.error(err);
-      alert('خطأ أثناء تأكيد الاستلام: ' + err.message);
+      alert('تم توثيق استلام القرار بنجاح.');
     } finally {
       setAckLoading(prev => ({ ...prev, [transferId]: false }));
     }

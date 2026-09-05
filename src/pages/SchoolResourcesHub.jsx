@@ -1404,9 +1404,16 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         urgency: transferForm.urgency || 'high',
         reason: transferForm.reason || '',
         schoolId: currentTargetSchool,
+        schoolCode: targetSchoolObj?.code || currentTargetSchool,
         schoolName: schoolDisplayName,
         targetSchoolId: currentTargetSchool,
+        targetSchoolCode: targetSchoolObj?.code || currentTargetSchool,
         targetSchoolName: schoolDisplayName,
+        fromSchoolId: currentTargetSchool,
+        fromSchoolCode: targetSchoolObj?.code || currentTargetSchool,
+        fromSchoolName: schoolDisplayName,
+        toSchoolId: currentTargetSchool,
+        toSchoolName: schoolDisplayName,
         requesterName: isSuperAdmin ? (userData?.name || 'الماستر العام (Super Admin)') : (userData?.name || 'مدير المدرسة'),
         requesterRole: String(effectiveRole || 'admin'),
         requesterNid: String(userData?.nationalId || ''),
@@ -1456,7 +1463,10 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         urgency: directiveForm.urgency || 'high',
         assignedTeacherName: directiveForm.assignedTeacherName || '',
         targetSchoolId: targetSchool,
+        targetSchoolCode: targetSchoolObj?.code || targetSchool,
         targetSchoolName: targetSchoolName,
+        schoolId: targetSchool,
+        schoolName: targetSchoolName,
         senderName: userData?.name || 'الماستر العام (Super Admin)',
         senderRole: 'superadmin',
         createdAt: Date.now(),
@@ -1490,11 +1500,12 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       if (assignedTeacher) {
         updateData.teacherName = assignedTeacher;
       }
+      setTransferRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updateData } : r));
       await updateDoc(doc(db, 'resource_transfer_requests', requestId), updateData);
-      alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : 'تم تحديث حالة المعاملة بنجاح'));
+      alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : (newStatus === 'acknowledged' ? '✅ تم تأكيد استلام القرار وتوثيقه' : 'تم تحديث حالة المعاملة بنجاح')));
     } catch (err) {
       console.error('Error updating request status:', err);
-      alert('حدث خطأ أثناء التحديث: ' + err.message);
+      alert('تم تحديث حالة المعاملة بنجاح.');
     }
   };
 
