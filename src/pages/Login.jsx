@@ -180,10 +180,16 @@ export default function Login() {
           setLoginRole('superadmin');
         }
 
-        // Background non-blocking authentication sync
-        signInWithEmailAndPassword(auth, superEmail, superPass).catch(() => {
-          createUserWithEmailAndPassword(auth, superEmail, superPass.length >= 6 ? superPass : 'super@admin').catch(() => {});
-        });
+        // Firebase Auth authentication sync
+        try {
+          await signInWithEmailAndPassword(auth, superEmail, superPass);
+        } catch (authErr) {
+          try {
+            await createUserWithEmailAndPassword(auth, superEmail, superPass.length >= 6 ? superPass : 'super@admin');
+          } catch (createErr) {
+            console.warn("Could not create/sign in super admin with email:", createErr);
+          }
+        }
 
         navigate('/superadmin', { replace: true });
         return;

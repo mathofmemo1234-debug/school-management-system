@@ -2,7 +2,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Allow public read for classes so new students can select a class during signup
+    // Allow public read for schools, buildings, and classes for catalog navigation
+    match /schools/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /school_buildings/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
     match /classes/{document=**} {
       allow read: if true;
       allow write: if request.auth != null;
@@ -14,3 +24,4 @@ service cloud.firestore {
     }
   }
 }
+

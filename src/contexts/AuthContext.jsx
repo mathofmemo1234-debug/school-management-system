@@ -10,20 +10,54 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [userRole, setUserRole] = useState(null);
-  const [userData, setUserData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedRole = localStorage.getItem('msc_userRole') || localStorage.getItem('userRole');
+    const savedData = localStorage.getItem('msc_userData') || localStorage.getItem('userData');
+    if (savedRole && savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        return {
+          email: parsed.email || (parsed.nationalId ? `${parsed.nationalId}@school.local` : 'user@school.local'),
+          uid: parsed.uid || parsed.id || 'authenticated_local_user',
+          displayName: parsed.name || 'مستخدم'
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const [userRole, setUserRole] = useState(() => {
+    return localStorage.getItem('msc_userRole') || localStorage.getItem('userRole') || null;
+  });
+
+  const [userData, setUserData] = useState(() => {
+    const savedData = localStorage.getItem('msc_userData') || localStorage.getItem('userData');
+    try {
+      return savedData ? JSON.parse(savedData) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [loading, setLoading] = useState(() => {
+    const savedRole = localStorage.getItem('msc_userRole') || localStorage.getItem('userRole');
+    const savedData = localStorage.getItem('msc_userData') || localStorage.getItem('userData');
+    return !(savedRole && savedData);
+  });
   const initializedRef = useRef(false);
 
   const resolveRole = useCallback(async (user, roleHint) => {
     try {
       if (user.email === 'super@admin.com') {
-        const superData = { name: 'حساب الماستر العام', role: 'superadmin', schoolId: 'ALL' };
+        const superData = { name: 'حساب الماستر العام', email: 'super@admin.com', role: 'superadmin', schoolId: 'ALL' };
         setUserRole('superadmin');
         setUserData(superData);
         localStorage.setItem('msc_userRole', 'superadmin');
+        localStorage.setItem('userRole', 'superadmin');
         localStorage.setItem('msc_userData', JSON.stringify(superData));
+        localStorage.setItem('userData', JSON.stringify(superData));
         return superData;
       }
 
@@ -102,7 +136,9 @@ export function AuthProvider({ children }) {
         }
         setUserRole(data.role);
         setUserData(data);
+        localStorage.setItem('msc_userRole', data.role);
         localStorage.setItem('userRole', data.role);
+        localStorage.setItem('msc_userData', JSON.stringify(data));
         localStorage.setItem('userData', JSON.stringify(data));
         return data;
       }
@@ -122,7 +158,9 @@ export function AuthProvider({ children }) {
           setUserRole('superadmin');
           setUserData(superData);
           localStorage.setItem('msc_userRole', 'superadmin');
+          localStorage.setItem('userRole', 'superadmin');
           localStorage.setItem('msc_userData', JSON.stringify(superData));
+          localStorage.setItem('userData', JSON.stringify(superData));
           setLoading(false);
           return;
         }
@@ -133,24 +171,29 @@ export function AuthProvider({ children }) {
           setUserRole(result.role);
           setUserData(result);
           localStorage.setItem('msc_userRole', result.role);
+          localStorage.setItem('userRole', result.role);
           localStorage.setItem('msc_userData', JSON.stringify(result));
-        } else {
-          // User is NOT registered in database or has been deleted/blocked! Force logout immediately.
-          localStorage.removeItem('msc_userRole');
-          localStorage.removeItem('msc_userData');
-          setCurrentUser(null);
-          setUserRole(null);
-          setUserData(null);
-          signOut(auth).catch(() => {});
+          localStorage.setItem('userData', JSON.stringify(result));
         }
         setLoading(false);
       } else {
-        localStorage.removeItem('msc_userRole');
-        localStorage.removeItem('msc_userData');
-        setCurrentUser(null);
-        setUserRole(null);
-        setUserData(null);
-        initializedRef.current = false;
+        // If Firebase auth user is null, preserve saved session from localStorage so refresh doesn't log out!
+        const savedRole = localStorage.getItem('msc_userRole') || localStorage.getItem('userRole');
+        const savedData = localStorage.getItem('msc_userData') || localStorage.getItem('userData');
+        if (savedRole && savedData) {
+          try {
+            const parsed = JSON.parse(savedData);
+            setUserRole(savedRole);
+            setUserData(parsed);
+            setCurrentUser({
+              email: parsed.email || (parsed.nationalId ? `${parsed.nationalId}@school.local` : 'user@school.local'),
+              uid: parsed.uid || parsed.id || 'authenticated_local_session',
+              displayName: parsed.name || 'مستخدم'
+            });
+          } catch (e) {
+            console.warn("Could not parse saved session:", e);
+          }
+        }
         setLoading(false);
       }
     });
@@ -160,7 +203,9 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try {
       localStorage.removeItem('msc_userRole');
+      localStorage.removeItem('userRole');
       localStorage.removeItem('msc_userData');
+      localStorage.removeItem('userData');
       setCurrentUser(null);
       setUserRole(null);
       setUserData(null);
@@ -169,7 +214,9 @@ export function AuthProvider({ children }) {
     } catch (e) {
       console.warn('Error in logout:', e);
       localStorage.removeItem('msc_userRole');
+      localStorage.removeItem('userRole');
       localStorage.removeItem('msc_userData');
+      localStorage.removeItem('userData');
       setCurrentUser(null);
       setUserRole(null);
       setUserData(null);

@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { BookOpen, Calendar, Users, Star, Award, CheckCircle, FileText, ArrowLeft, ArrowRight, ClipboardList } from 'lucide-react';
+import { BookOpen, Calendar, Users, Star, Award, CheckCircle, FileText, ArrowLeft, ArrowRight, ClipboardList, Layers } from 'lucide-react';
 import AdminPreparations from './AdminPreparations';
 import WeeklyPlanView from '../components/WeeklyPlanView';
 import ManageSchedules from './ManageSchedules';
@@ -18,6 +18,7 @@ import SchoolMessagingHub from './SchoolMessagingHub';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
 import ComprehensiveStudentRecord from './ComprehensiveStudentRecord';
 import TeacherPerformanceEvaluationHub from './TeacherPerformanceEvaluationHub';
+import SchoolResourcesHub from './SchoolResourcesHub';
 
 function SupervisorHome({ schoolId }) {
   const { userData } = useAuth();
@@ -79,6 +80,9 @@ function SupervisorHome({ schoolId }) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <Link to="/supervisor/resources" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', background: 'linear-gradient(135deg, #0d9488 0%, #0369a1 100%)', boxShadow: '0 4px 14px rgba(13, 148, 136, 0.3)' }}>
+            <Layers size={18} /> الموارد وتوزيع الكوادر
+          </Link>
           <Link to="/supervisor/student-records" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', background: 'linear-gradient(135deg, #0e7490 0%, #0369a1 100%)' }}>
             <ClipboardList size={18} /> سجل متابعة الطالب الشامل
           </Link>
@@ -267,6 +271,7 @@ export default function SupervisorDashboard() {
     <Layout role="supervisor" title="لوحة تحكم المشرف التعليمي">
       <Routes>
         <Route path="/" element={<SupervisorHome schoolId={userData?.schoolId} />} />
+        <Route path="/resources" element={<SchoolResourcesHub role="supervisor" />} />
         <Route path="/messages" element={<SchoolMessagingHub />} />
         <Route path="/portfolio" element={<AchievementPortfolioPage />} />
         <Route path="/teacher-evaluations" element={<TeacherPerformanceEvaluationHub role="supervisor" />} />

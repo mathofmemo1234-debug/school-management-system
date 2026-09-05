@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, Users, BookOpen, Calendar, Home, Settings, FileText, Star, UserCheck, ShieldCheck, CheckSquare, Globe, Mail, Award, ClipboardList } from 'lucide-react';
+import { LogOut, Users, BookOpen, Calendar, Home, Settings, FileText, Star, UserCheck, ShieldCheck, CheckSquare, Globe, Mail, Award, ClipboardList, Layers } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +31,7 @@ export default function Sidebar({ role }) {
 
   const adminLinks = [
     { path: '/admin', icon: Home, label: t('sidebar.overview') },
+    { path: '/admin/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
     { path: '/admin/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/admin/portfolio', icon: Award, label: 'ملف الإنجاز القيادي' },
     { path: '/admin/teacher-evaluations', icon: UserCheck, label: 'تقييم أداء المعلمين' },
@@ -55,6 +56,7 @@ export default function Sidebar({ role }) {
 
   const staffLinks = [
     { path: '/staff', icon: Home, label: t('sidebar.overview') },
+    { path: '/staff/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
     { path: '/staff/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/staff/portfolio', icon: Award, label: 'ملف الإنجاز الإداري' },
     { path: '/staff/teacher-evaluations', icon: UserCheck, label: 'تقييم أداء المعلمين' },
@@ -73,6 +75,7 @@ export default function Sidebar({ role }) {
 
   const supervisorLinks = [
     { path: '/supervisor', icon: Home, label: t('sidebar.overview') },
+    { path: '/supervisor/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
     { path: '/supervisor/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/supervisor/portfolio', icon: Award, label: 'ملف الإنجاز الإشرافي' },
     { path: '/supervisor/teacher-evaluations', icon: UserCheck, label: 'تقييم أداء المعلمين' },
@@ -89,6 +92,7 @@ export default function Sidebar({ role }) {
 
   const superAdminLinks = [
     { path: '/superadmin', icon: Home, label: t('sidebar.superAdminDashboard') },
+    { path: '/superadmin/resources', icon: Layers, label: 'إدارة موارد الشركة وتنقلات المعلمين' },
     { path: '/superadmin/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/superadmin/portfolio', icon: Award, label: 'ملف الإنجاز القيادي' },
     { path: '/superadmin/excellence', icon: Star, label: 'معايير التميز والاعتماد' },

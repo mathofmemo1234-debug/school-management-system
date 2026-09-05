@@ -21,6 +21,7 @@ import SchoolMessagingHub from './SchoolMessagingHub';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
 import ComprehensiveStudentRecord from './ComprehensiveStudentRecord';
 import TeacherPerformanceEvaluationHub from './TeacherPerformanceEvaluationHub';
+import SchoolResourcesHub from './SchoolResourcesHub';
 
 function StaffHome({ schoolId }) {
   const { userData } = useAuth();
@@ -495,6 +496,7 @@ export default function StaffDashboard() {
     <Layout role="staff" title={userData?.roleTitle || 'لوحة تحكم الكادر المدرسي'}>
       <Routes>
         <Route path="/" element={<StaffHome schoolId={userData?.schoolId} />} />
+        <Route path="/resources" element={<SchoolResourcesHub role="staff" />} />
         <Route path="/messages" element={<SchoolMessagingHub />} />
         <Route path="/portfolio" element={<AchievementPortfolioPage />} />
         <Route path="/teacher-evaluations" element={<TeacherPerformanceEvaluationHub role="staff" />} />

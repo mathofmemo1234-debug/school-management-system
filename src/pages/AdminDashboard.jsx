@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Routes, Route, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2 } from 'lucide-react';
+import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers } from 'lucide-react';
 import ManageSchedules from './ManageSchedules';
 import { db } from '../firebase';
 import { collection, addDoc, setDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
@@ -22,6 +22,7 @@ import NationalitySelect from '../components/NationalitySelect';
 import SchoolMessagingHub from './SchoolMessagingHub';
 import SchoolExcellenceDashboard from './SchoolExcellenceDashboard';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
+import SchoolResourcesHub from './SchoolResourcesHub';
 import { useLanguage } from '../contexts/LanguageContext';
 import GamificationBadge from '../components/GamificationBadge';
 import { calculateTeacherActivity, calculateStudentActivity } from '../utils/gamificationEngine';
@@ -233,6 +234,20 @@ function AdminHome({ schoolId }) {
       </div>
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <Link 
+          to="/admin/resources" 
+          className="btn btn-primary"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            textDecoration: 'none',
+            background: 'linear-gradient(135deg, #0d9488 0%, #0369a1 100%)',
+            boxShadow: '0 4px 14px rgba(13, 148, 136, 0.3)'
+          }}
+        >
+          <Layers size={18} /> الموارد وتوزيع الكوادر
+        </Link>
         <Link 
           to="/admin/student-records" 
           className="btn btn-primary"
@@ -1918,6 +1933,7 @@ export default function AdminDashboard() {
     <Layout role="admin" title={t('adminDashboard.adminDashboardTitle')}>
       <Routes>
         <Route path="/" element={<AdminHome schoolId={userData?.schoolId} />} />
+        <Route path="/resources" element={<SchoolResourcesHub role="admin" />} />
         <Route path="/messages" element={<SchoolMessagingHub />} />
         <Route path="/portfolio" element={<AchievementPortfolioPage />} />
         <Route path="/teacher-evaluations" element={<TeacherPerformanceEvaluationHub role="admin" />} />
