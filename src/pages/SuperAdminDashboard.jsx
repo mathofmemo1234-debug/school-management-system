@@ -164,8 +164,22 @@ function SuperAdminHome() {
 
       snap.forEach(d => {
         const itemData = { id: d.id, ...d.data() };
+        if (overrides[d.id]) {
+          const ov = overrides[d.id];
+          if (ov.reviewedAt && itemData.reviewedAt && itemData.reviewedAt >= ov.reviewedAt) {
+            delete overrides[d.id];
+          } else if (ov.acknowledgedAt && itemData.acknowledgedAt && itemData.acknowledgedAt >= ov.acknowledgedAt) {
+            delete overrides[d.id];
+          } else if (itemData.status === ov.status) {
+            delete overrides[d.id];
+          }
+        }
         trs.push(overrides[d.id] ? { ...itemData, ...overrides[d.id] } : itemData);
       });
+      try {
+        localStorage.setItem('msc_transfers_overrides', JSON.stringify(overrides));
+      } catch (e) {}
+
       trs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setIncomingTransferRequests(trs);
     }, (err) => {
@@ -1165,9 +1179,10 @@ function SuperAdminHome() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '14px' }}>
             {incomingTransferRequests.slice(0, 6).map(req => {
+              const isMasterDirective = Boolean(req.isDirective || req.requesterRole === 'superadmin' || req.source === 'master');
               const subjectDisplay = req.subject || req.customSubject || req.subjectName || req.title || 'مادة دراسية';
               const periodsDisplay = req.requiredPeriods || req.periodsCount || req.currentLoad || req.periods || null;
-              const teacherDisplay = req.teacherName || req.assignedTeacherName || (req.type === 'need' ? '🚨 طلب سد عجز (بانتظار توفير وترشيح كادر من الماستر)' : 'كادر معتمد للتوجيه');
+              const teacherDisplay = req.teacherName || req.assignedTeacherName || (req.type === 'need' ? (isMasterDirective ? 'كادر معتمد ومكلف من الماستر' : '🚨 طلب سد عجز (بانتظار توفير وترشيح كادر من الماستر)') : 'كادر معتمد للتوجيه');
               const trackDisplay = req.track === 'international' ? 'مسار دولي' : 'مسار أهلي';
               const genderDisplay = req.gender === 'girls' ? 'بنات' : 'بنين';
               const stageDisplay = req.stage === 'primary' ? 'الابتدائية' : req.stage === 'middle' ? 'المتوسطة' : req.stage === 'high' ? 'الثانوية' : req.stage === 'kindergarten' ? 'رياض الأطفال' : '';
@@ -1180,8 +1195,8 @@ function SuperAdminHome() {
                 <div
                   key={req.id}
                   style={{
-                    background: '#ffffff',
-                    border: isApproved || isAcknowledged ? '1.5px solid #86efac' : isRejected ? '1.5px solid #fca5a5' : '1.5px solid #38bdf8',
+                    background: isMasterDirective ? 'linear-gradient(135deg, rgba(245, 243, 255, 0.7), rgba(255, 255, 255, 0.95))' : '#ffffff',
+                    border: isMasterDirective ? '1.5px solid #818cf8' : (isApproved || isAcknowledged ? '1.5px solid #86efac' : isRejected ? '1.5px solid #fca5a5' : '1.5px solid #38bdf8'),
                     borderRadius: '14px',
                     padding: '16px',
                     display: 'flex',
@@ -1195,13 +1210,15 @@ function SuperAdminHome() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
                       <span style={{
                         fontSize: '11px',
-                        fontWeight: 700,
+                        fontWeight: 800,
                         padding: '3px 8px',
                         borderRadius: '6px',
-                        background: req.type === 'need' ? '#fee2e2' : '#e0e7ff',
-                        color: req.type === 'need' ? '#991b1b' : '#3730a3'
+                        background: isMasterDirective ? '#e0e7ff' : (req.type === 'need' ? '#fee2e2' : '#dbeafe'),
+                        color: isMasterDirective ? '#4338ca' : (req.type === 'need' ? '#991b1b' : '#3730a3')
                       }}>
-                        {req.type === 'need' ? '🚨 طلب سد عجز' : (req.type === 'release' ? '🌟 إتاحة كادر فائض' : '📢 قرار ندب مباشر')}
+                        {isMasterDirective 
+                          ? '📢 قرار وتوجيه إداري من الماستر' 
+                          : (req.type === 'need' ? '🚨 طلب سد عجز وارد من المدرسة' : '🌟 إتاحة وندب كادر فائض')}
                       </span>
                       <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>
                         {req.requestNumber || `#TR-${(req.id || '').slice(0, 5).toUpperCase()}`}
@@ -1229,8 +1246,12 @@ function SuperAdminHome() {
                       </p>
                     )}
 
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>
-                      📩 مقدم الطلب: <strong>{req.requesterName || 'مدير المدرسة'}</strong> • {new Date(req.createdAt).toLocaleDateString('ar-SA')}
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
+                      {isMasterDirective ? (
+                        <span>📢 <strong style={{ color: '#4338ca' }}>الصادر من: الإدارة العامة (الماستر العام)</strong> • موجه إلى: <strong style={{ color: '#0f766e' }}>{req.targetSchoolName || req.toSchoolName || req.schoolName}</strong> • {new Date(req.createdAt).toLocaleDateString('ar-SA')}</span>
+                      ) : (
+                        <span>📩 <strong style={{ color: '#b91c1c' }}>مقدم الطلب: {req.requesterName || 'مدير المدرسة'}</strong> ({req.fromSchoolName || req.schoolName}) • موجه إلى: <strong style={{ color: '#4338ca' }}>الإدارة العامة والماستر</strong> • {new Date(req.createdAt).toLocaleDateString('ar-SA')}</span>
+                      )}
                     </div>
                   </div>
 

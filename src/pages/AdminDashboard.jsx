@@ -132,6 +132,16 @@ function AdminHome({ schoolId }) {
 
       snap.forEach(d => {
         const rawData = { id: d.id, ...d.data() };
+        if (overrides[d.id]) {
+          const ov = overrides[d.id];
+          if (ov.reviewedAt && rawData.reviewedAt && rawData.reviewedAt >= ov.reviewedAt) {
+            delete overrides[d.id];
+          } else if (ov.acknowledgedAt && rawData.acknowledgedAt && rawData.acknowledgedAt >= ov.acknowledgedAt) {
+            delete overrides[d.id];
+          } else if (rawData.status === ov.status) {
+            delete overrides[d.id];
+          }
+        }
         const data = overrides[d.id] ? { ...rawData, ...overrides[d.id] } : rawData;
         const isMatch = 
           !effectiveSchoolId || 
@@ -148,6 +158,10 @@ function AdminHome({ schoolId }) {
           list.push(data);
         }
       });
+      try {
+        localStorage.setItem('msc_transfers_overrides', JSON.stringify(overrides));
+      } catch (e) {}
+
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setIncomingTransfers(list);
     }, (err) => console.warn("Admin transfers listener notice:", err));
@@ -549,10 +563,11 @@ function AdminHome({ schoolId }) {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
                 {incomingTransfers.slice(0, 6).map((tr) => {
+                  const isMasterDirective = Boolean(tr.isDirective || tr.requesterRole === 'superadmin' || tr.source === 'master');
                   const isAck = tr.status === 'acknowledged' || tr.status === 'completed';
                   const subjectDisplay = tr.subject || tr.customSubject || tr.subjectName || tr.title || 'مادة دراسية';
                   const periodsDisplay = tr.requiredPeriods || tr.periodsCount || tr.currentLoad || tr.periods || null;
-                  const teacherDisplay = tr.teacherName || tr.assignedTeacherName || (tr.type === 'need' ? 'طلب سد عجز (بانتظار توفير كادر من الإدارة العامة)' : 'كادر معتمد للتوجيه');
+                  const teacherDisplay = tr.teacherName || tr.assignedTeacherName || (tr.type === 'need' ? (isMasterDirective ? 'كادر معتمد ومكلف من الإدارة العامة' : 'طلب سد عجز (بانتظار توفير كادر من الإدارة العامة)') : 'كادر معتمد للتوجيه');
                   const trackDisplay = tr.track === 'international' ? 'مسار دولي' : 'مسار أهلي';
                   const genderDisplay = tr.gender === 'girls' ? 'بنات' : 'بنين';
                   const stageDisplay = tr.stage === 'primary' ? 'الابتدائية' : tr.stage === 'middle' ? 'المتوسطة' : tr.stage === 'high' ? 'الثانوية' : tr.stage === 'kindergarten' ? 'رياض الأطفال' : '';
@@ -563,8 +578,8 @@ function AdminHome({ schoolId }) {
                     <div
                       key={tr.id}
                       style={{
-                        background: isAck ? '#f8fafc' : '#ffffff',
-                        border: isAck ? '1px solid #e2e8f0' : '1.5px solid #10b981',
+                        background: isMasterDirective ? 'linear-gradient(135deg, rgba(245, 243, 255, 0.7), rgba(255, 255, 255, 0.95))' : (isAck ? '#f8fafc' : '#ffffff'),
+                        border: isMasterDirective ? '1.5px solid #818cf8' : (isAck ? '1px solid #e2e8f0' : '1.5px solid #10b981'),
                         borderRadius: '12px',
                         padding: '14px',
                         display: 'flex',
@@ -578,16 +593,18 @@ function AdminHome({ schoolId }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
                           <span style={{
                             fontSize: '11px',
-                            fontWeight: 700,
+                            fontWeight: 800,
                             padding: '3px 8px',
                             borderRadius: '6px',
-                            background: tr.type === 'need' ? '#fef3c7' : '#e0e7ff',
-                            color: tr.type === 'need' ? '#92400e' : '#3730a3'
+                            background: isMasterDirective ? '#e0e7ff' : (tr.type === 'need' ? '#fee2e2' : '#dbeafe'),
+                            color: isMasterDirective ? '#4338ca' : (tr.type === 'need' ? '#991b1b' : '#1e40af')
                           }}>
-                            {tr.type === 'need' ? '🚨 طلب سد عجز' : (tr.type === 'release' ? '🌟 إتاحة كادر فائض' : '📢 قرار ندب وتوجيه')}
+                            {isMasterDirective 
+                              ? '📢 قرار وتوجيه إداري من الماستر' 
+                              : (tr.type === 'need' ? '🚨 طلب سد عجز وارد من المدرسة' : '🌟 إتاحة وندب كادر فائض')}
                           </span>
                           <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                            {tr.requestNumber || `#TR-${tr.id.slice(0, 5).toUpperCase()}`}
+                            {tr.requestNumber || `#TR-${(tr.id || '').slice(0, 5).toUpperCase()}`}
                           </span>
                         </div>
                         
@@ -611,6 +628,14 @@ function AdminHome({ schoolId }) {
                             📝 <strong>البيان / السبب:</strong> {reasonDisplay}
                           </p>
                         )}
+
+                        <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '6px' }}>
+                          {isMasterDirective ? (
+                            <span>📢 <strong style={{ color: '#4338ca' }}>الصادر من: الإدارة العامة (الماستر العام)</strong> • موجه إلى: <strong style={{ color: '#0f766e' }}>{tr.targetSchoolName || tr.toSchoolName || tr.schoolName}</strong></span>
+                          ) : (
+                            <span>📩 <strong style={{ color: '#b91c1c' }}>مقدم الطلب: {tr.requesterName || 'مدير المدرسة'}</strong> ({tr.fromSchoolName || tr.schoolName}) • موجه إلى: <strong style={{ color: '#4338ca' }}>الإدارة العامة والماستر</strong></span>
+                          )}
+                        </div>
                       </div>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>

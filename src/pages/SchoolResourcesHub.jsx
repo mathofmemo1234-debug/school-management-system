@@ -22,18 +22,30 @@ import {
   ADVANCED_SCHOOLS_CATALOG
 } from '../data/resourceData';
 
-export default function SchoolResourcesHub({ role = 'admin' }) {
+export default function SchoolResourcesHub({ role }) {
   const { userData, currentUser, userRole } = useAuth();
   const { t, isRTL } = useLanguage();
 
-  const effectiveRole = role || userRole || userData?.role || 'admin';
-  const isSuperAdmin = effectiveRole === 'superadmin' || userRole === 'superadmin' || userData?.role === 'superadmin' || !userData?.schoolId || userData?.schoolId === 'ALL';
+  // Strict and accurate SuperAdmin detection based on authenticated user context
+  const isSuperAdmin = Boolean(
+    userRole === 'superadmin' || 
+    userData?.role === 'superadmin' || 
+    userData?.email === 'super@admin.com' || 
+    currentUser?.email === 'super@admin.com' || 
+    userData?.schoolId === 'ALL' || 
+    role === 'superadmin'
+  );
+
+  const effectiveRole = isSuperAdmin ? 'superadmin' : (userRole || userData?.role || role || 'admin');
 
   // Navigation Tabs: 'analytics' | 'buildings' | 'classes_quotas' | 'transfers_directives'
   const [activeTab, setActiveTab] = useState('analytics');
 
   // Filters
-  const [selectedSchoolId, setSelectedSchoolId] = useState(userData?.schoolId || 'msc_jed_smart_boys');
+  const [selectedSchoolId, setSelectedSchoolId] = useState(() => {
+    if (isSuperAdmin) return 'msc_jed_smart_boys';
+    return userData?.schoolId || 'msc_jed_smart_boys';
+  });
   const [filterTrack, setFilterTrack] = useState('all'); // 'all' | 'national' | 'international'
   const [filterGender, setFilterGender] = useState('all'); // 'all' | 'boys' | 'girls'
   const [filterStage, setFilterStage] = useState('all'); // 'all' | 'kindergarten' | 'primary' | 'middle' | 'high'
@@ -337,8 +349,22 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
 
       snap.forEach(d => {
         const itemData = { id: d.id, ...d.data() };
+        if (overrides[d.id]) {
+          const ov = overrides[d.id];
+          if (ov.reviewedAt && itemData.reviewedAt && itemData.reviewedAt >= ov.reviewedAt) {
+            delete overrides[d.id];
+          } else if (ov.acknowledgedAt && itemData.acknowledgedAt && itemData.acknowledgedAt >= ov.acknowledgedAt) {
+            delete overrides[d.id];
+          } else if (itemData.status === ov.status) {
+            delete overrides[d.id];
+          }
+        }
         list.push(overrides[d.id] ? { ...itemData, ...overrides[d.id] } : itemData);
       });
+      try {
+        localStorage.setItem('msc_transfers_overrides', JSON.stringify(overrides));
+      } catch (e) {}
+
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       
       const allowedIds = new Set([
@@ -356,7 +382,8 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         const rTo = r.targetSchoolId || r.toSchoolId;
         if (!rFrom && !rTo) return true;
         if (allowedIds.has(rFrom) || allowedIds.has(rTo)) return true;
-        if (currentSchoolInfo?.name && (r.schoolName === currentSchoolInfo.name || r.targetSchoolName === currentSchoolInfo.name)) return true;
+        if (currentSchoolInfo?.name && (r.schoolName === currentSchoolInfo.name || r.targetSchoolName === currentSchoolInfo.name || r.fromSchoolName === currentSchoolInfo.name || r.toSchoolName === currentSchoolInfo.name)) return true;
+        if (userData?.schoolName && (r.schoolName === userData.schoolName || r.targetSchoolName === userData.schoolName || r.fromSchoolName === userData.schoolName || r.toSchoolName === userData.schoolName)) return true;
         return false;
       });
       setTransferRequests(filtered);
@@ -1393,7 +1420,8 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         ? transferForm.customSubject.trim()
         : (transferForm.subject || 'الرياضيات العامة');
 
-      const currentTargetSchool = (isSuperAdmin ? (transferForm.targetSchoolId || selectedSchoolId) : (selectedSchoolId || userData?.schoolId)) || schoolsList[0]?.id || 'main_school';
+      const isFromMaster = Boolean(isSuperAdmin);
+      const currentTargetSchool = (isFromMaster ? (transferForm.targetSchoolId || selectedSchoolId) : (selectedSchoolId || userData?.schoolId)) || schoolsList[0]?.id || 'msc_jed_smart_boys';
       const targetSchoolObj = schoolsList.find(s => s.id === currentTargetSchool);
       const schoolDisplayName = targetSchoolObj?.name || currentSchoolInfo?.name || 'مجمع مدارس المتقدمة للتعلم الذكي';
 
@@ -1416,16 +1444,20 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         targetSchoolId: currentTargetSchool,
         targetSchoolCode: targetSchoolObj?.code || currentTargetSchool,
         targetSchoolName: schoolDisplayName,
-        fromSchoolId: currentTargetSchool,
-        fromSchoolCode: targetSchoolObj?.code || currentTargetSchool,
-        fromSchoolName: schoolDisplayName,
+        fromSchoolId: isFromMaster ? 'ALL' : (userData?.schoolId || currentTargetSchool),
+        fromSchoolCode: isFromMaster ? 'ALL' : (targetSchoolObj?.code || currentTargetSchool),
+        fromSchoolName: isFromMaster ? 'الإدارة العامة (الماستر العام)' : schoolDisplayName,
         toSchoolId: currentTargetSchool,
+        toSchoolCode: targetSchoolObj?.code || currentTargetSchool,
         toSchoolName: schoolDisplayName,
-        requesterName: isSuperAdmin ? (userData?.name || 'الماستر العام (Super Admin)') : (userData?.name || 'مدير المدرسة'),
-        requesterRole: String(effectiveRole || 'admin'),
+        requesterName: isFromMaster 
+          ? (userData?.name || currentUser?.displayName || 'الإدارة العامة (الماستر العام)') 
+          : (userData?.name || 'مدير المدرسة'),
+        requesterRole: isFromMaster ? 'superadmin' : 'admin',
+        source: isFromMaster ? 'master' : 'school',
         requesterNid: String(userData?.nationalId || ''),
-        isDirective: Boolean(isSuperAdmin),
-        status: isSuperAdmin ? 'approved' : 'pending',
+        isDirective: isFromMaster,
+        status: isFromMaster ? 'approved' : 'pending',
         createdAt: Date.now()
       };
 
@@ -1437,7 +1469,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       }
 
       setShowTransferModal(false);
-      if (isSuperAdmin) {
+      if (isFromMaster) {
         alert(`تم إرسال وتوجيه القرار الإداري بنجاح إلى مدير ${schoolDisplayName}.`);
       } else {
         alert('تم إرسال الطلب بنجاح إلى الإدارة العامة والماستر للنظر والاعتماد.');
@@ -4500,10 +4532,10 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {transferRequests.map(req => {
-                  const isMasterDirective = req.isDirective || req.requesterRole === 'superadmin';
+                  const isMasterDirective = Boolean(req.isDirective || req.requesterRole === 'superadmin' || req.source === 'master');
                   const subjectDisplay = req.subject || req.customSubject || req.subjectName || req.title || 'مادة دراسية';
                   const periodsDisplay = req.requiredPeriods || req.periodsCount || req.currentLoad || req.periods || null;
-                  const teacherDisplay = req.teacherName || req.assignedTeacherName || (req.type === 'need' ? '🚨 طلب سد عجز (بانتظار ترشيح وتوفير كادر من الإدارة العامة)' : 'كادر معتمد للتوجيه');
+                  const teacherDisplay = req.teacherName || req.assignedTeacherName || (req.type === 'need' ? (isMasterDirective ? 'كادر معتمد ومكلف من الإدارة العامة' : '🚨 طلب سد عجز (بانتظار ترشيح وتوفير كادر من الإدارة العامة)') : 'كادر معتمد للتوجيه');
                   const trackDisplay = req.track === 'international' ? 'مسار دولي' : 'مسار أهلي';
                   const genderDisplay = req.gender === 'girls' ? 'بنات' : 'بنين';
                   const stageDisplay = req.stage === 'primary' ? 'الابتدائية' : req.stage === 'middle' ? 'المتوسطة' : req.stage === 'high' ? 'الثانوية' : req.stage === 'kindergarten' ? 'رياض الأطفال' : '';
@@ -4511,7 +4543,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
 
                   return (
                     <div key={req.id} style={{
-                      background: isMasterDirective ? 'linear-gradient(135deg, rgba(245, 243, 255, 0.6), rgba(255, 255, 255, 0.9))' : 'white',
+                      background: isMasterDirective ? 'linear-gradient(135deg, rgba(245, 243, 255, 0.75), rgba(255, 255, 255, 0.95))' : 'white',
                       borderRadius: '14px',
                       padding: '16px 20px',
                       border: isMasterDirective ? '1.5px solid #818cf8' : '1px solid #e2e8f0',
@@ -4520,7 +4552,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                       alignItems: 'center',
                       flexWrap: 'wrap',
                       gap: '14px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                      boxShadow: isMasterDirective ? '0 4px 14px rgba(99, 102, 241, 0.12)' : '0 2px 8px rgba(0,0,0,0.04)'
                     }}>
                       <div style={{ flex: 1, minWidth: '280px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
@@ -4533,8 +4565,8 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                             color: isMasterDirective ? '#4338ca' : req.type === 'need' ? '#b91c1c' : '#1e40af'
                           }}>
                             {isMasterDirective 
-                              ? '📢 قرار وتوجيه إداري من الماستر' 
-                              : req.type === 'need' ? '🚨 طلب استعانة (سد عجز)' : '🌟 طلب إتاحة / ندب كادر فائض'}
+                              ? '📢 قرار وتوجيه إداري صادر من الماستر' 
+                              : req.type === 'need' ? '🚨 طلب سد عجز وارد من المدرسة' : '🌟 طلب إتاحة / ندب كادر فائض من المدرسة'}
                           </span>
 
                           <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700 }}>
@@ -4557,11 +4589,11 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                           {req.reason && <span>• 📝 البيان: <strong>{req.reason}</strong></span>}
                         </div>
 
-                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
                           {isMasterDirective ? (
-                            <span>📢 الصادر من: <strong>{req.requesterName}</strong> • موجه إلى: <strong style={{ color: '#4338ca' }}>{req.targetSchoolName || req.schoolName}</strong> • {new Date(req.createdAt).toLocaleDateString('ar-SA')}</span>
+                            <span>📢 <strong style={{ color: '#4338ca' }}>الصادر من: الإدارة العامة (الماستر العام)</strong> • موجه إلى: <strong style={{ color: '#0f766e' }}>{req.targetSchoolName || req.toSchoolName || req.schoolName}</strong> • {new Date(req.createdAt).toLocaleDateString('ar-SA')}</span>
                           ) : (
-                            <span>📩 مقدم الطلب: <strong>{req.requesterName}</strong> ({req.schoolName}) • موجه إلى: <strong>الإدارة العامة والماستر</strong> • {new Date(req.createdAt).toLocaleDateString('ar-SA')}</span>
+                            <span>📩 <strong style={{ color: '#b91c1c' }}>مقدم الطلب: {req.requesterName || 'مدير المدرسة'}</strong> ({req.fromSchoolName || req.schoolName}) • موجه إلى: <strong style={{ color: '#4338ca' }}>الإدارة العامة والماستر</strong> • {new Date(req.createdAt).toLocaleDateString('ar-SA')}</span>
                           )}
                         </div>
                       </div>
