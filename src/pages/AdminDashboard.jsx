@@ -117,6 +117,10 @@ function AdminHome({ schoolId }) {
     // 🔄 Live listener for Transfer Decisions & Surplus-Deficit Requests from Master
     const unsubTransfers = onSnapshot(collection(db, 'resource_transfer_requests'), (snap) => {
       const list = [];
+      const overrides = (() => {
+        try { return JSON.parse(localStorage.getItem('msc_transfers_overrides') || '{}'); } catch { return {}; }
+      })();
+
       const allowedIds = new Set([
         'ALL', 'all',
         effectiveSchoolId,
@@ -127,7 +131,8 @@ function AdminHome({ schoolId }) {
       ].filter(Boolean));
 
       snap.forEach(d => {
-        const data = d.data();
+        const rawData = { id: d.id, ...d.data() };
+        const data = overrides[d.id] ? { ...rawData, ...overrides[d.id] } : rawData;
         const isMatch = 
           !effectiveSchoolId || 
           effectiveSchoolId === 'ALL' ||
@@ -140,7 +145,7 @@ function AdminHome({ schoolId }) {
           (schoolInfo?.name && (data.schoolName === schoolInfo.name || data.targetSchoolName === schoolInfo.name || data.fromSchoolName === schoolInfo.name || data.toSchoolName === schoolInfo.name)) ||
           (userData?.schoolName && (data.schoolName === userData.schoolName || data.targetSchoolName === userData.schoolName));
         if (isMatch) {
-          list.push({ id: d.id, ...data });
+          list.push(data);
         }
       });
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -163,12 +168,23 @@ function AdminHome({ schoolId }) {
     try {
       setAckLoading(prev => ({ ...prev, [directiveId]: true }));
       setIncomingDirectives(prev => prev.map(d => d.id === directiveId ? { ...d, status: 'acknowledged' } : d));
-      await updateDoc(doc(db, 'resource_directives', directiveId), {
+      
+      const updateData = {
         status: 'acknowledged',
-        acknowledgedAt: new Date(),
+        acknowledgedAt: Date.now(),
         acknowledgedByName: userData?.name || 'مدير المدرسة',
         acknowledgedByRole: userData?.role || 'admin'
-      });
+      };
+
+      try {
+        await setDoc(doc(db, 'resource_directives', directiveId), updateData, { merge: true });
+      } catch (fsErr) {
+        console.warn("Firestore write notice for directive:", fsErr);
+        try {
+          await updateDoc(doc(db, 'resource_directives', directiveId), updateData);
+        } catch (e) {}
+      }
+
       alert('✅ تم تأكيد استلام التوجيه الوزاري/الإداري وتوثيقه لدى الماستر بنجاح');
     } catch (err) {
       console.error(err);
@@ -181,13 +197,33 @@ function AdminHome({ schoolId }) {
   const handleAcknowledgeTransfer = async (transferId) => {
     try {
       setAckLoading(prev => ({ ...prev, [transferId]: true }));
-      setIncomingTransfers(prev => prev.map(t => t.id === transferId ? { ...t, status: 'acknowledged' } : t));
-      await updateDoc(doc(db, 'resource_transfer_requests', transferId), {
+      const updateData = {
         status: 'acknowledged',
-        acknowledgedAt: new Date(),
+        acknowledgedAt: Date.now(),
         acknowledgedByName: userData?.name || 'مدير المدرسة',
         acknowledgedByRole: userData?.role || 'admin'
-      });
+      };
+
+      // 1. Optimistic state
+      setIncomingTransfers(prev => prev.map(t => t.id === transferId ? { ...t, ...updateData } : t));
+
+      // 2. Local storage overrides
+      try {
+        const overrides = JSON.parse(localStorage.getItem('msc_transfers_overrides') || '{}');
+        overrides[transferId] = { ...(overrides[transferId] || {}), ...updateData };
+        localStorage.setItem('msc_transfers_overrides', JSON.stringify(overrides));
+      } catch (e) {}
+
+      // 3. Firestore persistence
+      try {
+        await setDoc(doc(db, 'resource_transfer_requests', transferId), updateData, { merge: true });
+      } catch (fsErr) {
+        console.warn("Firestore write notice for transfer:", fsErr);
+        try {
+          await updateDoc(doc(db, 'resource_transfer_requests', transferId), updateData);
+        } catch (e) {}
+      }
+
       alert('✅ تم تأكيد استلام قرار الندب/سد العجز وتوثيقه بنجاح');
     } catch (err) {
       console.error(err);

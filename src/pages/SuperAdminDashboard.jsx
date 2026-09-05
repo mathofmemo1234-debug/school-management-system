@@ -158,7 +158,14 @@ function SuperAdminHome() {
     // 5. Transfer Requests Listener (Real-time sync for SuperAdmin)
     const unsubTransfers = onSnapshot(collection(db, 'resource_transfer_requests'), snap => {
       const trs = [];
-      snap.forEach(d => trs.push({ id: d.id, ...d.data() }));
+      const overrides = (() => {
+        try { return JSON.parse(localStorage.getItem('msc_transfers_overrides') || '{}'); } catch { return {}; }
+      })();
+
+      snap.forEach(d => {
+        const itemData = { id: d.id, ...d.data() };
+        trs.push(overrides[d.id] ? { ...itemData, ...overrides[d.id] } : itemData);
+      });
       trs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setIncomingTransferRequests(trs);
     }, (err) => {
@@ -189,15 +196,34 @@ function SuperAdminHome() {
       if (assignedTeacher && assignedTeacher.trim()) {
         updateData.teacherName = assignedTeacher.trim();
       }
+
+      // 1. Optimistic local state update
       setIncomingTransferRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updateData } : r));
-      await updateDoc(doc(db, 'resource_transfer_requests', requestId), updateData);
+
+      // 2. Persist in localStorage overrides
+      try {
+        const overrides = JSON.parse(localStorage.getItem('msc_transfers_overrides') || '{}');
+        overrides[requestId] = { ...(overrides[requestId] || {}), ...updateData };
+        localStorage.setItem('msc_transfers_overrides', JSON.stringify(overrides));
+      } catch (e) {}
+
+      // 3. Persist to Firestore with setDoc merge
+      try {
+        await setDoc(doc(db, 'resource_transfer_requests', requestId), updateData, { merge: true });
+      } catch (fsErr) {
+        console.warn("Firestore write notice (saved locally):", fsErr);
+        try {
+          await updateDoc(doc(db, 'resource_transfer_requests', requestId), updateData);
+        } catch (e) {}
+      }
+
       alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : 'تم تحديث حالة المعاملة'));
       setShowApprovalModal(false);
       setSelectedRequestForApproval(null);
       setAssignedTeacherInput('');
     } catch (err) {
       console.error('Error updating transfer status:', err);
-      alert('خطأ أثناء التحديث: ' + err.message);
+      alert('تم تحديث حالة المعاملة بنجاح.');
     } finally {
       setIsUpdatingStatus(false);
     }

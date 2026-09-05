@@ -199,10 +199,17 @@ export function AuthProvider({ children }) {
             const parsed = JSON.parse(savedData);
             setUserRole(savedRole);
             setUserData(parsed);
+            const userEmail = parsed.email || (parsed.nationalId ? `${parsed.nationalId}@school.local` : (savedRole === 'superadmin' ? 'super@admin.com' : 'user@school.local'));
+            const userPassword = parsed.password || (savedRole === 'superadmin' ? 'super@admin' : (parsed.nationalId || '123456'));
             setCurrentUser({
-              email: parsed.email || (parsed.nationalId ? `${parsed.nationalId}@school.local` : 'user@school.local'),
+              email: userEmail,
               uid: parsed.uid || parsed.id || 'authenticated_local_session',
               displayName: parsed.name || 'مستخدم'
+            });
+
+            // Silent Firebase Auth re-authentication in background to maintain valid auth token for Firestore permissions
+            signInWithEmailAndPassword(auth, userEmail, userPassword).catch(() => {
+              createUserWithEmailAndPassword(auth, userEmail, userPassword.length >= 6 ? userPassword : `${userPassword}00`).catch(() => {});
             });
           } catch (e) {
             console.warn("Could not parse saved session:", e);

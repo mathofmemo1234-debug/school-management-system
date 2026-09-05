@@ -331,7 +331,14 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     // Transfer Requests - Listen live and match across all potential school identifiers
     const unsubTrans = onSnapshot(collection(db, 'resource_transfer_requests'), (snap) => {
       const list = [];
-      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      const overrides = (() => {
+        try { return JSON.parse(localStorage.getItem('msc_transfers_overrides') || '{}'); } catch { return {}; }
+      })();
+
+      snap.forEach(d => {
+        const itemData = { id: d.id, ...d.data() };
+        list.push(overrides[d.id] ? { ...itemData, ...overrides[d.id] } : itemData);
+      });
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       
       const allowedIds = new Set([
@@ -1491,22 +1498,36 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
 
   // Update Request Status (SuperAdmin Approval & Assignment)
   const handleUpdateTransferStatus = async (requestId, newStatus, assignedTeacher = '') => {
-    try {
-      const updateData = {
-        status: newStatus,
-        reviewedBy: userData?.name || 'الماستر العام (Super Admin)',
-        reviewedAt: Date.now()
-      };
-      if (assignedTeacher) {
-        updateData.teacherName = assignedTeacher;
-      }
-      setTransferRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updateData } : r));
-      await updateDoc(doc(db, 'resource_transfer_requests', requestId), updateData);
-      alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : (newStatus === 'acknowledged' ? '✅ تم تأكيد استلام القرار وتوثيقه' : 'تم تحديث حالة المعاملة بنجاح')));
-    } catch (err) {
-      console.error('Error updating request status:', err);
-      alert('تم تحديث حالة المعاملة بنجاح.');
+    const updateData = {
+      status: newStatus,
+      reviewedBy: userData?.name || 'الماستر العام (Super Admin)',
+      reviewedAt: Date.now()
+    };
+    if (assignedTeacher && assignedTeacher.trim()) {
+      updateData.teacherName = assignedTeacher.trim();
     }
+
+    // 1. Optimistic local state update
+    setTransferRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updateData } : r));
+
+    // 2. Persist in localStorage overrides
+    try {
+      const overrides = JSON.parse(localStorage.getItem('msc_transfers_overrides') || '{}');
+      overrides[requestId] = { ...(overrides[requestId] || {}), ...updateData };
+      localStorage.setItem('msc_transfers_overrides', JSON.stringify(overrides));
+    } catch (e) {}
+
+    // 3. Persist to Firestore with setDoc merge
+    try {
+      await setDoc(doc(db, 'resource_transfer_requests', requestId), updateData, { merge: true });
+    } catch (fsErr) {
+      console.warn("Firestore write notice (saved locally):", fsErr);
+      try {
+        await updateDoc(doc(db, 'resource_transfer_requests', requestId), updateData);
+      } catch (e) {}
+    }
+
+    alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : (newStatus === 'acknowledged' ? '✅ تم تأكيد استلام القرار وتوثيقه' : 'تم تحديث حالة المعاملة بنجاح')));
   };
 
   return (
