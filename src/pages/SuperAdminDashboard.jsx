@@ -10,7 +10,7 @@ import {
   Edit, Key, FileSpreadsheet, Printer, ExternalLink, Sparkles, 
   Filter, CheckCircle2, RefreshCw, Globe, Award, Mail, Star, 
   Layers, MapPin, Phone, AlertCircle, X, Compass, ChevronRight, Eye,
-  Shield, Check, Archive, Undo2, EyeOff
+  Shield, Check, Archive, Undo2, EyeOff, Send
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
