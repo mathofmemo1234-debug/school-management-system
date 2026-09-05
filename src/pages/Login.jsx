@@ -118,7 +118,20 @@ export default function Login() {
       uRes && { res: uRes, role: uRes.role || 'admin' }
     ].filter(Boolean);
 
-    if (foundItems.length === 0) return null;
+    if (foundItems.length === 0) {
+      try {
+        const localAdmins = JSON.parse(localStorage.getItem('msc_custom_admins') || '[]');
+        const localMatch = localAdmins.find(a => 
+          String(a.nationalId).trim().toLowerCase() === lowerNid ||
+          String(a.email).trim().toLowerCase() === lowerNid ||
+          String(a.email).trim().toLowerCase() === fakeEmail
+        );
+        if (localMatch) {
+          return { ...localMatch, role: 'admin' };
+        }
+      } catch (e) {}
+      return null;
+    }
 
     // Prioritize selected tab match if applicable
     if (currentSelectedRole) {

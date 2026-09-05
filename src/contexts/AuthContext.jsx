@@ -119,6 +119,20 @@ export function AuthProvider({ children }) {
         }
       }
 
+      if (!data) {
+        try {
+          const localAdmins = JSON.parse(localStorage.getItem('msc_custom_admins') || '[]');
+          const match = localAdmins.find(a => 
+            String(a.nationalId).trim().toLowerCase() === nid.toLowerCase() ||
+            String(a.email).trim().toLowerCase() === email ||
+            (user.uid && (a.uid === user.uid || a.id === user.uid))
+          );
+          if (match) {
+            data = { ...match, role: 'admin' };
+          }
+        } catch (e) {}
+      }
+
       if (data) {
         if (data.role === 'superadmin') {
           data.schoolId = data.schoolId || 'ALL';

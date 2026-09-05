@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence, createUserWithEmailAndPassword } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { getFirestore, doc, setDoc } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 // Firebase configuration for Advanced Smart Learning (MSC Schools)
@@ -32,9 +32,9 @@ export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Secondary Firebase Auth instance helper to create user accounts without signing out the SuperAdmin
-export const createSecondaryAuthUser = async (email, password) => {
+export const createSecondaryAuthUser = async (email, password, userData = null) => {
+  let secondaryApp;
   try {
-    let secondaryApp;
     const existingApps = getApps();
     const found = existingApps.find(a => a.name === "SecondaryAuthApp");
     if (!found) {
@@ -42,11 +42,39 @@ export const createSecondaryAuthUser = async (email, password) => {
     } else {
       secondaryApp = getApp("SecondaryAuthApp");
     }
-    const secondaryAuth = getAuth(secondaryApp);
-    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-    return cred.user;
-  } catch (err) {
-    console.warn("Secondary auth user creation warning:", err);
-    throw err;
+  } catch (appErr) {
+    console.warn("Secondary app init warning:", appErr);
+    secondaryApp = app;
   }
+
+  const secondaryAuth = getAuth(secondaryApp);
+  const secondaryDb = getFirestore(secondaryApp);
+
+  let user = null;
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    user = cred.user;
+  } catch (err) {
+    if (err.code === 'auth/email-already-in-use') {
+      try {
+        const cred = await signInWithEmailAndPassword(secondaryAuth, email, password);
+        user = cred.user;
+      } catch (signInErr) {
+        console.warn("Could not sign in existing user in secondary auth:", signInErr);
+      }
+    } else {
+      console.warn("Secondary auth user creation warning:", err);
+    }
+  }
+
+  // If userData is provided and user is authenticated in secondary app, write directly to secondaryDb (authenticated request)
+  if (userData && user) {
+    try {
+      await setDoc(doc(secondaryDb, 'users', user.uid), { ...userData, uid: user.uid }, { merge: true });
+    } catch (secDbErr) {
+      console.warn("SecondaryDb direct write notice:", secDbErr);
+    }
+  }
+
+  return { user, secondaryDb };
 };

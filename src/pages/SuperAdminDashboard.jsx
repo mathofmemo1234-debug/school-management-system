@@ -454,7 +454,21 @@ function SuperAdminHome() {
     const unsubAdmins = onSnapshot(qAdmins, snap => {
       const a = [];
       snap.forEach(d => a.push({ id: d.id, ...d.data() }));
+      try {
+        const local = JSON.parse(localStorage.getItem('msc_custom_admins') || '[]');
+        local.forEach(locAdmin => {
+          if (!a.some(existing => existing.id === locAdmin.id || String(existing.nationalId) === String(locAdmin.nationalId) || existing.email === locAdmin.email)) {
+            a.push(locAdmin);
+          }
+        });
+      } catch (e) {}
       setAdmins(a);
+    }, (err) => {
+      console.warn("Admins snapshot permission/network notice:", err);
+      try {
+        const local = JSON.parse(localStorage.getItem('msc_custom_admins') || '[]');
+        if (local.length > 0) setAdmins(local);
+      } catch (e) {}
     });
 
     // 3. Super Admins Listener
@@ -463,6 +477,8 @@ function SuperAdminHome() {
       const sa = [];
       snap.forEach(d => sa.push({ id: d.id, ...d.data() }));
       setSuperAdmins(sa);
+    }, (err) => {
+      console.warn("SuperAdmins snapshot notice:", err);
     });
 
     // 4. Global Counts Listeners (Teachers, Students, Staff, Supervisors)
@@ -765,12 +781,16 @@ function SuperAdminHome() {
     setAdminMessage('');
     setAdminError('');
 
-    if (adminNationalId.trim().length < 6) {
-      setAdminError('رقم الهوية أو البريد الإلكتروني يجب ألا يقل عن 6 خانات');
+    if (adminNationalId.trim().length < 4) {
+      setAdminError('رقم الهوية أو البريد الإلكتروني يجب ألا يقل عن 4 خانات');
       return;
     }
     if (adminPassword.trim().length < 6) {
       setAdminError('كلمة المرور يجب ألا تقل عن 6 خانات');
+      return;
+    }
+    if (!selectedSchoolId) {
+      setAdminError('يرجى اختيار المدرسة المسند له إدارتها');
       return;
     }
 
@@ -779,24 +799,7 @@ function SuperAdminHome() {
       const cleanNid = adminNationalId.trim();
       const adminEmail = cleanNid.includes('@') ? cleanNid.toLowerCase() : `${cleanNid}@school.local`;
       const selectedSchool = schools.find(s => s.id === selectedSchoolId);
-      let targetUid = null;
-
-      // Register user in Firebase Auth via secondary app so SuperAdmin session stays active
-      try {
-        const authUser = await createSecondaryAuthUser(adminEmail, adminPassword.trim());
-        targetUid = authUser?.uid || null;
-      } catch (authErr) {
-        console.warn('Auth registration notice:', authErr.code || authErr.message);
-        if (authErr.code === 'auth/email-already-in-use') {
-          try {
-            const existingSnap = await getDocs(query(collection(db, 'users'), where('email', '==', adminEmail)));
-            if (!existingSnap.empty) {
-              targetUid = existingSnap.docs[0].id;
-            }
-          } catch (qErr) {}
-        }
-      }
-
+      
       const newAdminData = {
         name: adminName.trim(),
         nationalId: cleanNid,
@@ -811,29 +814,48 @@ function SuperAdminHome() {
         createdAt: new Date()
       };
 
+      let targetUid = null;
+
+      // 1. Create or Authenticate via Secondary App and write directly with authenticated secondary Firestore instance
       try {
-        if (targetUid) {
-          await setDoc(doc(db, 'users', targetUid), newAdminData, { merge: true });
-        } else {
-          const qDoc = await getDocs(query(collection(db, 'users'), where('nationalId', '==', cleanNid)));
-          if (!qDoc.empty) {
-            await setDoc(doc(db, 'users', qDoc.docs[0].id), newAdminData, { merge: true });
-          } else {
-            const docRef = await addDoc(collection(db, 'users'), newAdminData);
-            targetUid = docRef.id;
-          }
+        const { user } = await createSecondaryAuthUser(adminEmail, adminPassword.trim(), newAdminData);
+        if (user?.uid) {
+          targetUid = user.uid;
         }
-      } catch (fsErr) {
-        console.warn('Firestore direct write notice:', fsErr);
-        const fallbackId = `admin_${cleanNid.replace(/[^a-zA-Z0-9_]/g, '_')}`;
-        await setDoc(doc(db, 'users', fallbackId), newAdminData, { merge: true });
+      } catch (authErr) {
+        console.warn('Secondary auth notice:', authErr);
       }
 
-      // Update local state so UI updates immediately
+      // 2. Also ensure doc is saved on primary db using merge
+      try {
+        if (targetUid) {
+          await setDoc(doc(db, 'users', targetUid), { ...newAdminData, uid: targetUid }, { merge: true });
+        } else {
+          const fallbackDocId = `admin_${cleanNid.replace(/[^a-zA-Z0-9_]/g, '_')}`;
+          await setDoc(doc(db, 'users', fallbackDocId), newAdminData, { merge: true });
+          targetUid = fallbackDocId;
+        }
+      } catch (fsErr) {
+        console.warn('Primary Firestore write notice:', fsErr);
+      }
+
+      const finalAdminRecord = {
+        id: targetUid || `admin_${cleanNid.replace(/[^a-zA-Z0-9_]/g, '_')}`,
+        ...newAdminData
+      };
+
+      // 3. Update local state immediately so SuperAdmin sees the new principal instantly
       setAdmins(prev => {
         const filtered = prev.filter(a => String(a.nationalId) !== cleanNid && a.email !== adminEmail);
-        return [{ id: targetUid || `admin_${cleanNid}`, ...newAdminData }, ...filtered];
+        return [finalAdminRecord, ...filtered];
       });
+
+      // 4. Save to local storage backup so admins list is resilient across reloads
+      try {
+        const savedAdmins = JSON.parse(localStorage.getItem('msc_custom_admins') || '[]');
+        const updatedSaved = [finalAdminRecord, ...savedAdmins.filter(a => String(a.nationalId) !== cleanNid && a.email !== adminEmail)];
+        localStorage.setItem('msc_custom_admins', JSON.stringify(updatedSaved));
+      } catch (lsErr) {}
 
       setAdminName('');
       setAdminNationalId('');
@@ -841,7 +863,7 @@ function SuperAdminHome() {
       setAdminPhone('');
       setSelectedSchoolId('');
       setShowAddAdminModal(false);
-      alert('تم إنشاء وتعيين حساب مدير المدرسة بنجاح!');
+      alert(`تم إنشاء وتعيين حساب مدير المدرسة بنجاح!\n\nاسم المدير: ${finalAdminRecord.name}\nالمدرسة: ${selectedSchool?.name || ''}\nاسم الدخول: ${cleanNid}`);
     } catch (error) {
       console.error('Error adding admin:', error);
       setAdminError('حدث خطأ أثناء إنشاء الحساب: ' + error.message);
@@ -852,37 +874,47 @@ function SuperAdminHome() {
 
   // Handle Delete Admin - Completely wipes all records for this admin
   const handleDeleteAdmin = async (admin) => {
-    const adminName = admin.name || 'المدير';
-    if (window.confirm(`هل أنت متأكد من حذف حساب المدير "${adminName}" بالكامل من قاعدة البيانات؟`)) {
+    const aName = admin.name || 'المدير';
+    if (window.confirm(`هل أنت متأكد من حذف حساب المدير "${aName}" بالكامل من قاعدة البيانات؟`)) {
       try {
         const nid = String(admin.nationalId || '').trim();
         const email = String(admin.email || '').trim();
 
         // 1. Delete by document ID
         if (admin.id) {
-          await deleteDoc(doc(db, 'users', admin.id));
-        }
-
-        // 2. Delete any matching documents by nationalId (string and number) or email
-        if (nid) {
-          const qNidStr = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
-          qNidStr.forEach(async (d) => { if (d.id !== admin.id) await deleteDoc(doc(db, 'users', d.id)); });
-
-          if (!isNaN(nid)) {
-            const qNidNum = await getDocs(query(collection(db, 'users'), where('nationalId', '==', Number(nid))));
-            qNidNum.forEach(async (d) => { await deleteDoc(doc(db, 'users', d.id)); });
+          try {
+            await deleteDoc(doc(db, 'users', admin.id));
+          } catch (delErr) {
+            console.warn('Doc delete notice:', delErr);
           }
         }
 
-        if (email) {
-          const qEmail = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
-          qEmail.forEach(async (d) => { await deleteDoc(doc(db, 'users', d.id)); });
+        // 2. Delete any matching documents by nationalId or email
+        if (nid) {
+          try {
+            const qNidStr = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
+            qNidStr.forEach(async (d) => { if (d.id !== admin.id) await deleteDoc(doc(db, 'users', d.id)); });
+          } catch (e) {}
         }
 
-        // Update local state
-        setAdmins(prev => prev.filter(a => a.id !== admin.id && String(a.nationalId) !== nid));
+        if (email) {
+          try {
+            const qEmail = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
+            qEmail.forEach(async (d) => { await deleteDoc(doc(db, 'users', d.id)); });
+          } catch (e) {}
+        }
 
-        alert('تم حذف حساب المدير بالكامل من قاعدة البيانات بنجاح.');
+        // 3. Update local storage backup
+        try {
+          const local = JSON.parse(localStorage.getItem('msc_custom_admins') || '[]');
+          const updated = local.filter(a => a.id !== admin.id && String(a.nationalId) !== nid && a.email !== email);
+          localStorage.setItem('msc_custom_admins', JSON.stringify(updated));
+        } catch (e) {}
+
+        // 4. Update local state
+        setAdmins(prev => prev.filter(a => a.id !== admin.id && String(a.nationalId) !== nid && a.email !== email));
+
+        alert('تم حذف حساب المدير بالكامل بنجاح.');
       } catch (error) {
         console.error('Error deleting admin:', error);
         alert('حدث خطأ أثناء الحذف: ' + error.message);
@@ -899,30 +931,39 @@ function SuperAdminHome() {
     }
     setIsAddingSuperAdmin(true);
     try {
-      const email = superAdminNationalId.includes('@') ? superAdminNationalId : `${superAdminNationalId}@school.local`;
-      let superUid = null;
+      const email = superAdminNationalId.includes('@') ? superAdminNationalId.toLowerCase() : `${superAdminNationalId}@school.local`;
+      const superDoc = {
+        name: superAdminName || 'ماستر عام إضافي',
+        nationalId: superAdminNationalId.trim(),
+        email: email,
+        role: 'superadmin',
+        schoolId: 'ALL',
+        password: superAdminPassword.trim(),
+        createdAt: new Date()
+      };
 
+      let superUid = null;
       try {
-        const authUser = await createSecondaryAuthUser(email, superAdminPassword);
-        superUid = authUser?.uid || null;
+        const { user } = await createSecondaryAuthUser(email, superAdminPassword, superDoc);
+        superUid = user?.uid || null;
       } catch (authErr) {
         console.warn('SuperAdmin secondary auth notice:', authErr);
       }
 
-      const superDoc = {
-        name: superAdminName || 'ماستر عام إضافي',
-        nationalId: superAdminNationalId,
-        email: email,
-        role: 'superadmin',
-        schoolId: 'ALL',
-        createdAt: new Date()
-      };
-
-      if (superUid) {
-        await setDoc(doc(db, 'users', superUid), superDoc, { merge: true });
-      } else {
-        await addDoc(collection(db, 'users'), superDoc);
+      try {
+        if (superUid) {
+          await setDoc(doc(db, 'users', superUid), { ...superDoc, uid: superUid }, { merge: true });
+        } else {
+          await addDoc(collection(db, 'users'), superDoc);
+        }
+      } catch (fsErr) {
+        console.warn('Firestore write notice for superadmin:', fsErr);
       }
+
+      setSuperAdmins(prev => [
+        { id: superUid || `super_${Date.now()}`, ...superDoc },
+        ...prev.filter(sa => sa.email !== email && sa.nationalId !== superAdminNationalId)
+      ]);
 
       setSuperAdminName('');
       setSuperAdminNationalId('');

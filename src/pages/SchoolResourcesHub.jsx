@@ -18,8 +18,7 @@ import {
   RESOURCE_GENDERS,
   BUILDING_FACILITIES_CATALOG,
   STANDARD_SUBJECT_QUOTAS,
-  ALL_SCHOOL_SUBJECTS,
-  DEFAULT_BRANCH_BUILDINGS_SEED
+  ALL_SCHOOL_SUBJECTS
 } from '../data/resourceData';
 
 export default function SchoolResourcesHub({ role = 'admin' }) {
@@ -228,7 +227,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     });
   }, [buildingsList, filterTrack, filterGender, searchQuery]);
 
-  // Summary Metrics & Stats Calculation
+  // Summary Metrics & Stats Calculation (100% Real Data Strictly - No Dummy Fallbacks)
   const metrics = useMemo(() => {
     let totalCapacity = 0;
     let totalRooms = 0;
@@ -240,21 +239,21 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       totalActiveRooms += Number(b.activeClassrooms || 0);
     });
 
-    const studentsCount = studentsList.length || 650;
-    const classesCount = classesList.length || (totalActiveRooms > 0 ? totalActiveRooms : 26);
-    const teachersCount = teachersList.length || 42;
+    const studentsCount = studentsList.length;
+    const classesCount = classesList.length;
+    const teachersCount = teachersList.length;
 
     const classDensity = classesCount > 0 ? (studentsCount / classesCount).toFixed(1) : '0';
-    const capacityUtilization = totalCapacity > 0 ? Math.min(100, Math.round((studentsCount / totalCapacity) * 100)) : 78;
-    const studentTeacherRatio = teachersCount > 0 ? (studentsCount / teachersCount).toFixed(1) : '15.5';
+    const capacityUtilization = totalCapacity > 0 ? Math.min(100, Math.round((studentsCount / totalCapacity) * 100)) : 0;
+    const studentTeacherRatio = teachersCount > 0 ? (studentsCount / teachersCount).toFixed(1) : '0';
 
-    // Subject Quotas & Deficit / Surplus Analysis
+    // Subject Quotas & Deficit / Surplus Analysis (Strictly from real database)
     const subjectAnalysis = STANDARD_SUBJECT_QUOTAS.map(item => {
       const assignedTeachers = teachersList.filter(t => {
         const subj = (t.subject || '').trim();
         return subj.includes(item.subject) || item.subject.includes(subj);
       });
-      const tCount = assignedTeachers.length || (item.subject.includes('الرياضيات') ? 6 : item.subject.includes('لغتي') ? 6 : item.subject.includes('الإنجليزية') ? 5 : 3);
+      const tCount = assignedTeachers.length;
       
       const totalPeriodsNeeded = classesCount * item.periodsPerClass;
       const totalTeachingCapacity = tCount * item.standardTeacherLoad;
@@ -263,12 +262,18 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       let status = 'balanced'; // 'surplus' | 'deficit' | 'balanced'
       let netTeacherDiff = 0;
 
-      if (diffPeriods >= item.standardTeacherLoad) {
+      if (classesCount === 0 && tCount === 0) {
+        status = 'balanced';
+        netTeacherDiff = 0;
+      } else if (diffPeriods >= item.standardTeacherLoad) {
         status = 'surplus';
         netTeacherDiff = Math.floor(diffPeriods / item.standardTeacherLoad);
       } else if (diffPeriods <= -item.standardTeacherLoad) {
         status = 'deficit';
         netTeacherDiff = Math.abs(Math.ceil(diffPeriods / item.standardTeacherLoad));
+      } else if (diffPeriods < 0) {
+        status = 'deficit';
+        netTeacherDiff = 1;
       }
 
       return {
@@ -288,9 +293,9 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     const totalDeficitTeachers = subjectAnalysis.filter(s => s.status === 'deficit').reduce((acc, c) => acc + c.netTeacherDiff, 0);
 
     return {
-      totalCapacity: totalCapacity || 1200,
-      totalRooms: totalRooms || 54,
-      totalActiveRooms: totalActiveRooms || 38,
+      totalCapacity,
+      totalRooms,
+      totalActiveRooms,
       studentsCount,
       classesCount,
       teachersCount,
@@ -303,12 +308,24 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     };
   }, [buildingsList, studentsList, classesList, teachersList]);
 
-  // Smart Recommendations Engine
+  // Smart Recommendations Engine (Real Data Driven)
   const recommendations = useMemo(() => {
     const list = [];
 
+    // If completely empty school
+    if (metrics.totalCapacity === 0 && metrics.studentsCount === 0 && metrics.teachersCount === 0 && metrics.classesCount === 0) {
+      return [{
+        id: 'rec-no-data',
+        type: 'info',
+        title: 'بانتظار إدخال بيانات المدرسة الحقيقية',
+        desc: 'لا توجد مباني أو فصول أو طلاب مسجلين في هذا المجمع حالياً. يرجى البدء بإضافة المباني والقاعات وتعيين الكوادر لحساب مؤشرات الاستغلال بدقة.',
+        actionLabel: 'إضافة مبنى للمجمع',
+        actionType: 'view_buildings'
+      }];
+    }
+
     // 1. Deficit alert
-    const deficitSubjects = metrics.subjectAnalysis.filter(s => s.status === 'deficit');
+    const deficitSubjects = metrics.subjectAnalysis.filter(s => s.status === 'deficit' && s.netTeacherDiff > 0);
     if (deficitSubjects.length > 0) {
       deficitSubjects.forEach(sub => {
         list.push({
@@ -323,8 +340,8 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       });
     }
 
-    // 2. Surplus alert (Resource optimization & loaning)
-    const surplusSubjects = metrics.subjectAnalysis.filter(s => s.status === 'surplus');
+    // 2. Surplus alert
+    const surplusSubjects = metrics.subjectAnalysis.filter(s => s.status === 'surplus' && s.netTeacherDiff > 0);
     if (surplusSubjects.length > 0) {
       surplusSubjects.forEach(sub => {
         list.push({
@@ -340,7 +357,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     }
 
     // 3. Class Density Optimization
-    if (Number(metrics.classDensity) > 30) {
+    if (metrics.classesCount > 0 && Number(metrics.classDensity) > 30) {
       list.push({
         id: 'rec-density-high',
         type: 'warning',
@@ -349,7 +366,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         actionLabel: 'توسيع الفصول من القاعات المتاحة',
         actionType: 'view_buildings'
       });
-    } else if (Number(metrics.classDensity) < 16 && metrics.classesCount > 10) {
+    } else if (metrics.classesCount > 5 && Number(metrics.classDensity) < 16 && Number(metrics.classDensity) > 0) {
       list.push({
         id: 'rec-density-low',
         type: 'info',
@@ -361,12 +378,12 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     }
 
     // 4. Infrastructure capacity alert
-    if (metrics.capacityUtilization < 60) {
+    if (metrics.totalCapacity > 0 && metrics.capacityUtilization < 60 && metrics.capacityUtilization > 0) {
       list.push({
         id: 'rec-cap-low',
         type: 'info',
         title: 'استغلال الطاقة الاستيعابية للمبنى',
-        desc: `نسبة الإشغال الحالية (${metrics.capacityUtilization}%) توفر مساحات شاسعة يمكن استثمارها في تدشين مسار الدبلومة الأمريكية أو نوادي الموهبة والروبوت.`,
+        desc: `نسبة الإشغال الحالية (${metrics.capacityUtilization}%) توفر مساحات يمكن استثمارها في تدشين مسار الدبلومة الأمريكية أو نوادي الموهبة والروبوت.`,
         actionLabel: 'استعراض المرافق المتاحة',
         actionType: 'view_buildings'
       });
@@ -374,25 +391,6 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
 
     return list;
   }, [metrics]);
-
-  // Seed Default Buildings for the branch
-  const handleSeedDefaultBuildings = async () => {
-    try {
-      const currentTargetSchool = selectedSchoolId || userData?.schoolId || 'main_school';
-      for (const bld of DEFAULT_BRANCH_BUILDINGS_SEED) {
-        await addDoc(collection(db, 'school_buildings'), {
-          ...bld,
-          schoolId: currentTargetSchool,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        });
-      }
-      alert('تم تحميل البنية التحتية والمباني المعيارية للمجمع بنجاح!');
-    } catch (err) {
-      console.error('Error seeding buildings:', err);
-      alert('حدث خطأ أثناء تحميل البيانات النموذجية.');
-    }
-  };
 
   // Save / Update Building
   const handleSaveBuilding = async (e) => {
@@ -1219,15 +1217,13 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)' }}>
                   <Building2 size={40} style={{ opacity: 0.3, marginBottom: '10px' }} />
                   <p>لم يتم تسجيل مباني في هذا الفرع بعد.</p>
-                  <button onClick={handleSeedDefaultBuildings} className="btn btn-primary" style={{ marginTop: '10px' }}>
-                    تحميل البيانات المعيارية للمجمع
-                  </button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {buildingsList.map(bld => {
-                    const estStudents = Math.round((Number(bld.capacity || 500) * 0.82));
-                    const util = bld.capacity ? Math.round((estStudents / Number(bld.capacity)) * 100) : 80;
+                    const bldStudents = studentsList.filter(s => s.buildingId === bld.id).length;
+                    const bldCap = Number(bld.capacity || 0);
+                    const util = bldCap > 0 ? Math.min(100, Math.round((bldStudents / bldCap) * 100)) : 0;
 
                     return (
                       <div key={bld.id} style={{ background: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
@@ -1260,7 +1256,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
 
                           <div style={{ textAlign: 'left' }}>
                             <div style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>{util}%</div>
-                            <span style={{ fontSize: '11px', color: '#64748b' }}>إشغال السعة</span>
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>إشغال السعة ({bldStudents} / {bldCap || 0})</span>
                           </div>
                         </div>
 
@@ -1275,9 +1271,9 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b' }}>
-                          <span>الطاقة: <strong>{bld.capacity} طالب</strong></span>
-                          <span>القاعات المستغلة: <strong>{bld.activeClassrooms} / {bld.totalRooms}</strong></span>
-                          <span>المساحة: <strong>{bld.areaSqMeters || 3000} م²</strong></span>
+                          <span>الطاقة: <strong>{bld.capacity || 0} طالب</strong></span>
+                          <span>القاعات المستغلة: <strong>{bld.activeClassrooms || 0} / {bld.totalRooms || 0}</strong></span>
+                          <span>المساحة: <strong>{bld.areaSqMeters || 0} م²</strong></span>
                         </div>
                       </div>
                     );
@@ -1303,15 +1299,6 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              {buildingsList.length === 0 && (
-                <button
-                  onClick={handleSeedDefaultBuildings}
-                  className="btn"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #cbd5e1' }}
-                >
-                  <RefreshCw size={16} /> تحميل مباني المجمع النموذجية
-                </button>
-              )}
               <button
                 onClick={() => {
                   setEditingBuilding(null);
