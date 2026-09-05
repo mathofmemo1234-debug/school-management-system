@@ -26,8 +26,8 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
   const { userData, currentUser, userRole } = useAuth();
   const { t, isRTL } = useLanguage();
 
-  const effectiveRole = role || userRole || 'admin';
-  const isSuperAdmin = effectiveRole === 'superadmin' || userRole === 'superadmin';
+  const effectiveRole = role || userRole || userData?.role || 'admin';
+  const isSuperAdmin = effectiveRole === 'superadmin' || userRole === 'superadmin' || userData?.role === 'superadmin' || !userData?.schoolId || userData?.schoolId === 'ALL';
 
   // Navigation Tabs: 'analytics' | 'buildings' | 'classes_quotas' | 'transfers_directives'
   const [activeTab, setActiveTab] = useState('analytics');
@@ -1476,16 +1476,22 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     }
   };
 
-  // Update Request Status (SuperAdmin Approval)
-  const handleUpdateTransferStatus = async (requestId, newStatus) => {
+  // Update Request Status (SuperAdmin Approval & Assignment)
+  const handleUpdateTransferStatus = async (requestId, newStatus, assignedTeacher = '') => {
     try {
-      await updateDoc(doc(db, 'resource_transfer_requests', requestId), {
+      const updateData = {
         status: newStatus,
-        reviewedBy: userData?.name || 'الماستر العام',
+        reviewedBy: userData?.name || 'الماستر العام (Super Admin)',
         reviewedAt: Date.now()
-      });
+      };
+      if (assignedTeacher) {
+        updateData.teacherName = assignedTeacher;
+      }
+      await updateDoc(doc(db, 'resource_transfer_requests', requestId), updateData);
+      alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : 'تم تحديث حالة المعاملة بنجاح'));
     } catch (err) {
       console.error('Error updating request status:', err);
+      alert('حدث خطأ أثناء التحديث: ' + err.message);
     }
   };
 
@@ -4538,25 +4544,88 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                           {req.status === 'acknowledged' ? '✓ تم الاستلام والتوثيق' : (req.status === 'approved' ? '✓ تم الاعتماد والتوجيه' : (req.status === 'rejected' ? '✕ مرفوض' : '⏳ قيد الدراسة لدى الماستر'))}
                         </span>
 
-                      {/* SuperAdmin Action Buttons */}
-                      {isSuperAdmin && req.status === 'pending' && (
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            onClick={() => handleUpdateTransferStatus(req.id, 'approved')}
-                            className="btn btn-primary"
-                            style={{ padding: '6px 12px', fontSize: '12px', background: '#16a34a', border: 'none' }}
-                          >
-                            اعتماد التوجيه
-                          </button>
-                          <button
-                            onClick={() => handleUpdateTransferStatus(req.id, 'rejected')}
-                            className="btn"
-                            style={{ padding: '6px 12px', fontSize: '12px', background: '#fee2e2', color: '#dc2626', border: 'none' }}
-                          >
-                            رفض
-                          </button>
-                        </div>
-                      )}
+                      {/* Action Buttons for SuperAdmin and Principal */}
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {isSuperAdmin ? (
+                          (req.status !== 'approved' && req.status !== 'acknowledged') ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  const candidate = prompt('أدخل اسم المعلم المكلف لسد العجز (أو اتركه فارغاً للاعتماد المباشر):', req.teacherName || '');
+                                  if (candidate !== null) {
+                                    handleUpdateTransferStatus(req.id, 'approved', candidate.trim());
+                                  }
+                                }}
+                                className="btn btn-primary"
+                                style={{
+                                  padding: '7px 16px',
+                                  fontSize: '13px',
+                                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                  border: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontWeight: 800,
+                                  borderRadius: '10px',
+                                  boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)'
+                                }}
+                              >
+                                <Check size={16} /> اعتماد وتكليف
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm('هل أنت متأكد من رفض هذا الطلب؟')) {
+                                    handleUpdateTransferStatus(req.id, 'rejected');
+                                  }
+                                }}
+                                className="btn"
+                                style={{
+                                  padding: '7px 14px',
+                                  fontSize: '13px',
+                                  background: '#fee2e2',
+                                  color: '#dc2626',
+                                  border: '1px solid #fca5a5',
+                                  fontWeight: 700,
+                                  borderRadius: '10px'
+                                }}
+                              >
+                                <X size={15} /> رفض
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (confirm('هل تريد إعادة فتح هذا الطلب وجعله قيد الدراسة مرة أخرى؟')) {
+                                  handleUpdateTransferStatus(req.id, 'pending');
+                                }
+                              }}
+                              className="btn btn-outline"
+                              style={{ padding: '5px 12px', fontSize: '11.5px', color: '#64748b', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <RefreshCw size={13} /> إعادة فتح للدراسة
+                            </button>
+                          )
+                        ) : (
+                          req.status === 'approved' && (
+                            <button
+                              onClick={() => handleUpdateTransferStatus(req.id, 'acknowledged')}
+                              className="btn btn-primary"
+                              style={{
+                                padding: '6px 14px',
+                                fontSize: '12px',
+                                background: '#0d9488',
+                                border: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontWeight: 700
+                              }}
+                            >
+                              <Check size={14} /> تأكيد استلام القرار
+                            </button>
+                          )
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
