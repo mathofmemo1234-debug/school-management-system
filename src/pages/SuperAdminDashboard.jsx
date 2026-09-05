@@ -10,7 +10,7 @@ import {
   Edit, Key, FileSpreadsheet, Printer, ExternalLink, Sparkles, 
   Filter, CheckCircle2, RefreshCw, Globe, Award, Mail, Star, 
   Layers, MapPin, Phone, AlertCircle, X, Compass, ChevronRight, Eye,
-  Shield, Check
+  Shield, Check, Archive, Undo2, EyeOff
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -67,6 +67,7 @@ function SuperAdminHome() {
   const [assignedTeacherInput, setAssignedTeacherInput] = useState('');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Master Direct Actions Modals (Direct Transfer Directive & Direct General Directive)
   const [showDirectTransferModal, setShowDirectTransferModal] = useState(false);
@@ -384,6 +385,38 @@ function SuperAdminHome() {
       alert('تم إرسال وتوجيه القرار بنجاح.');
     }
   };
+
+  const handleArchiveTransfer = async (transferId) => {
+    try {
+      const updateData = { archived: true, archivedAt: Date.now(), archivedBy: userData?.name || 'الماستر العام' };
+      setIncomingTransferRequests(prev => prev.map(t => t.id === transferId ? { ...t, ...updateData } : t));
+      broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: transferId, ...updateData } });
+      try {
+        await setDoc(doc(db, 'resource_transfer_requests', transferId), updateData, { merge: true });
+      } catch (e) {
+        try { await updateDoc(doc(db, 'resource_transfer_requests', transferId), updateData); } catch (e2) {}
+      }
+    } catch (err) { console.error('Archive transfer error:', err); }
+  };
+
+  const handleRestoreTransfer = async (transferId) => {
+    try {
+      const updateData = { archived: false, archivedAt: null, archivedBy: null };
+      setIncomingTransferRequests(prev => prev.map(t => t.id === transferId ? { ...t, ...updateData } : t));
+      broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: transferId, ...updateData } });
+      try {
+        await setDoc(doc(db, 'resource_transfer_requests', transferId), updateData, { merge: true });
+      } catch (e) {
+        try { await updateDoc(doc(db, 'resource_transfer_requests', transferId), updateData); } catch (e2) {}
+      }
+    } catch (err) { console.error('Restore transfer error:', err); }
+  };
+
+  const isResolved = (item) => ['acknowledged', 'completed', 'approved', 'rejected'].includes(item.status);
+  const archivedTransfersCount = incomingTransferRequests.filter(t => t.archived).length;
+  const visibleTransfers = showArchived
+    ? incomingTransferRequests.filter(t => t.archived)
+    : incomingTransferRequests.filter(t => !t.archived);
 
   // Isolated Listener when a specific school scope is selected
   useEffect(() => {
@@ -1371,6 +1404,26 @@ function SuperAdminHome() {
 
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
+                onClick={() => setShowArchived(!showArchived)}
+                className="btn btn-outline"
+                style={{
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  color: showArchived ? '#ef4444' : '#64748b',
+                  borderColor: showArchived ? '#fca5a5' : '#cbd5e1',
+                  background: showArchived ? '#fef2f2' : 'white',
+                  padding: '7px 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderRadius: '10px'
+                }}
+              >
+                {showArchived ? <EyeOff size={15} /> : <Archive size={15} />}
+                <span>{showArchived ? 'إخفاء الأرشيف' : `الأرشيف (${archivedTransfersCount})`}</span>
+              </button>
+
+              <button
                 onClick={() => {
                   setDirectTransferForm({
                     targetSchoolId: selectedSchoolScope !== 'ALL' ? selectedSchoolScope : (schools[0]?.id || 'msc_jed_smart_boys'),
@@ -1455,7 +1508,7 @@ function SuperAdminHome() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '14px' }}>
-            {incomingTransferRequests.slice(0, 6).map(req => {
+            {visibleTransfers.slice(0, 6).map(req => {
               const isMasterDirective = Boolean(req.isDirective || req.requesterRole === 'superadmin' || req.source === 'master');
               const subjectDisplay = req.subject || req.customSubject || req.subjectName || req.title || 'مادة دراسية';
               const periodsDisplay = req.requiredPeriods || req.periodsCount || req.currentLoad || req.periods || null;
@@ -1554,7 +1607,23 @@ function SuperAdminHome() {
 
                     {/* Master Actions */}
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      {!isApproved && !isAcknowledged ? (
+                      {req.archived ? (
+                        <button
+                          onClick={() => handleRestoreTransfer(req.id)}
+                          className="btn btn-outline"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            background: '#f8fafc',
+                            color: '#64748b',
+                            border: '1px solid #cbd5e1',
+                            fontWeight: 700,
+                            borderRadius: '8px'
+                          }}
+                        >
+                          <Undo2 size={14} /> استعادة
+                        </button>
+                      ) : !isApproved && !isAcknowledged ? (
                         <>
                           <button
                             onClick={() => {
@@ -1598,17 +1667,34 @@ function SuperAdminHome() {
                           </button>
                         </>
                       ) : (
-                        <button
-                          onClick={() => {
-                            if (confirm('هل تريد إعادة فتح هذا الطلب وجعله قيد الدراسة مرة أخرى؟')) {
-                              handleUpdateTransferStatus(req.id, 'pending');
-                            }
-                          }}
-                          className="btn btn-outline"
-                          style={{ padding: '4px 10px', fontSize: '11px', color: '#64748b', borderRadius: '6px' }}
-                        >
-                          <RefreshCw size={12} /> إعادة فتح
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              if (confirm('هل تريد إعادة فتح هذا الطلب وجعله قيد الدراسة مرة أخرى؟')) {
+                                handleUpdateTransferStatus(req.id, 'pending');
+                              }
+                            }}
+                            className="btn btn-outline"
+                            style={{ padding: '4px 10px', fontSize: '11px', color: '#64748b', borderRadius: '6px' }}
+                          >
+                            <RefreshCw size={12} /> إعادة فتح
+                          </button>
+                          {isResolved(req) && (
+                            <button
+                              onClick={() => handleArchiveTransfer(req.id)}
+                              className="btn btn-outline"
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: '11px',
+                                color: '#ef4444',
+                                borderColor: '#fca5a5',
+                                borderRadius: '6px'
+                              }}
+                            >
+                              <Archive size={12} /> أرشفة
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

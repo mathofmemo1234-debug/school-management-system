@@ -8,8 +8,9 @@ import {
   Eye, Trash2, Reply, Check, CheckCheck, AlertCircle, AlertTriangle,
   Users, User, Search, Filter, Printer, X, Plus, Clock, Tag, ArrowRight,
   ShieldCheck, UserCheck, BookOpen, Sparkles, RefreshCw, CheckCircle2,
-  BarChart2
+  BarChart2, Archive, Undo2, EyeOff
 } from 'lucide-react';
+import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
 
 const ROLE_BADGES = {
   admin: { label: 'مدير المدرسة', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', icon: '👑' },
@@ -97,45 +98,63 @@ export default function SchoolMessagingHub() {
   // 1. Load Recipients Directory filtered by schoolId
   useEffect(() => {
     const unsubAdmins = onSnapshot(collection(db, 'users'), snap => {
-      const admins = snap.docs
+      let admins = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(d => (d.role === 'admin' || d.role === 'superadmin') && (schoolId === 'ALL' || d.schoolId === schoolId))
-        .map(d => ({ ...d, role: 'admin', roleTitle: d.roleTitle || 'مدير المدرسة', name: d.name || 'مدير المدرسة' }));
+        .filter(d => (d.role === 'admin' || d.role === 'superadmin') && (schoolId === 'ALL' || userRole === 'superadmin' || d.schoolId === schoolId || d.schoolId === 'ALL' || d.role === 'superadmin'))
+        .map(d => ({
+          ...d,
+          role: d.role,
+          roleTitle: d.role === 'superadmin' ? 'الإدارة العامة (الماستر العام)' : (d.roleTitle || 'مدير المدرسة'),
+          name: d.role === 'superadmin' ? (d.name || 'الماستر العام') : (d.name || 'مدير المدرسة')
+        }));
+
+      // Ensure Master / SuperAdmin is always available in directory for all schools
+      if (!admins.some(a => a.role === 'superadmin' || a.email === 'super@admin.com' || a.id === 'master_general_admin')) {
+        admins.unshift({
+          id: 'master_general_admin',
+          nationalId: 'super@admin.com',
+          email: 'super@admin.com',
+          name: 'الإدارة العامة (الماستر العام)',
+          role: 'superadmin',
+          roleTitle: 'الإدارة العامة والمتابعة المركزية',
+          schoolId: 'ALL'
+        });
+      }
       setAdminList(admins);
     });
 
     const unsubTeachers = onSnapshot(collection(db, 'teachers'), snap => {
       const list = snap.docs
         .map(d => ({ id: d.id, ...d.data(), role: 'teacher' }))
-        .filter(d => schoolId === 'ALL' || d.schoolId === schoolId);
+        .filter(d => schoolId === 'ALL' || userRole === 'superadmin' || d.schoolId === schoolId);
       setTeachersList(list);
     });
 
     const unsubStudents = onSnapshot(collection(db, 'students'), snap => {
       const list = snap.docs
         .map(d => ({ id: d.id, ...d.data(), role: 'student' }))
-        .filter(d => schoolId === 'ALL' || d.schoolId === schoolId);
+        .filter(d => schoolId === 'ALL' || userRole === 'superadmin' || d.schoolId === schoolId);
       setStudentsList(list);
     });
 
     const unsubStaff = onSnapshot(collection(db, 'staff'), snap => {
       const list = snap.docs
         .map(d => ({ id: d.id, ...d.data(), role: 'staff' }))
-        .filter(d => schoolId === 'ALL' || d.schoolId === schoolId);
+        .filter(d => schoolId === 'ALL' || userRole === 'superadmin' || d.schoolId === schoolId);
       setStaffList(list);
     });
 
     const unsubSupervisors = onSnapshot(collection(db, 'supervisors'), snap => {
       const list = snap.docs
         .map(d => ({ id: d.id, ...d.data(), role: 'supervisor' }))
-        .filter(d => schoolId === 'ALL' || d.schoolId === schoolId);
+        .filter(d => schoolId === 'ALL' || userRole === 'superadmin' || d.schoolId === schoolId);
       setSupervisorsList(list);
     });
 
     const unsubClasses = onSnapshot(collection(db, 'classes'), snap => {
       const list = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(d => schoolId === 'ALL' || d.schoolId === schoolId);
+        .filter(d => schoolId === 'ALL' || userRole === 'superadmin' || d.schoolId === schoolId);
       setClassesList(list);
       if (list.length > 0 && !targetClassName) {
         setTargetClassName(list[0].name);
@@ -150,15 +169,11 @@ export default function SchoolMessagingHub() {
       unsubSupervisors();
       unsubClasses();
     };
-  }, [schoolId]);
+  }, [schoolId, userRole]);
 
-  // 2. Realtime listener to school_messages - filtered strictly by schoolId with absolute isolation
+  // 2. Realtime listener to school_messages - Comprehensive live sync with zero barriers
   useEffect(() => {
-    // If superadmin or ALL, only load central broadcasts (schoolId === 'ALL') - never internal school messages
-    const msgQuery = (schoolId === 'ALL' || userRole === 'superadmin' || userData?.role === 'superadmin')
-      ? query(collection(db, 'school_messages'), where('schoolId', '==', 'ALL'))
-      : query(collection(db, 'school_messages'), where('schoolId', '==', schoolId));
-    const unsub = onSnapshot(msgQuery, snap => {
+    const unsub = onSnapshot(collection(db, 'school_messages'), snap => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       // Sort newest first
       msgs.sort((a, b) => {
@@ -177,19 +192,29 @@ export default function SchoolMessagingHub() {
       console.error("Firestore onSnapshot error for school_messages:", err);
     });
 
-    return () => unsub();
-  }, [selectedMessage?.id, schoolId]);
+    // ⚡ Cross-Tab Instant BroadcastChannel Subscription
+    const unsubBroadcast = subscribeRealtimeEvents((event) => {
+      if (event?.type === 'MESSAGE_UPDATE' && event.payload?.message) {
+        setMessages(prev => {
+          const m = event.payload.message;
+          const exists = prev.some(item => item.id === m.id);
+          if (exists) return prev.map(item => item.id === m.id ? { ...item, ...m } : item);
+          return [m, ...prev];
+        });
+      }
+    });
+
+    return () => {
+      unsub();
+      unsubBroadcast();
+    };
+  }, [selectedMessage?.id]);
 
   // 3. Robust Identity and Delivery Verification: Is this message addressed to the current logged-in user?
   const isMessageForMe = (msg) => {
     if (!msg) return false;
 
-    // Multi-School Strict Guard: Block messages from other schools (unless message or user has schoolId 'ALL')
-    if (msg.schoolId && msg.schoolId !== 'ALL' && schoolId && schoolId !== 'ALL' && msg.schoolId !== schoolId) {
-      return false;
-    }
-
-    // A. Direct / Individual Message
+    // A. Direct / Individual Message: Delivered unconditionally if addressed to my identity
     if (msg.messageType === 'individual') {
       const recNid = String(msg.receiverNationalId || '').trim().toLowerCase();
       const recId = String(msg.receiverId || '').trim().toLowerCase();
@@ -203,13 +228,19 @@ export default function SchoolMessagingHub() {
         (recId && myIdentities.has(recId)) ||
         (recEmail && myIdentities.has(recEmail)) ||
         (recName && myIdentities.has(recName)) ||
-        (recName && myNameLower && (recName.includes(myNameLower) || myNameLower.includes(recName)))
+        (recName && myNameLower && (recName.includes(myNameLower) || myNameLower.includes(recName))) ||
+        (userRole === 'superadmin' && (recNid === 'super@admin.com' || recEmail === 'super@admin.com' || recName.includes('ماستر') || recName.includes('الإدارة العامة')))
       );
 
       return Boolean(isAddressedToMe);
     }
 
     // B. Group / Broadcast Message (تعميم جماعي)
+    const isGlobal = !msg.schoolId || msg.schoolId === 'ALL' || schoolId === 'ALL' || userRole === 'superadmin' || userData?.role === 'superadmin';
+    if (!isGlobal && msg.schoolId !== schoolId) {
+      return false;
+    }
+
     if (msg.messageType === 'group') {
       const tg = msg.targetGroup || 'all';
       
@@ -218,17 +249,17 @@ export default function SchoolMessagingHub() {
 
       // Teachers
       if (tg === 'teachers') {
-        return myRole === 'teacher' || userRole === 'teacher' || userData?.role === 'teacher' || Boolean(userData?.subject);
+        return myRole === 'teacher' || userRole === 'teacher' || userData?.role === 'teacher' || Boolean(userData?.subject) || userRole === 'superadmin';
       }
 
       // Students
       if (tg === 'students') {
-        return myRole === 'student' || userRole === 'student' || userData?.role === 'student';
+        return myRole === 'student' || userRole === 'student' || userData?.role === 'student' || userRole === 'superadmin';
       }
 
       // Parents
       if (tg === 'parents') {
-        return myRole === 'parent' || userRole === 'parent' || userData?.role === 'parent';
+        return myRole === 'parent' || userRole === 'parent' || userData?.role === 'parent' || userRole === 'superadmin';
       }
 
       // Specific Class (e.g. 1/أ)
@@ -239,37 +270,34 @@ export default function SchoolMessagingHub() {
         if (myRole === 'student' || myRole === 'parent' || userRole === 'student' || userRole === 'parent' || userData?.role === 'student' || userData?.role === 'parent') {
           if (!targetCls || targetCls === userCls || userCls.includes(targetCls) || targetCls.includes(userCls)) return true;
         }
-        // Teachers, Staff, and Admins can also see class circulars
-        if (myRole === 'admin' || myRole === 'teacher' || myRole === 'staff' || userRole === 'admin' || userRole === 'teacher' || userRole === 'staff') {
+        if (myRole === 'admin' || myRole === 'teacher' || myRole === 'staff' || userRole === 'admin' || userRole === 'teacher' || userRole === 'staff' || userRole === 'superadmin') {
           return true;
         }
       }
 
       // Staff / Deputies
       if (tg === 'staff') {
-        return myRole === 'staff' || myRole === 'admin' || userRole === 'staff' || userRole === 'admin';
+        return myRole === 'staff' || myRole === 'admin' || userRole === 'staff' || userRole === 'admin' || userRole === 'superadmin';
       }
 
       // Supervisors
       if (tg === 'supervisors') {
-        return myRole === 'supervisor' || userRole === 'supervisor';
+        return myRole === 'supervisor' || userRole === 'supervisor' || userRole === 'superadmin';
       }
     }
 
     return false;
   };
 
-  // Inbox Messages
+  // Inbox Messages (non-archived)
   const inboxMessages = useMemo(() => {
-    return messages.filter(m => isMessageForMe(m));
-  }, [messages, myIdentities, myRole, myClass, userData, userRole, schoolId]);
+    return messages.filter(m => !m.archived && isMessageForMe(m));
+  }, [messages, isMessageForMe]);
 
-  // Sent Messages
+  // Sent Messages (non-archived)
   const sentMessages = useMemo(() => {
     return messages.filter(m => {
-      if (m.schoolId && m.schoolId !== 'ALL' && schoolId && schoolId !== 'ALL' && m.schoolId !== schoolId) {
-        return false;
-      }
+      if (m.archived) return false;
       const sNid = String(m.senderNationalId || '').trim().toLowerCase();
       const sId = String(m.senderId || '').trim().toLowerCase();
       const sName = String(m.senderName || '').trim().toLowerCase();
@@ -277,6 +305,19 @@ export default function SchoolMessagingHub() {
       return myIdentities.has(sNid) || myIdentities.has(sId) || (sName && myNameLower && sName === myNameLower);
     });
   }, [messages, myIdentities, myName]);
+
+  // Archived Messages (soft-deleted with restore capability)
+  const archivedMessages = useMemo(() => {
+    return messages.filter(m => {
+      if (!m.archived) return false;
+      const sNid = String(m.senderNationalId || '').trim().toLowerCase();
+      const sId = String(m.senderId || '').trim().toLowerCase();
+      const sName = String(m.senderName || '').trim().toLowerCase();
+      const myNameLower = myName.trim().toLowerCase();
+      const isSentByMe = myIdentities.has(sNid) || myIdentities.has(sId) || (sName && myNameLower && sName === myNameLower);
+      return isSentByMe || isMessageForMe(m);
+    });
+  }, [messages, myIdentities, myName, isMessageForMe]);
 
   // Unread Count
   const unreadCount = useMemo(() => {
@@ -287,7 +328,9 @@ export default function SchoolMessagingHub() {
   }, [inboxMessages, myIdentities]);
 
   // Filtered List based on Search & Filter
-  const currentTabList = activeTab === 'inbox' ? inboxMessages : sentMessages;
+  const currentTabList = activeTab === 'inbox' 
+    ? inboxMessages 
+    : (activeTab === 'sent' ? sentMessages : archivedMessages);
 
   const displayedMessages = useMemo(() => {
     return currentTabList.filter(m => {
@@ -602,7 +645,8 @@ export default function SchoolMessagingHub() {
         payload.targetClassName = targetGroup === 'class' ? targetClassName : '';
       }
 
-      await addDoc(collection(db, 'school_messages'), payload);
+      const docRef = await addDoc(collection(db, 'school_messages'), payload);
+      broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: docRef.id, ...payload } });
 
       setSubject('');
       setBody('');
@@ -616,6 +660,36 @@ export default function SchoolMessagingHub() {
       alert('حدث خطأ أثناء إرسال الرسالة، يرجى المحاولة مرة أخرى.');
     } finally {
       setIsSending(false);
+    }
+  };
+
+  // Archive (Soft Delete) message
+  const handleArchiveMessage = async (msgId) => {
+    try {
+      const updateData = { archived: true, archivedAt: Date.now(), archivedBy: myName };
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, ...updateData } : m));
+      if (selectedMessage?.id === msgId) {
+        setSelectedMessage(prev => prev ? { ...prev, ...updateData } : null);
+      }
+      broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: msgId, ...updateData } });
+      await updateDoc(doc(db, 'school_messages', msgId), updateData);
+    } catch (err) {
+      console.error('Error archiving message:', err);
+    }
+  };
+
+  // Restore archived message
+  const handleRestoreMessage = async (msgId) => {
+    try {
+      const updateData = { archived: false, archivedAt: null, archivedBy: null };
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, ...updateData } : m));
+      if (selectedMessage?.id === msgId) {
+        setSelectedMessage(prev => prev ? { ...prev, ...updateData } : null);
+      }
+      broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: msgId, ...updateData } });
+      await updateDoc(doc(db, 'school_messages', msgId), updateData);
+    } catch (err) {
+      console.error('Error restoring message:', err);
     }
   };
 
@@ -796,6 +870,26 @@ export default function SchoolMessagingHub() {
             </button>
 
             <button
+              onClick={() => { setActiveTab('archived'); setSelectedMessage(null); }}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: activeTab === 'archived' ? '#d97706' : '#f1f5f9',
+                color: activeTab === 'archived' ? 'white' : '#475569',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Archive size={16} /> الأرشيف ({archivedMessages.length})
+            </button>
+
+            <button
               onClick={() => { setActiveTab('compose'); setSelectedMessage(null); }}
               style={{
                 padding: '8px 16px',
@@ -871,12 +965,14 @@ export default function SchoolMessagingHub() {
                   <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
                     <Mail size={48} style={{ opacity: 0.3, marginBottom: '10px', color: '#0e7490' }} />
                     <h4 style={{ margin: '0 0 6px 0', color: '#475569', fontSize: '16px' }}>
-                      {activeTab === 'inbox' ? 'صندوق الوارد فارغ حالياً' : 'لم تقم بإرسال أي رسائل بعد'}
+                      {activeTab === 'inbox' ? 'صندوق الوارد فارغ حالياً' : (activeTab === 'archived' ? 'الأرشيف فارغ حالياً' : 'لم تقم بإرسال أي رسائل بعد')}
                     </h4>
                     <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#94a3b8' }}>
                       {activeTab === 'inbox' 
                         ? 'ستظهر هنا كافة الرسائل الفردية والتعاميم المدرسية الموجهة إليك فور إرسالها.' 
-                        : 'يمكنك إنشاء رسالة خاصة أو تعميم جماعي من زر "إنشاء رسالة / تعميم جديد".'}
+                        : (activeTab === 'archived'
+                          ? 'لا توجد رسائل مؤرشفة حالياً. يمكنك نقل الرسائل القديمة للأرشيف واستعادتها في أي وقت.'
+                          : 'يمكنك إنشاء رسالة خاصة أو تعميم جماعي من زر "إنشاء رسالة / تعميم جديد".')}
                     </p>
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                       <button
@@ -947,7 +1043,7 @@ export default function SchoolMessagingHub() {
                             </span>
                             
                             <span style={{ fontWeight: isUnread ? '800' : '600', color: '#0f172a', fontSize: '14px' }}>
-                              {activeTab === 'inbox' ? msg.senderName : `إلى: ${msg.messageType === 'individual' ? msg.receiverName : 'تعميم جماعي'}`}
+                              {activeTab === 'sent' ? `إلى: ${msg.messageType === 'individual' ? msg.receiverName : 'تعميم جماعي'}` : `من: ${msg.senderName}`}
                             </span>
                           </div>
 
@@ -1738,26 +1834,68 @@ export default function SchoolMessagingHub() {
                 </button>
               </div>
 
-              {(myIdentities.has(String(selectedMessage.senderNationalId || '').toLowerCase()) || myRole === 'admin') && (
-                <button
-                  onClick={() => handleDeleteMessage(selectedMessage.id)}
-                  style={{
-                    background: '#fef2f2',
-                    border: '1px solid #fecaca',
-                    color: '#dc2626',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '12px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  <Trash2 size={15} /> حذف
-                </button>
-              )}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {selectedMessage.archived ? (
+                  <button
+                    onClick={() => handleRestoreMessage(selectedMessage.id)}
+                    style={{
+                      background: '#fffbeb',
+                      border: '1px solid #fde68a',
+                      color: '#d97706',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    <Undo2 size={15} /> استعادة من الأرشيف
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleArchiveMessage(selectedMessage.id)}
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      color: '#64748b',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    <Archive size={15} /> نقل إلى الأرشيف
+                  </button>
+                )}
+
+                {(myIdentities.has(String(selectedMessage.senderNationalId || '').toLowerCase()) || myRole === 'admin' || userRole === 'superadmin') && (
+                  <button
+                    onClick={() => handleDeleteMessage(selectedMessage.id)}
+                    style={{
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      color: '#dc2626',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    <Trash2 size={15} /> حذف نهائي
+                  </button>
+                )}
+              </div>
             </div>
 
           </div>

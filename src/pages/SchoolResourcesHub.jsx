@@ -10,7 +10,8 @@ import {
   TrendingUp, TrendingDown, ArrowLeftRight, Sparkles, Filter, Plus, Edit, Trash2,
   Printer, RefreshCw, X, Check, Search, ShieldCheck, UserCheck, Activity, Award,
   BarChart2, PieChart, Shield, Calendar, Phone, Mail, Compass, Coffee, Trophy,
-  Film, Laptop, HeartPulse, FlaskConical, MapPin, School, ArrowRight, Eye
+  Film, Laptop, HeartPulse, FlaskConical, MapPin, School, ArrowRight, Eye,
+  Archive, Undo2, EyeOff
 } from 'lucide-react';
 import {
   RESOURCE_STAGES,
@@ -64,6 +65,7 @@ export default function SchoolResourcesHub({ role }) {
   const [transferRequests, setTransferRequests] = useState([]);
   const [directivesList, setDirectivesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Dynamic Custom Subjects State (SuperAdmin extensible catalog)
   const [customSubjects, setCustomSubjects] = useState(() => {
@@ -1616,6 +1618,69 @@ export default function SchoolResourcesHub({ role }) {
 
     alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : (newStatus === 'acknowledged' ? '✅ تم تأكيد استلام القرار وتوثيقه' : 'تم تحديث حالة المعاملة بنجاح')));
   };
+
+  // 🗂️ Archive & Restore Handlers for Resolved Transfers & Directives
+  const handleArchiveTransfer = async (transferId) => {
+    try {
+      const updateData = { archived: true, archivedAt: Date.now(), archivedBy: userData?.name || 'مستخدم النظام' };
+      setTransferRequests(prev => prev.map(t => t.id === transferId ? { ...t, ...updateData } : t));
+      broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: transferId, ...updateData } });
+      try {
+        await setDoc(doc(db, 'resource_transfer_requests', transferId), updateData, { merge: true });
+      } catch (e) {
+        try { await updateDoc(doc(db, 'resource_transfer_requests', transferId), updateData); } catch (e2) {}
+      }
+    } catch (err) { console.error('Archive transfer error:', err); }
+  };
+
+  const handleRestoreTransfer = async (transferId) => {
+    try {
+      const updateData = { archived: false, archivedAt: null, archivedBy: null };
+      setTransferRequests(prev => prev.map(t => t.id === transferId ? { ...t, ...updateData } : t));
+      broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: transferId, ...updateData } });
+      try {
+        await setDoc(doc(db, 'resource_transfer_requests', transferId), updateData, { merge: true });
+      } catch (e) {
+        try { await updateDoc(doc(db, 'resource_transfer_requests', transferId), updateData); } catch (e2) {}
+      }
+    } catch (err) { console.error('Restore transfer error:', err); }
+  };
+
+  const handleArchiveDirective = async (directiveId) => {
+    try {
+      const updateData = { archived: true, archivedAt: Date.now(), archivedBy: userData?.name || 'مستخدم النظام' };
+      setDirectivesList(prev => prev.map(d => d.id === directiveId ? { ...d, ...updateData } : d));
+      broadcastRealtimeEvent('DIRECTIVE_UPDATE', { directive: { id: directiveId, ...updateData } });
+      try {
+        await setDoc(doc(db, 'resource_directives', directiveId), updateData, { merge: true });
+      } catch (e) {
+        try { await updateDoc(doc(db, 'resource_directives', directiveId), updateData); } catch (e2) {}
+      }
+    } catch (err) { console.error('Archive directive error:', err); }
+  };
+
+  const handleRestoreDirective = async (directiveId) => {
+    try {
+      const updateData = { archived: false, archivedAt: null, archivedBy: null };
+      setDirectivesList(prev => prev.map(d => d.id === directiveId ? { ...d, ...updateData } : d));
+      broadcastRealtimeEvent('DIRECTIVE_UPDATE', { directive: { id: directiveId, ...updateData } });
+      try {
+        await setDoc(doc(db, 'resource_directives', directiveId), updateData, { merge: true });
+      } catch (e) {
+        try { await updateDoc(doc(db, 'resource_directives', directiveId), updateData); } catch (e2) {}
+      }
+    } catch (err) { console.error('Restore directive error:', err); }
+  };
+
+  const isResolved = (item) => ['acknowledged', 'completed', 'approved', 'rejected'].includes(item.status);
+  const archivedTransfersCount = transferRequests.filter(t => t.archived).length;
+  const archivedDirectivesCount = directivesList.filter(d => d.archived).length;
+  const visibleTransfers = showArchived
+    ? transferRequests.filter(t => t.archived)
+    : transferRequests.filter(t => !t.archived);
+  const visibleDirectives = showArchived
+    ? directivesList.filter(d => d.archived)
+    : directivesList.filter(d => !d.archived);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minHeight: '85vh' }}>
@@ -4583,15 +4648,17 @@ export default function SchoolResourcesHub({ role }) {
           </div>
 
           {/* Super Admin Directives Section */}
-          {directivesList.length > 0 && (
+          {visibleDirectives.length > 0 && (
             <div className="glass-panel" style={{ padding: '24px', borderRadius: '18px', background: 'linear-gradient(135deg, rgba(245, 243, 255, 0.95), rgba(238, 242, 255, 0.95))', border: '1px solid #c7d2fe' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <Send size={20} color="#6366f1" />
-                <h3 style={{ margin: 0, fontSize: '17px', color: '#3730a3' }}>توجيهات الماستر والإدارة العامة للمدرسة ({directivesList.length})</h3>
+                <h3 style={{ margin: 0, fontSize: '17px', color: '#3730a3' }}>
+                  {showArchived ? '🗂️ التوجيهات الإدارية المؤرشفة' : 'توجيهات الماستر والإدارة العامة للمدرسة'} ({visibleDirectives.length})
+                </h3>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {directivesList.map(dir => (
+                {visibleDirectives.map(dir => (
                   <div key={dir.id} style={{ background: 'white', padding: '16px', borderRadius: '14px', border: '1px solid #e0e7ff', boxShadow: '0 2px 8px rgba(99, 102, 241, 0.08)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                       <div>
@@ -4607,7 +4674,7 @@ export default function SchoolResourcesHub({ role }) {
                           {dir.title || dir.subject || 'توجيه إداري عام'}
                         </h4>
                       </div>
-                      <div style={{ textAlign: 'left' }}>
+                      <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                         <span style={{ fontSize: '12px', color: '#64748b', display: 'block' }}>
                           {new Date(dir.createdAt).toLocaleDateString('ar-SA')}
                         </span>
@@ -4615,6 +4682,23 @@ export default function SchoolResourcesHub({ role }) {
                           <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                             <CheckCircle2 size={12} /> تم تأكيد الاستلام
                           </span>
+                        )}
+                        {dir.archived ? (
+                          <button
+                            onClick={() => handleRestoreDirective(dir.id)}
+                            className="btn btn-outline"
+                            style={{ fontSize: '11px', padding: '3px 8px', color: '#d97706', borderColor: '#fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <Undo2 size={12} /> استعادة
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleArchiveDirective(dir.id)}
+                            className="btn btn-outline"
+                            style={{ fontSize: '11px', padding: '3px 8px', color: '#64748b', borderColor: '#cbd5e1', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <Archive size={12} /> أرشفة
+                          </button>
                         )}
                       </div>
                     </div>
@@ -4639,18 +4723,41 @@ export default function SchoolResourcesHub({ role }) {
 
           {/* Transfer Requests Board */}
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '18px' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '17px', color: 'var(--color-primary-dark)' }}>
-              سجل طلبات التنقل والاستعانة والاستغناء والتوجيهات ({transferRequests.length})
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <h3 style={{ margin: 0, fontSize: '17px', color: 'var(--color-primary-dark)' }}>
+                {showArchived ? '🗂️ أرشيف طلبات التنقل والاستعانة والتوجيهات المحسومة' : 'سجل طلبات التنقل والاستعانة والاستغناء والتوجيهات'} ({visibleTransfers.length})
+              </h3>
+              {(archivedTransfersCount > 0 || archivedDirectivesCount > 0 || showArchived) && (
+                <button
+                  onClick={() => setShowArchived(!showArchived)}
+                  className="btn btn-outline"
+                  style={{
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    color: showArchived ? '#ef4444' : '#64748b',
+                    borderColor: showArchived ? '#fca5a5' : '#cbd5e1',
+                    background: showArchived ? '#fef2f2' : 'white',
+                    padding: '6px 14px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '10px'
+                  }}
+                >
+                  {showArchived ? <EyeOff size={15} /> : <Archive size={15} />}
+                  <span>{showArchived ? 'إخفاء الأرشيف والعودة' : `الأرشيف (${archivedTransfersCount + archivedDirectivesCount})`}</span>
+                </button>
+              )}
+            </div>
 
-            {transferRequests.length === 0 ? (
+            {visibleTransfers.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)' }}>
                 <ArrowLeftRight size={40} style={{ opacity: 0.3, marginBottom: '10px' }} />
-                <p>لا توجد طلبات تنقل أو استعانة مسجلة حالياً.</p>
+                <p>{showArchived ? 'لا توجد طلبات مؤرشفة حالياً.' : 'لا توجد طلبات تنقل أو استعانة مسجلة حالياً.'}</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {transferRequests.map(req => {
+                {visibleTransfers.map(req => {
                   const isMasterDirective = Boolean(req.isDirective || req.requesterRole === 'superadmin' || req.source === 'master');
                   const subjectDisplay = req.subject || req.customSubject || req.subjectName || req.title || 'مادة دراسية';
                   const periodsDisplay = req.requiredPeriods || req.periodsCount || req.currentLoad || req.periods || null;
@@ -4808,6 +4915,24 @@ export default function SchoolResourcesHub({ role }) {
                             >
                               <RefreshCw size={13} /> إعادة فتح للدراسة
                             </button>
+
+                            {req.archived ? (
+                              <button
+                                onClick={() => handleRestoreTransfer(req.id)}
+                                className="btn btn-outline"
+                                style={{ padding: '5px 12px', fontSize: '11.5px', color: '#d97706', borderColor: '#fde68a', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Undo2 size={13} /> استعادة
+                              </button>
+                            ) : (isResolved(req) && (
+                              <button
+                                onClick={() => handleArchiveTransfer(req.id)}
+                                className="btn btn-outline"
+                                style={{ padding: '5px 12px', fontSize: '11.5px', color: '#64748b', borderColor: '#cbd5e1', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Archive size={13} /> أرشفة
+                              </button>
+                            ))}
                           </>
                         )}
                       </div>

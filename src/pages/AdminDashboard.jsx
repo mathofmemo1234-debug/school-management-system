@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Routes, Route, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers, Send, ArrowLeftRight, CheckCircle2, AlertCircle, Sparkles, Check } from 'lucide-react';
+import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers, Send, ArrowLeftRight, CheckCircle2, AlertCircle, Sparkles, Check, Archive, Undo2, Eye, EyeOff } from 'lucide-react';
 import ManageSchedules from './ManageSchedules';
 import { db } from '../firebase';
 import { collection, addDoc, setDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
@@ -36,21 +36,39 @@ function AdminHome({ schoolId }) {
   const [incomingDirectives, setIncomingDirectives] = useState([]);
   const [incomingTransfers, setIncomingTransfers] = useState([]);
   const [ackLoading, setAckLoading] = useState({});
+  const [showArchived, setShowArchived] = useState(false);
 
   const effectiveSchoolId = schoolId || userData?.schoolId || 'msc_jed_smart_boys';
 
+  // Use ref to avoid stale closure in onSnapshot callbacks
+  const schoolInfoRef = useRef(null);
+  const userDataRef = useRef(userData);
+  useEffect(() => { schoolInfoRef.current = schoolInfo; }, [schoolInfo]);
+  useEffect(() => { userDataRef.current = userData; }, [userData]);
+
+  // ─── SEPARATE useEffect for School metadata (prevents infinite listener loop) ───
   useEffect(() => {
-    // 1. Fetch School metadata and subtitle from Firestore or fallback
     const unsubSchool = onSnapshot(collection(db, 'schools'), snap => {
       if (!snap.empty) {
         const found = snap.docs.map(d => ({ id: d.id, ...d.data() })).find(s => 
           s.id === effectiveSchoolId || s.code === effectiveSchoolId || (userData?.schoolName && s.name === userData.schoolName)
         );
         if (found) {
-          setSchoolInfo(found);
+          setSchoolInfo(prev => {
+            // Prevent unnecessary re-renders if same school
+            if (prev && prev.id === found.id && prev.name === found.name && prev.code === found.code) return prev;
+            return found;
+          });
         }
       }
     }, (err) => console.warn("School info listener notice:", err));
+
+    return () => { if (unsubSchool) unsubSchool(); };
+  }, [effectiveSchoolId, userData?.schoolName]);
+
+  // ─── MAIN useEffect for stats + directives + transfers ───
+  useEffect(() => {
+    console.log('[AdminDashboard] 🚀 Main listener starting. effectiveSchoolId:', effectiveSchoolId, 'schoolId prop:', schoolId, 'userData.schoolId:', userData?.schoolId);
 
     const qTeachers = effectiveSchoolId && effectiveSchoolId !== 'ALL'
       ? query(collection(db, 'teachers'), where('schoolId', '==', effectiveSchoolId))
@@ -86,15 +104,22 @@ function AdminHome({ schoolId }) {
 
     // 📡 Live listener for Directives from General Administration (Master)
     const unsubDirectives = onSnapshot(collection(db, 'resource_directives'), (snap) => {
+      const currentSchoolInfo = schoolInfoRef.current;
+      const currentUserData = userDataRef.current;
+      
+      console.log('[AdminDashboard] 📜 Directives snapshot fired. Total docs:', snap.size, 'effectiveSchoolId:', effectiveSchoolId);
+      
       const list = [];
       const allowedIds = new Set([
         'ALL', 'all',
         effectiveSchoolId,
         schoolId,
-        userData?.schoolId,
-        schoolInfo?.id,
-        schoolInfo?.code
+        currentUserData?.schoolId,
+        currentSchoolInfo?.id,
+        currentSchoolInfo?.code
       ].filter(Boolean));
+
+      console.log('[AdminDashboard] 🔑 allowedIds:', [...allowedIds]);
 
       snap.forEach(d => {
         const data = d.data();
@@ -108,11 +133,12 @@ function AdminHome({ schoolId }) {
           allowedIds.has(data.schoolId) || 
           allowedIds.has(data.targetSchoolCode) || 
           allowedIds.has(data.schoolCode) ||
-          (schoolInfo?.name && (data.targetSchoolName === schoolInfo.name || data.schoolName === schoolInfo.name)) ||
-          (userData?.schoolName && (data.targetSchoolName === userData.schoolName || data.schoolName === userData.schoolName)) ||
+          (currentSchoolInfo?.name && (data.targetSchoolName === currentSchoolInfo.name || data.schoolName === currentSchoolInfo.name)) ||
+          (currentUserData?.schoolName && (data.targetSchoolName === currentUserData.schoolName || data.schoolName === currentUserData.schoolName)) ||
           !effectiveSchoolId || effectiveSchoolId === 'ALL'
         );
 
+        console.log('[AdminDashboard] 📄 Directive:', d.id, '| targetSchoolId:', data.targetSchoolId, '| schoolId:', data.schoolId, '| senderRole:', data.senderRole, '| isTargeting:', isTargetingMySchool);
         list.push({ id: d.id, isTargetingMySchool, ...data });
       });
 
@@ -122,11 +148,17 @@ function AdminHome({ schoolId }) {
         if (!a.isTargetingMySchool && b.isTargetingMySchool) return 1;
         return (b.createdAt || 0) - (a.createdAt || 0);
       });
+      console.log('[AdminDashboard] ✅ Final directives count:', list.length);
       setIncomingDirectives(list);
     }, (err) => console.warn("Admin directives listener notice:", err));
 
     // 🔄 Live listener for Transfer Decisions & Surplus-Deficit Requests from Master
     const unsubTransfers = onSnapshot(collection(db, 'resource_transfer_requests'), (snap) => {
+      const currentSchoolInfo = schoolInfoRef.current;
+      const currentUserData = userDataRef.current;
+
+      console.log('[AdminDashboard] 🔄 Transfers snapshot fired. Total docs:', snap.size);
+
       const list = [];
       const overrides = (() => {
         try { return JSON.parse(localStorage.getItem('msc_transfers_overrides') || '{}'); } catch { return {}; }
@@ -136,9 +168,9 @@ function AdminHome({ schoolId }) {
         'ALL', 'all',
         effectiveSchoolId,
         schoolId,
-        userData?.schoolId,
-        schoolInfo?.id,
-        schoolInfo?.code
+        currentUserData?.schoolId,
+        currentSchoolInfo?.id,
+        currentSchoolInfo?.code
       ].filter(Boolean));
 
       snap.forEach(d => {
@@ -171,13 +203,14 @@ function AdminHome({ schoolId }) {
           allowedIds.has(data.targetSchoolCode) ||
           allowedIds.has(data.fromSchoolCode) ||
           allowedIds.has(data.toSchoolCode) ||
-          (schoolInfo?.name && (data.schoolName === schoolInfo.name || data.targetSchoolName === schoolInfo.name || data.fromSchoolName === schoolInfo.name || data.toSchoolName === schoolInfo.name)) ||
-          (userData?.schoolName && (data.schoolName === userData.schoolName || data.targetSchoolName === userData.schoolName || data.fromSchoolName === userData.schoolName || data.toSchoolName === userData.schoolName)) ||
-          (userData?.nationalId && data.requesterNid === userData.nationalId) ||
-          (userData?.name && data.requesterName === userData.name) ||
+          (currentSchoolInfo?.name && (data.schoolName === currentSchoolInfo.name || data.targetSchoolName === currentSchoolInfo.name || data.fromSchoolName === currentSchoolInfo.name || data.toSchoolName === currentSchoolInfo.name)) ||
+          (currentUserData?.schoolName && (data.schoolName === currentUserData.schoolName || data.targetSchoolName === currentUserData.schoolName || data.fromSchoolName === currentUserData.schoolName || data.toSchoolName === currentUserData.schoolName)) ||
+          (currentUserData?.nationalId && data.requesterNid === currentUserData.nationalId) ||
+          (currentUserData?.name && data.requesterName === currentUserData.name) ||
           !effectiveSchoolId || effectiveSchoolId === 'ALL'
         );
 
+        console.log('[AdminDashboard] 🔄 Transfer:', d.id, '| targetSchoolId:', data.targetSchoolId, '| schoolId:', data.schoolId, '| isMaster:', isMaster, '| isTargeting:', isTargetingMySchool);
         list.push({ ...data, isTargetingMySchool, isMaster });
       });
       try {
@@ -190,6 +223,7 @@ function AdminHome({ schoolId }) {
         if (!a.isTargetingMySchool && b.isTargetingMySchool) return 1;
         return (b.createdAt || 0) - (a.createdAt || 0);
       });
+      console.log('[AdminDashboard] ✅ Final transfers count:', list.length);
       setIncomingTransfers(list);
     }, (err) => console.warn("Admin transfers listener notice:", err));
 
@@ -213,7 +247,6 @@ function AdminHome({ schoolId }) {
     });
 
     return () => { 
-      if (unsubSchool) unsubSchool();
       unsubTeachers(); 
       unsubStudents(); 
       unsubClasses(); 
@@ -223,7 +256,7 @@ function AdminHome({ schoolId }) {
       unsubTransfers();
       unsubBroadcast();
     };
-  }, [effectiveSchoolId, schoolId, userData, schoolInfo?.id, schoolInfo?.name, schoolInfo?.code]);
+  }, [effectiveSchoolId, schoolId]);
 
   const handleAcknowledgeDirective = async (directiveId) => {
     try {
@@ -295,6 +328,70 @@ function AdminHome({ schoolId }) {
       setAckLoading(prev => ({ ...prev, [transferId]: false }));
     }
   };
+
+  // 🗂️ Archive (Soft Delete) handlers for resolved directives/transfers
+  const handleArchiveDirective = async (directiveId) => {
+    try {
+      const updateData = { archived: true, archivedAt: Date.now(), archivedBy: userData?.name || 'مدير المدرسة' };
+      setIncomingDirectives(prev => prev.map(d => d.id === directiveId ? { ...d, ...updateData } : d));
+      broadcastRealtimeEvent('DIRECTIVE_UPDATE', { directive: { id: directiveId, ...updateData } });
+      try {
+        await setDoc(doc(db, 'resource_directives', directiveId), updateData, { merge: true });
+      } catch (e) {
+        try { await updateDoc(doc(db, 'resource_directives', directiveId), updateData); } catch (e2) {}
+      }
+    } catch (err) { console.error('Archive directive error:', err); }
+  };
+
+  const handleRestoreDirective = async (directiveId) => {
+    try {
+      const updateData = { archived: false, archivedAt: null, archivedBy: null };
+      setIncomingDirectives(prev => prev.map(d => d.id === directiveId ? { ...d, ...updateData } : d));
+      broadcastRealtimeEvent('DIRECTIVE_UPDATE', { directive: { id: directiveId, ...updateData } });
+      try {
+        await setDoc(doc(db, 'resource_directives', directiveId), updateData, { merge: true });
+      } catch (e) {
+        try { await updateDoc(doc(db, 'resource_directives', directiveId), updateData); } catch (e2) {}
+      }
+    } catch (err) { console.error('Restore directive error:', err); }
+  };
+
+  const handleArchiveTransfer = async (transferId) => {
+    try {
+      const updateData = { archived: true, archivedAt: Date.now(), archivedBy: userData?.name || 'مدير المدرسة' };
+      setIncomingTransfers(prev => prev.map(t => t.id === transferId ? { ...t, ...updateData } : t));
+      broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: transferId, ...updateData } });
+      try {
+        await setDoc(doc(db, 'resource_transfer_requests', transferId), updateData, { merge: true });
+      } catch (e) {
+        try { await updateDoc(doc(db, 'resource_transfer_requests', transferId), updateData); } catch (e2) {}
+      }
+    } catch (err) { console.error('Archive transfer error:', err); }
+  };
+
+  const handleRestoreTransfer = async (transferId) => {
+    try {
+      const updateData = { archived: false, archivedAt: null, archivedBy: null };
+      setIncomingTransfers(prev => prev.map(t => t.id === transferId ? { ...t, ...updateData } : t));
+      broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: transferId, ...updateData } });
+      try {
+        await setDoc(doc(db, 'resource_transfer_requests', transferId), updateData, { merge: true });
+      } catch (e) {
+        try { await updateDoc(doc(db, 'resource_transfer_requests', transferId), updateData); } catch (e2) {}
+      }
+    } catch (err) { console.error('Restore transfer error:', err); }
+  };
+
+  // Filter directives and transfers based on archive visibility
+  const isResolved = (item) => ['acknowledged', 'completed', 'approved', 'rejected'].includes(item.status);
+  const visibleDirectives = showArchived 
+    ? incomingDirectives.filter(d => d.archived) 
+    : incomingDirectives.filter(d => !d.archived);
+  const visibleTransfers = showArchived 
+    ? incomingTransfers.filter(t => t.archived) 
+    : incomingTransfers.filter(t => !t.archived);
+  const archivedDirectivesCount = incomingDirectives.filter(d => d.archived).length;
+  const archivedTransfersCount = incomingTransfers.filter(t => t.archived).length;
 
   const handleSeedData = async () => {
     try {
@@ -483,42 +580,65 @@ function AdminHome({ schoolId }) {
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#1e293b' }}>
-                  قرارات وتوجيهات الإدارة العامة (الماستر) الواردة
+                  {showArchived ? '🗂️ الأرشيف — التوجيهات والقرارات المحسومة' : 'قرارات وتوجيهات الإدارة العامة (الماستر) الواردة'}
                 </h3>
                 <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-                  متابعة وتأكيد استلام التوجيهات الوزارية والإدارية وقرارات سد العجز والندب فور صدورها لحظياً
+                  {showArchived ? 'عرض العناصر المؤرشفة مع إمكانية الاستعادة' : 'متابعة وتأكيد استلام التوجيهات الوزارية والإدارية وقرارات سد العجز والندب فور صدورها لحظياً'}
                 </p>
               </div>
             </div>
-            <Link
-              to="/admin/resources"
-              className="btn btn-outline"
-              style={{
-                fontSize: '12px',
-                padding: '6px 14px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                borderColor: '#6366f1',
-                color: '#4338ca',
-                fontWeight: 700
-              }}
-            >
-              <Layers size={14} /> فتح منصة الموارد الشاملة
-            </Link>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Archive Toggle Button */}
+              {(archivedDirectivesCount > 0 || archivedTransfersCount > 0) && (
+                <button
+                  onClick={() => setShowArchived(!showArchived)}
+                  className="btn btn-outline"
+                  style={{
+                    fontSize: '11px',
+                    padding: '5px 12px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    borderColor: showArchived ? '#f59e0b' : '#94a3b8',
+                    color: showArchived ? '#d97706' : '#64748b',
+                    fontWeight: 700,
+                    background: showArchived ? '#fffbeb' : 'transparent'
+                  }}
+                >
+                  {showArchived ? <Eye size={13} /> : <Archive size={13} />}
+                  {showArchived ? `العودة للنشطة` : `الأرشيف (${archivedDirectivesCount + archivedTransfersCount})`}
+                </button>
+              )}
+              <Link
+                to="/admin/resources"
+                className="btn btn-outline"
+                style={{
+                  fontSize: '12px',
+                  padding: '6px 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderColor: '#6366f1',
+                  color: '#4338ca',
+                  fontWeight: 700
+                }}
+              >
+                <Layers size={14} /> فتح منصة الموارد الشاملة
+              </Link>
+            </div>
           </div>
 
           {/* 1. Directives List */}
-          {incomingDirectives.length > 0 && (
+          {visibleDirectives.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>📜 التوجيهات الإدارية والتعاميم:</span>
+                <span>{showArchived ? '🗂️ التوجيهات المؤرشفة:' : '📜 التوجيهات الإدارية والتعاميم:'}</span>
                 <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: '10px', fontSize: '11px' }}>
-                  {incomingDirectives.length}
+                  {visibleDirectives.length}
                 </span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
-                {incomingDirectives.slice(0, 4).map((dir) => {
+                {visibleDirectives.slice(0, 10).map((dir) => {
                   const isAck = dir.status === 'acknowledged' || dir.status === 'completed';
                   return (
                     <div
@@ -576,7 +696,7 @@ function AdminHome({ schoolId }) {
                             </span>
                           )}
                         </span>
-                        {!isAck && (
+                        {!isAck && !showArchived && (
                           <button
                             onClick={() => handleAcknowledgeDirective(dir.id)}
                             disabled={ackLoading[dir.id]}
@@ -593,6 +713,24 @@ function AdminHome({ schoolId }) {
                             <Check size={13} /> {ackLoading[dir.id] ? 'جاري التأكيد...' : 'تأكيد الاستلام'}
                           </button>
                         )}
+                        {/* Archive / Restore Button */}
+                        {showArchived ? (
+                          <button
+                            onClick={() => handleRestoreDirective(dir.id)}
+                            className="btn btn-outline"
+                            style={{ fontSize: '10px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#f59e0b', color: '#d97706' }}
+                          >
+                            <Undo2 size={12} /> استعادة
+                          </button>
+                        ) : (isResolved(dir) && (
+                          <button
+                            onClick={() => handleArchiveDirective(dir.id)}
+                            className="btn btn-outline"
+                            style={{ fontSize: '10px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#94a3b8', color: '#64748b' }}
+                          >
+                            <Archive size={12} /> أرشفة
+                          </button>
+                        ))}
                       </div>
                     </div>
                   );
@@ -602,16 +740,16 @@ function AdminHome({ schoolId }) {
           )}
 
           {/* 2. Transfer Decisions & Surplus-Deficit List */}
-          {incomingTransfers.length > 0 && (
+          {visibleTransfers.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>🔄 قرارات سد العجز والندب:</span>
+                <span>{showArchived ? '🗂️ الطلبات المؤرشفة:' : '🔄 قرارات سد العجز والندب:'}</span>
                 <span style={{ background: '#ecfdf5', color: '#065f46', padding: '2px 8px', borderRadius: '10px', fontSize: '11px' }}>
-                  {incomingTransfers.length}
+                  {visibleTransfers.length}
                 </span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
-                {incomingTransfers.slice(0, 6).map((tr) => {
+                {visibleTransfers.slice(0, 10).map((tr) => {
                   const isMasterDirective = Boolean(tr.isDirective || tr.requesterRole === 'superadmin' || tr.source === 'master');
                   const isAck = tr.status === 'acknowledged' || tr.status === 'completed';
                   const subjectDisplay = tr.subject || tr.customSubject || tr.subjectName || tr.title || 'مادة دراسية';
@@ -699,7 +837,7 @@ function AdminHome({ schoolId }) {
                             </span>
                           )}
                         </span>
-                        {!isAck && (
+                        {!isAck && !showArchived && (
                           <button
                             onClick={() => handleAcknowledgeTransfer(tr.id)}
                             disabled={ackLoading[tr.id]}
@@ -716,6 +854,24 @@ function AdminHome({ schoolId }) {
                             <Check size={13} /> {ackLoading[tr.id] ? 'جاري التأكيد...' : 'تأكيد القرار'}
                           </button>
                         )}
+                        {/* Archive / Restore Button */}
+                        {showArchived ? (
+                          <button
+                            onClick={() => handleRestoreTransfer(tr.id)}
+                            className="btn btn-outline"
+                            style={{ fontSize: '10px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#f59e0b', color: '#d97706' }}
+                          >
+                            <Undo2 size={12} /> استعادة
+                          </button>
+                        ) : (isResolved(tr) && (
+                          <button
+                            onClick={() => handleArchiveTransfer(tr.id)}
+                            className="btn btn-outline"
+                            style={{ fontSize: '10px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#94a3b8', color: '#64748b' }}
+                          >
+                            <Archive size={12} /> أرشفة
+                          </button>
+                        ))}
                       </div>
                     </div>
                   );
