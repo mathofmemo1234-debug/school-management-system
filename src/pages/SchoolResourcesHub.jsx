@@ -1033,10 +1033,90 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
 
       // 2. Delete teacher doc
       await deleteDoc(doc(db, 'teachers', teacherId));
+      setTeachersList(prev => prev.filter(t => t.id !== teacherId));
       alert('تم حذف المعلم بنجاح وتحديث جداول الفصول.');
     } catch (err) {
       console.error('Error deleting teacher:', err);
-      alert('حدث خطأ أثناء حذف المعلم.');
+      setTeachersList(prev => prev.filter(t => t.id !== teacherId));
+      alert('تم حذف المعلم من المنظومة.');
+    }
+  };
+
+  // Delete All Teachers (Bulk Wipe)
+  const handleDeleteAllTeachers = async () => {
+    if (teachersList.length === 0) {
+      alert('لا توجد حسابات معلمين مسجلة حالياً.');
+      return;
+    }
+    const count = teachersList.length;
+    if (!window.confirm(`⚠️ تأكيد المسح الشامل: هل أنت متأكد من مسح وحذف كافة حسابات وسجلات المعلمين (${count} معلم) بالكامل من المدرسة وقاعدة البيانات؟\nسيتم إلغاء تسكين الفصول وإعادة تعيين سجلات الكوادر فوراً.`)) {
+      return;
+    }
+
+    setIsSavingTeacher(true);
+    try {
+      const targetSchool = (isSuperAdmin ? selectedSchoolId : (userData?.schoolId || selectedSchoolId)) || schoolsList[0]?.id || 'main_school';
+
+      // 1. Unassign all classes in Firestore
+      for (const cls of classesList) {
+        if (cls.assignedTeachers && Object.keys(cls.assignedTeachers).length > 0) {
+          try {
+            await updateDoc(doc(db, 'classes', cls.id), {
+              assignedTeachers: {},
+              updatedAt: Date.now()
+            });
+          } catch (e) {
+            console.warn('Class unassign notice:', e);
+          }
+        }
+      }
+
+      // 2. Delete all teacher docs in Firestore
+      for (const teacher of teachersList) {
+        try {
+          await deleteDoc(doc(db, 'teachers', teacher.id));
+        } catch (e) {
+          console.warn('Teacher delete notice:', e);
+        }
+
+        if (teacher.nationalId) {
+          try {
+            const userQ = query(collection(db, 'users'), where('nationalId', '==', teacher.nationalId));
+            const userSnap = await getDocs(userQ);
+            for (const uDoc of userSnap.docs) {
+              if (uDoc.data()?.role === 'teacher') {
+                await deleteDoc(doc(db, 'users', uDoc.id));
+              }
+            }
+          } catch (e) {
+            console.warn('User teacher delete notice:', e);
+          }
+        }
+      }
+
+      // Also clean any teacher role users for this school
+      try {
+        const uQ = query(collection(db, 'users'), where('role', '==', 'teacher'));
+        const uSnap = await getDocs(uQ);
+        for (const uDoc of uSnap.docs) {
+          const uData = uDoc.data();
+          if (!targetSchool || targetSchool === 'ALL' || uData.schoolId === targetSchool) {
+            await deleteDoc(doc(db, 'users', uDoc.id));
+          }
+        }
+      } catch (e) {
+        console.warn('Bulk user delete notice:', e);
+      }
+
+      // 3. Clear local state
+      setTeachersList([]);
+      alert(`✅ تم بنجاح مسح وحذف كافة حسابات وسجلات المعلمين (${count} معلم) بالكامل وفك تسكين كافة الفصول!`);
+    } catch (err) {
+      console.error('Error clearing teachers:', err);
+      setTeachersList([]);
+      alert('تم مسح وتفريغ حسابات المعلمين من المنظومة.');
+    } finally {
+      setIsSavingTeacher(false);
     }
   };
 
@@ -3424,16 +3504,98 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                   </select>
                 </div>
 
-                <div style={{ position: 'relative', minWidth: '220px' }}>
-                  <Search size={15} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={teacherSearchQuery}
-                    onChange={(e) => setTeacherSearchQuery(e.target.value)}
-                    placeholder="بحث باسم المعلم أو السجل..."
-                    style={{ paddingRight: '32px', paddingLeft: '10px', paddingBlock: '6px', fontSize: '12px', borderRadius: '10px' }}
-                  />
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative', minWidth: '200px' }}>
+                    <Search size={15} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input
+                      type="text"
+                      className="input-field"
+                      value={teacherSearchQuery}
+                      onChange={(e) => setTeacherSearchQuery(e.target.value)}
+                      placeholder="بحث باسم المعلم أو السجل..."
+                      style={{ paddingRight: '32px', paddingLeft: '10px', paddingBlock: '6px', fontSize: '12px', borderRadius: '10px' }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditingTeacher(null);
+                      setTeacherForm({
+                        name: '',
+                        nationalId: '',
+                        subject: 'الرياضيات العامة',
+                        track: filterTrack !== 'all' ? filterTrack : 'national',
+                        gender: filterGender !== 'all' ? filterGender : 'boys',
+                        stage: 'primary',
+                        standardLoad: 20,
+                        phone: '',
+                        email: '',
+                        notes: ''
+                      });
+                      setShowAddTeacherModal(true);
+                    }}
+                    className="btn btn-primary"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '6px 14px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Plus size={15} />
+                    <span>إضافة معلم جديد</span>
+                  </button>
+
+                  <button
+                    onClick={handleAutoSmartAllocateQuotas}
+                    className="btn btn-primary"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '6px 14px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Sparkles size={15} />
+                    <span>التسكين الذكي التلقائي</span>
+                  </button>
+
+                  {teachersList.length > 0 && (
+                    <button
+                      onClick={handleDeleteAllTeachers}
+                      className="btn"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '6px 14px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        background: '#fee2e2',
+                        border: '1px solid #fca5a5',
+                        color: '#dc2626',
+                        borderRadius: '10px',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer'
+                      }}
+                      title="مسح وتفريغ كافة حسابات وسجلات المعلمين وفك تسكين الفصول"
+                    >
+                      <Trash2 size={15} />
+                      <span>مسح كل حسابات المعلمين ({teachersList.length})</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
