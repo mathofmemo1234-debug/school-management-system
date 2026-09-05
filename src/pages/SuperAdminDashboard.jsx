@@ -60,6 +60,13 @@ function SuperAdminHome() {
   const [showAddSuperAdminModal, setShowAddSuperAdminModal] = useState(false);
   const [editingSchool, setEditingSchool] = useState(null);
 
+  // Incoming Resource Transfer Requests (Surplus / Deficit from Schools)
+  const [incomingTransferRequests, setIncomingTransferRequests] = useState([]);
+  const [selectedRequestForApproval, setSelectedRequestForApproval] = useState(null);
+  const [assignedTeacherInput, setAssignedTeacherInput] = useState('');
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
   // New School Form State
   const [schoolName, setSchoolName] = useState('');
   const [schoolSubTitle, setSchoolSubTitle] = useState('');
@@ -148,6 +155,16 @@ function SuperAdminHome() {
       setStats(prev => ({ ...prev, supervisors: snap.size }));
     });
 
+    // 5. Transfer Requests Listener (Real-time sync for SuperAdmin)
+    const unsubTransfers = onSnapshot(collection(db, 'resource_transfer_requests'), snap => {
+      const trs = [];
+      snap.forEach(d => trs.push({ id: d.id, ...d.data() }));
+      trs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setIncomingTransferRequests(trs);
+    }, (err) => {
+      console.warn("SuperAdmin transfers listener notice:", err);
+    });
+
     return () => {
       unsubSchools();
       unsubAdmins();
@@ -156,8 +173,34 @@ function SuperAdminHome() {
       unsubStudents();
       unsubStaff();
       unsubSupervisors();
+      unsubTransfers();
     };
   }, []);
+
+  // Update Transfer Status (Approve / Reject / Reopen)
+  const handleUpdateTransferStatus = async (requestId, newStatus, assignedTeacher = '') => {
+    try {
+      setIsUpdatingStatus(true);
+      const updateData = {
+        status: newStatus,
+        reviewedBy: userData?.name || 'الماستر العام (Super Admin)',
+        reviewedAt: Date.now()
+      };
+      if (assignedTeacher && assignedTeacher.trim()) {
+        updateData.teacherName = assignedTeacher.trim();
+      }
+      await updateDoc(doc(db, 'resource_transfer_requests', requestId), updateData);
+      alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : 'تم تحديث حالة المعاملة'));
+      setShowApprovalModal(false);
+      setSelectedRequestForApproval(null);
+      setAssignedTeacherInput('');
+    } catch (err) {
+      console.error('Error updating transfer status:', err);
+      alert('خطأ أثناء التحديث: ' + err.message);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   // Isolated Listener when a specific school scope is selected
   useEffect(() => {
@@ -1034,6 +1077,305 @@ function SuperAdminHome() {
           >
             عرض كافة المدارس
           </button>
+        </div>
+      )}
+
+      {/* 📢 Master Incoming Transfer & Surplus-Deficit Requests Board */}
+      {incomingTransferRequests.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+          borderRadius: '18px',
+          border: '1.5px solid #cbd5e1',
+          padding: '22px 24px',
+          boxShadow: '0 4px 18px rgba(0,0,0,0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #0d9488, #0369a1)',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(13, 148, 136, 0.3)'
+              }}>
+                <Layers size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
+                  طلبات سد العجز والندب الواردة من المدارس (بانتظار اعتماد الماستر)
+                </h3>
+                <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b' }}>
+                  مراجعة واعتماد طلبات الاستعانة وتكليف المعلمين وتوجيه القرارات الإدارية للمدارس لحظياً
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate('/superadmin/resources')}
+              className="btn btn-outline"
+              style={{
+                fontSize: '13px',
+                fontWeight: 700,
+                color: '#0d9488',
+                borderColor: '#0d9488',
+                padding: '7px 16px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>فتح منصة الموارد الكاملة</span>
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '14px' }}>
+            {incomingTransferRequests.slice(0, 6).map(req => {
+              const subjectDisplay = req.subject || req.customSubject || req.subjectName || req.title || 'مادة دراسية';
+              const periodsDisplay = req.requiredPeriods || req.periodsCount || req.currentLoad || req.periods || null;
+              const teacherDisplay = req.teacherName || req.assignedTeacherName || (req.type === 'need' ? '🚨 طلب سد عجز (بانتظار توفير وترشيح كادر من الماستر)' : 'كادر معتمد للتوجيه');
+              const trackDisplay = req.track === 'international' ? 'مسار دولي' : 'مسار أهلي';
+              const genderDisplay = req.gender === 'girls' ? 'بنات' : 'بنين';
+              const stageDisplay = req.stage === 'primary' ? 'الابتدائية' : req.stage === 'middle' ? 'المتوسطة' : req.stage === 'high' ? 'الثانوية' : req.stage === 'kindergarten' ? 'رياض الأطفال' : '';
+              const schoolDisplay = req.targetSchoolName || req.schoolName || '';
+              const isApproved = req.status === 'approved';
+              const isAcknowledged = req.status === 'acknowledged';
+              const isRejected = req.status === 'rejected';
+
+              return (
+                <div
+                  key={req.id}
+                  style={{
+                    background: '#ffffff',
+                    border: isApproved || isAcknowledged ? '1.5px solid #86efac' : isRejected ? '1.5px solid #fca5a5' : '1.5px solid #38bdf8',
+                    borderRadius: '14px',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: req.type === 'need' ? '#fee2e2' : '#e0e7ff',
+                        color: req.type === 'need' ? '#991b1b' : '#3730a3'
+                      }}>
+                        {req.type === 'need' ? '🚨 طلب سد عجز' : (req.type === 'release' ? '🌟 إتاحة كادر فائض' : '📢 قرار ندب مباشر')}
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>
+                        {req.requestNumber || `#TR-${(req.id || '').slice(0, 5).toUpperCase()}`}
+                      </span>
+                    </div>
+
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>
+                      📚 مادة {subjectDisplay} {periodsDisplay ? `• (${periodsDisplay} حصة أسبوعية)` : ''}
+                    </h4>
+
+                    <div style={{ fontSize: '12.5px', color: '#0f766e', fontWeight: 700, marginBottom: '4px' }}>
+                      👤 {teacherDisplay}
+                    </div>
+
+                    <div style={{ fontSize: '11.5px', color: '#64748b', display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                      <span style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{trackDisplay}</span>
+                      <span style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{genderDisplay}</span>
+                      {stageDisplay && <span style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{stageDisplay}</span>}
+                      {schoolDisplay && <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 6px', borderRadius: '4px' }}>🏫 {schoolDisplay}</span>}
+                    </div>
+
+                    {req.reason && (
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#475569', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
+                        📝 <strong>البيان:</strong> {req.reason}
+                      </p>
+                    )}
+
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>
+                      📩 مقدم الطلب: <strong>{req.requesterName || 'مدير المدرسة'}</strong> • {new Date(req.createdAt).toLocaleDateString('ar-SA')}
+                    </div>
+                  </div>
+
+                  {/* Actions & Status Toolbar */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: 800 }}>
+                      {isAcknowledged ? (
+                        <span style={{ color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle2 size={14} /> تم الاستلام والتوثيق لدى المدرسة
+                        </span>
+                      ) : isApproved ? (
+                        <span style={{ color: '#15803d', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle2 size={14} /> تم الاعتماد والتوجيه
+                        </span>
+                      ) : isRejected ? (
+                        <span style={{ color: '#dc2626' }}>✕ مرفوض</span>
+                      ) : (
+                        <span style={{ color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <AlertCircle size={14} /> بانتظار اعتماد الماستر
+                        </span>
+                      )}
+                    </span>
+
+                    {/* Master Actions */}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {!isApproved && !isAcknowledged ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedRequestForApproval(req);
+                              setAssignedTeacherInput(req.teacherName || '');
+                              setShowApprovalModal(true);
+                            }}
+                            className="btn btn-primary"
+                            style={{
+                              padding: '6px 14px',
+                              fontSize: '12px',
+                              background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                              border: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontWeight: 800,
+                              borderRadius: '8px'
+                            }}
+                          >
+                            <Check size={14} /> اعتماد وتكليف
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm('هل أنت متأكد من رفض هذا الطلب؟')) {
+                                handleUpdateTransferStatus(req.id, 'rejected');
+                              }
+                            }}
+                            className="btn"
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              background: '#fee2e2',
+                              color: '#dc2626',
+                              border: '1px solid #fca5a5',
+                              fontWeight: 700,
+                              borderRadius: '8px'
+                            }}
+                          >
+                            <X size={14} /> رفض
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (confirm('هل تريد إعادة فتح هذا الطلب وجعله قيد الدراسة مرة أخرى؟')) {
+                              handleUpdateTransferStatus(req.id, 'pending');
+                            }
+                          }}
+                          className="btn btn-outline"
+                          style={{ padding: '4px 10px', fontSize: '11px', color: '#64748b', borderRadius: '6px' }}
+                        >
+                          <RefreshCw size={12} /> إعادة فتح
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Master Approval & Teacher Assignment */}
+      {showApprovalModal && selectedRequestForApproval && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1300,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '520px', background: 'white', padding: '24px', borderRadius: '20px', position: 'relative'
+          }}>
+            <button
+              onClick={() => { setShowApprovalModal(false); setSelectedRequestForApproval(null); }}
+              style={{ position: 'absolute', left: '18px', top: '18px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <X size={20} color="#64748b" />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{
+                width: '40px', height: '40px', borderRadius: '10px', background: '#dcfce7', color: '#166534',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <Check size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '17px', color: '#166534', fontWeight: 800 }}>
+                  اعتماد طلب سد العجز وتكليف الكادر
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  المدرسة: {selectedRequestForApproval.targetSchoolName || selectedRequestForApproval.schoolName}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px', fontSize: '13px' }}>
+              <div>📚 <strong>المادة:</strong> {selectedRequestForApproval.subject || selectedRequestForApproval.customSubject} ({selectedRequestForApproval.requiredPeriods || 20} حصة)</div>
+              <div>🏫 <strong>المسار والقسم:</strong> {selectedRequestForApproval.track === 'international' ? 'دولي' : 'أهلي'} • {selectedRequestForApproval.gender === 'girls' ? 'بنات' : 'بنين'}</div>
+            </div>
+
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '6px', color: '#0f172a' }}>
+                اسم المعلم المكلف (اختياري / أو اترك فارغاً للاعتماد المباشر):
+              </label>
+              <input
+                type="text"
+                className="input-field"
+                value={assignedTeacherInput}
+                onChange={(e) => setAssignedTeacherInput(e.target.value)}
+                placeholder="مثال: أ. خالد بن فهد الدوسري"
+                style={{ fontSize: '13.5px' }}
+              />
+              <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                💡 سيصل إشعار فوري لمدير المدرسة بقرار الاعتماد وبيانات المعلم فور التأكيد.
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => { setShowApprovalModal(false); setSelectedRequestForApproval(null); }}
+                className="btn btn-outline"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                disabled={isUpdatingStatus}
+                onClick={() => handleUpdateTransferStatus(selectedRequestForApproval.id, 'approved', assignedTeacherInput)}
+                className="btn btn-primary"
+                style={{
+                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: 800
+                }}
+              >
+                <Check size={16} />
+                <span>{isUpdatingStatus ? 'جاري الاعتماد...' : 'تأكيد الاعتماد والتوجيه الآن'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

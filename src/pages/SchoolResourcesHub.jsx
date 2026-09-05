@@ -136,6 +136,9 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
   const [showDirectiveModal, setShowDirectiveModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [selectedItemDetails, setSelectedItemDetails] = useState(null);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [selectedRequestForApproval, setSelectedRequestForApproval] = useState(null);
+  const [assignedTeacherInput, setAssignedTeacherInput] = useState('');
 
   // Building Form State
   const [buildingForm, setBuildingForm] = useState({
@@ -4546,53 +4549,71 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
 
                       {/* Action Buttons for SuperAdmin and Principal */}
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        {isSuperAdmin ? (
-                          (req.status !== 'approved' && req.status !== 'acknowledged') ? (
-                            <>
+                        {(req.status !== 'approved' && req.status !== 'acknowledged') ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                setSelectedRequestForApproval(req);
+                                setAssignedTeacherInput(req.teacherName || '');
+                                setShowApprovalModal(true);
+                              }}
+                              className="btn btn-primary"
+                              style={{
+                                padding: '7px 16px',
+                                fontSize: '13px',
+                                background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                border: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontWeight: 800,
+                                borderRadius: '10px',
+                                boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)'
+                              }}
+                            >
+                              <Check size={16} /> اعتماد وتكليف
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm('هل أنت متأكد من رفض هذا الطلب؟')) {
+                                  handleUpdateTransferStatus(req.id, 'rejected');
+                                }
+                              }}
+                              className="btn"
+                              style={{
+                                padding: '7px 14px',
+                                fontSize: '13px',
+                                background: '#fee2e2',
+                                color: '#dc2626',
+                                border: '1px solid #fca5a5',
+                                fontWeight: 700,
+                                borderRadius: '10px'
+                              }}
+                            >
+                              <X size={15} /> رفض
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {req.status === 'approved' && (
                               <button
-                                onClick={() => {
-                                  const candidate = prompt('أدخل اسم المعلم المكلف لسد العجز (أو اتركه فارغاً للاعتماد المباشر):', req.teacherName || '');
-                                  if (candidate !== null) {
-                                    handleUpdateTransferStatus(req.id, 'approved', candidate.trim());
-                                  }
-                                }}
+                                onClick={() => handleUpdateTransferStatus(req.id, 'acknowledged')}
                                 className="btn btn-primary"
                                 style={{
-                                  padding: '7px 16px',
-                                  fontSize: '13px',
-                                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                  padding: '6px 14px',
+                                  fontSize: '12px',
+                                  background: '#0d9488',
                                   border: 'none',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '6px',
-                                  fontWeight: 800,
-                                  borderRadius: '10px',
-                                  boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)'
-                                }}
-                              >
-                                <Check size={16} /> اعتماد وتكليف
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm('هل أنت متأكد من رفض هذا الطلب؟')) {
-                                    handleUpdateTransferStatus(req.id, 'rejected');
-                                  }
-                                }}
-                                className="btn"
-                                style={{
-                                  padding: '7px 14px',
-                                  fontSize: '13px',
-                                  background: '#fee2e2',
-                                  color: '#dc2626',
-                                  border: '1px solid #fca5a5',
+                                  gap: '4px',
                                   fontWeight: 700,
-                                  borderRadius: '10px'
+                                  borderRadius: '8px'
                                 }}
                               >
-                                <X size={15} /> رفض
+                                <Check size={14} /> تأكيد استلام القرار
                               </button>
-                            </>
-                          ) : (
+                            )}
                             <button
                               onClick={() => {
                                 if (confirm('هل تريد إعادة فتح هذا الطلب وجعله قيد الدراسة مرة أخرى؟')) {
@@ -4604,26 +4625,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                             >
                               <RefreshCw size={13} /> إعادة فتح للدراسة
                             </button>
-                          )
-                        ) : (
-                          req.status === 'approved' && (
-                            <button
-                              onClick={() => handleUpdateTransferStatus(req.id, 'acknowledged')}
-                              className="btn btn-primary"
-                              style={{
-                                padding: '6px 14px',
-                                fontSize: '12px',
-                                background: '#0d9488',
-                                border: 'none',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontWeight: 700
-                              }}
-                            >
-                              <Check size={14} /> تأكيد استلام القرار
-                            </button>
-                          )
+                          </>
                         )}
                       </div>
                     </div>
@@ -4632,6 +4634,95 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
               })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Master Approval & Teacher Assignment */}
+      {showApprovalModal && selectedRequestForApproval && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1300,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '520px', background: 'white', padding: '24px', borderRadius: '20px', position: 'relative'
+          }}>
+            <button
+              onClick={() => { setShowApprovalModal(false); setSelectedRequestForApproval(null); }}
+              style={{ position: 'absolute', left: '18px', top: '18px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <X size={20} color="#64748b" />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{
+                width: '40px', height: '40px', borderRadius: '10px', background: '#dcfce7', color: '#166534',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <Check size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '17px', color: '#166534', fontWeight: 800 }}>
+                  اعتماد طلب سد العجز وتكليف الكادر
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  المدرسة: {selectedRequestForApproval.targetSchoolName || selectedRequestForApproval.schoolName}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px', fontSize: '13px' }}>
+              <div>📚 <strong>المادة:</strong> {selectedRequestForApproval.subject || selectedRequestForApproval.customSubject} ({selectedRequestForApproval.requiredPeriods || 20} حصة)</div>
+              <div>🏫 <strong>المسار والقسم:</strong> {selectedRequestForApproval.track === 'international' ? 'دولي' : 'أهلي'} • {selectedRequestForApproval.gender === 'girls' ? 'بنات' : 'بنين'}</div>
+            </div>
+
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '6px', color: '#0f172a' }}>
+                اسم المعلم المكلف (اختياري / أو اترك فارغاً للاعتماد المباشر):
+              </label>
+              <input
+                type="text"
+                className="input-field"
+                value={assignedTeacherInput}
+                onChange={(e) => setAssignedTeacherInput(e.target.value)}
+                placeholder="مثال: أ. خالد بن فهد الدوسري"
+                style={{ fontSize: '13.5px' }}
+              />
+              <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                💡 سيصل إشعار فوري لمدير المدرسة بقرار الاعتماد وبيانات المعلم فور التأكيد.
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => { setShowApprovalModal(false); setSelectedRequestForApproval(null); }}
+                className="btn btn-outline"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleUpdateTransferStatus(selectedRequestForApproval.id, 'approved', assignedTeacherInput);
+                  setShowApprovalModal(false);
+                  setSelectedRequestForApproval(null);
+                  setAssignedTeacherInput('');
+                }}
+                className="btn btn-primary"
+                style={{
+                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: 800
+                }}
+              >
+                <Check size={16} />
+                <span>تأكيد الاعتماد والتوجيه الآن</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
