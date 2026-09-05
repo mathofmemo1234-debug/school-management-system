@@ -51,6 +51,33 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
   const [directivesList, setDirectivesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Dynamic Custom Subjects State (SuperAdmin extensible catalog)
+  const [customSubjects, setCustomSubjects] = useState(() => {
+    try {
+      const cached = localStorage.getItem('msc_custom_subjects');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
+  const [isAddingSubject, setIsAddingSubject] = useState(false);
+  const [newSubjectForm, setNewSubjectForm] = useState({
+    name: '',
+    nameEn: '',
+    category: 'التقنية والذكاء الاصطناعي',
+    track: 'both', // 'national' | 'international' | 'both'
+    stage: 'all',
+    periodsPerClass: 3,
+    standardTeacherLoad: 20,
+    description: ''
+  });
+
+  // Chart 1 Filter & View State
+  const [chartTrackFilter, setChartTrackFilter] = useState('all'); // 'all' | 'national' | 'international'
+  const [chartSearchQuery, setChartSearchQuery] = useState('');
+  const [showAllChartSubjects, setShowAllChartSubjects] = useState(false);
+
   // Modals
   const [showBuildingModal, setShowBuildingModal] = useState(false);
   const [editingBuilding, setEditingBuilding] = useState(null);
@@ -77,21 +104,49 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     notes: ''
   });
 
-  // Grouped Subjects Catalog for Selectors
+  // Dynamic Combined Subjects Catalog (Built-in standard + Custom subjects added by SuperAdmin)
+  const combinedSubjectsList = useMemo(() => {
+    const customFormatted = (customSubjects || []).map(cs => ({
+      id: cs.id || `custom_${cs.name}`,
+      name: cs.name,
+      nameEn: cs.nameEn || '',
+      category: cs.category || 'تخصصات ومواد مضافة',
+      track: cs.track || 'both',
+      periods: Number(cs.periodsPerClass || cs.periods || 3),
+      load: Number(cs.standardTeacherLoad || cs.load || 20),
+      isCustom: true
+    }));
+    return [...ALL_SCHOOL_SUBJECTS, ...customFormatted];
+  }, [customSubjects]);
+
+  // Grouped Subjects Catalog for Selectors and Dropdowns
   const subjectsByCategory = useMemo(() => {
     const map = {};
-    (ALL_SCHOOL_SUBJECTS || []).forEach(sub => {
+    (combinedSubjectsList || []).forEach(sub => {
       const cat = sub.category || 'عام';
       if (!map[cat]) map[cat] = [];
       map[cat].push(sub);
     });
     return map;
-  }, []);
+  }, [combinedSubjectsList]);
+
+  // Dynamic Combined Quotas List (Built-in Quotas + Custom Added Subject Quotas)
+  const combinedQuotasList = useMemo(() => {
+    const customQuotas = (customSubjects || []).map(cs => ({
+      subject: cs.name,
+      track: cs.track || 'both',
+      periodsPerClass: Number(cs.periodsPerClass || cs.periods || 3),
+      standardTeacherLoad: Number(cs.standardTeacherLoad || cs.load || 20),
+      isCustom: true,
+      id: cs.id
+    }));
+    return [...STANDARD_SUBJECT_QUOTAS, ...customQuotas];
+  }, [customSubjects]);
 
   // Transfer Request Form State
   const [transferForm, setTransferForm] = useState({
     type: 'need', // 'need' | 'release'
-    subject: 'الرياضيات',
+    subject: 'الرياضيات العامة',
     customSubject: '',
     track: 'national',
     gender: 'boys',
@@ -108,7 +163,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
   // SuperAdmin Directive Form State
   const [directiveForm, setDirectiveForm] = useState({
     targetSchoolId: '',
-    subject: 'الرياضيات',
+    subject: 'الرياضيات العامة',
     customSubject: '',
     actionType: 'transfer_surplus', // 'transfer_surplus' | 'fill_deficit' | 'optimize_density' | 'custom'
     title: '',
@@ -141,6 +196,25 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       if (!selectedSchoolId && fallback.length > 0) {
         setSelectedSchoolId(fallback[0].id);
       }
+    });
+    return () => unsub();
+  }, []);
+
+  // 1.1 Fetch Custom Subjects from Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'school_custom_subjects'), (snap) => {
+      const list = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      if (list.length > 0) {
+        setCustomSubjects(list);
+        try {
+          localStorage.setItem('msc_custom_subjects', JSON.stringify(list));
+        } catch (e) {
+          console.warn("Failed to cache custom subjects:", e);
+        }
+      }
+    }, (err) => {
+      console.warn("Custom subjects snapshot notice in resources:", err);
     });
     return () => unsub();
   }, []);
@@ -265,11 +339,12 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     const capacityUtilization = totalCapacity > 0 ? Math.min(100, Math.round((studentsCount / totalCapacity) * 100)) : 0;
     const studentTeacherRatio = teachersCount > 0 ? (studentsCount / teachersCount).toFixed(1) : '0';
 
-    // Subject Quotas & Deficit / Surplus Analysis (Strictly from real database)
-    const subjectAnalysis = STANDARD_SUBJECT_QUOTAS.map(item => {
+    // Subject Quotas & Deficit / Surplus Analysis (Strictly from real database + Dynamic Custom Subjects)
+    const subjectAnalysis = combinedQuotasList.map(item => {
       const assignedTeachers = teachersList.filter(t => {
-        const subj = (t.subject || '').trim();
-        return subj.includes(item.subject) || item.subject.includes(subj);
+        const subj = (t.subject || '').trim().toLowerCase();
+        const itemSubj = (item.subject || '').trim().toLowerCase();
+        return subj.includes(itemSubj) || itemSubj.includes(subj);
       });
       const tCount = assignedTeachers.length;
       
@@ -296,6 +371,9 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
 
       return {
         subject: item.subject,
+        track: item.track || 'both',
+        isCustom: !!item.isCustom,
+        id: item.id,
         periodsPerClass: item.periodsPerClass,
         standardLoad: item.standardTeacherLoad,
         teachersCount: tCount,
@@ -456,6 +534,100 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     }
   };
 
+  // Add Custom Subject (SuperAdmin Dynamic Subject Extensibility)
+  const handleAddCustomSubject = async (e) => {
+    e.preventDefault();
+    if (!newSubjectForm.name.trim()) {
+      alert('يرجى كتابة اسم المادة الدراسية.');
+      return;
+    }
+    setIsAddingSubject(true);
+    try {
+      const subjectObj = {
+        name: newSubjectForm.name.trim(),
+        nameEn: newSubjectForm.nameEn.trim(),
+        category: newSubjectForm.category,
+        track: newSubjectForm.track,
+        stage: newSubjectForm.stage,
+        periodsPerClass: Number(newSubjectForm.periodsPerClass || 3),
+        standardTeacherLoad: Number(newSubjectForm.standardTeacherLoad || 20),
+        description: newSubjectForm.description.trim(),
+        createdAt: Date.now(),
+        createdBy: currentUser?.email || userData?.name || 'superadmin'
+      };
+
+      const docRef = await addDoc(collection(db, 'school_custom_subjects'), subjectObj);
+      const updatedList = [...customSubjects, { id: docRef.id, ...subjectObj }];
+      setCustomSubjects(updatedList);
+      try {
+        localStorage.setItem('msc_custom_subjects', JSON.stringify(updatedList));
+      } catch (err) {
+        console.warn('LocalStorage error:', err);
+      }
+
+      setNewSubjectForm({
+        name: '',
+        nameEn: '',
+        category: 'التقنية والذكاء الاصطناعي',
+        track: 'both',
+        stage: 'all',
+        periodsPerClass: 3,
+        standardTeacherLoad: 20,
+        description: ''
+      });
+      setShowAddSubjectModal(false);
+      alert('تمت إضافة المادة / التخصص بنجاح إلى منظومة الأنصبة والمسارات!');
+    } catch (err) {
+      console.error('Error adding custom subject to Firestore:', err);
+      // Fallback local save if Firestore offline or permission issue
+      const localObj = {
+        id: `custom_subj_${Date.now()}`,
+        name: newSubjectForm.name.trim(),
+        nameEn: newSubjectForm.nameEn.trim(),
+        category: newSubjectForm.category,
+        track: newSubjectForm.track,
+        stage: newSubjectForm.stage,
+        periodsPerClass: Number(newSubjectForm.periodsPerClass || 3),
+        standardTeacherLoad: Number(newSubjectForm.standardTeacherLoad || 20),
+        description: newSubjectForm.description.trim(),
+        createdAt: Date.now(),
+        createdBy: 'local_storage'
+      };
+      const updatedList = [...customSubjects, localObj];
+      setCustomSubjects(updatedList);
+      try {
+        localStorage.setItem('msc_custom_subjects', JSON.stringify(updatedList));
+      } catch (e) {
+        console.warn(e);
+      }
+      setShowAddSubjectModal(false);
+      alert('تم حفظ المادة محلياً بنجاح في المنظومة وإدراجها في قائمة المواد والأنصبة.');
+    } finally {
+      setIsAddingSubject(false);
+    }
+  };
+
+  // Delete Custom Subject (SuperAdmin)
+  const handleDeleteCustomSubject = async (subjectId) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذه المادة المخصصة من المنظومة؟')) return;
+    try {
+      if (subjectId && !subjectId.startsWith('custom_subj_')) {
+        await deleteDoc(doc(db, 'school_custom_subjects', subjectId));
+      }
+      const updated = customSubjects.filter(s => s.id !== subjectId);
+      setCustomSubjects(updated);
+      try {
+        localStorage.setItem('msc_custom_subjects', JSON.stringify(updated));
+      } catch (e) {
+        console.warn(e);
+      }
+      alert('تم حذف المادة المخصصة بنجاح.');
+    } catch (err) {
+      console.error('Error deleting custom subject:', err);
+      alert('حدث خطأ أثناء حذف المادة.');
+    }
+  };
+
   // Submit Transfer Request (Need / Release / Directive)
   const handleSubmitTransferRequest = async (e) => {
     e.preventDefault();
@@ -594,42 +766,76 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         {/* Global Action Buttons */}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
           {isSuperAdmin && (
-            <button
-              onClick={() => {
-                setDirectiveForm({
-                  targetSchoolId: selectedSchoolId,
-                  subject: 'الرياضيات',
-                  actionType: 'transfer_surplus',
-                  title: 'توجيه بسد العجز واستغلال الكادر الفائض',
-                  content: '',
-                  urgency: 'high',
-                  assignedTeacherName: ''
-                });
-                setShowDirectiveModal(true);
-              }}
-              className="btn btn-primary"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
-                color: 'white',
-                border: 'none',
-                padding: '10px 18px',
-                borderRadius: '12px',
-                fontWeight: 700
-              }}
-            >
-              <Send size={17} />
-              <span>إرسال توجيه إداري للمدير</span>
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  setNewSubjectForm({
+                    name: '',
+                    nameEn: '',
+                    category: 'التقنية والذكاء الاصطناعي',
+                    track: 'both',
+                    stage: 'all',
+                    periodsPerClass: 3,
+                    standardTeacherLoad: 20,
+                    description: ''
+                  });
+                  setShowAddSubjectModal(true);
+                }}
+                className="btn btn-primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #0d9488 0%, #10b981 100%)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  fontWeight: 700,
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+                }}
+              >
+                <Plus size={17} />
+                <span>إضافة مادة / تخصص جديد</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setDirectiveForm({
+                    targetSchoolId: selectedSchoolId,
+                    subject: 'الرياضيات العامة',
+                    actionType: 'transfer_surplus',
+                    title: 'توجيه بسد العجز واستغلال الكادر الفائض',
+                    content: '',
+                    urgency: 'high',
+                    assignedTeacherName: ''
+                  });
+                  setShowDirectiveModal(true);
+                }}
+                className="btn btn-primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  fontWeight: 700
+                }}
+              >
+                <Send size={17} />
+                <span>إرسال توجيه إداري للمدير</span>
+              </button>
+            </>
           )}
 
           <button
             onClick={() => {
               setTransferForm({
                 type: 'need',
-                subject: 'الرياضيات',
+                subject: 'الرياضيات العامة',
                 customSubject: '',
                 track: 'national',
                 gender: 'boys',
@@ -1159,67 +1365,266 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '20px' }}>
             {/* Chart 1: Teacher Load & Balance by Subject */}
             <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <BarChart2 size={19} color="#0d9488" />
-                  مخطط توازن أنصبة الكوادر والمواد (الحصص المطلوبة vs الطاقة المتاحة)
-                </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <BarChart2 size={19} color="#0d9488" />
+                    مخطط توازن أنصبة الكوادر والمواد (الحصص المطلوبة vs الطاقة المتاحة)
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                    مقارنة دقيقة لجميع مواد المسارين الأهلي والدولي والتخصصات المضافة
+                  </p>
+                </div>
+
+                {isSuperAdmin && (
+                  <button
+                    onClick={() => {
+                      setNewSubjectForm({
+                        name: '',
+                        nameEn: '',
+                        category: 'التقنية والذكاء الاصطناعي',
+                        track: chartTrackFilter !== 'all' ? chartTrackFilter : 'both',
+                        stage: 'all',
+                        periodsPerClass: 3,
+                        standardTeacherLoad: 20,
+                        description: ''
+                      });
+                      setShowAddSubjectModal(true);
+                    }}
+                    className="btn btn-primary"
+                    style={{
+                      padding: '5px 12px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                      border: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <Plus size={14} /> إضافة مادة
+                  </button>
+                )}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {metrics.subjectAnalysis.slice(0, 6).map((sub, idx) => {
-                  const maxPeriods = Math.max(sub.totalPeriodsNeeded, sub.totalTeachingCapacity, 100);
-                  const neededPercent = Math.round((sub.totalPeriodsNeeded / maxPeriods) * 100);
-                  const capacityPercent = Math.round((sub.totalTeachingCapacity / maxPeriods) * 100);
+              {/* Chart Track Filter Tabs & Search */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '14px', background: '#f1f5f9', padding: '6px 10px', borderRadius: '12px' }}>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setChartTrackFilter('all')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '11px',
+                      fontWeight: chartTrackFilter === 'all' ? 700 : 500,
+                      background: chartTrackFilter === 'all' ? 'white' : 'transparent',
+                      color: chartTrackFilter === 'all' ? '#0f766e' : '#64748b',
+                      cursor: 'pointer',
+                      boxShadow: chartTrackFilter === 'all' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    كافة المواد ({metrics.subjectAnalysis.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartTrackFilter('national')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '11px',
+                      fontWeight: chartTrackFilter === 'national' ? 700 : 500,
+                      background: chartTrackFilter === 'national' ? '#0d9488' : 'transparent',
+                      color: chartTrackFilter === 'national' ? 'white' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    المسار الأهلي ({metrics.subjectAnalysis.filter(s => s.track === 'national' || s.track === 'both').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartTrackFilter('international')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '11px',
+                      fontWeight: chartTrackFilter === 'international' ? 700 : 500,
+                      background: chartTrackFilter === 'international' ? '#7c3aed' : 'transparent',
+                      color: chartTrackFilter === 'international' ? 'white' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    المسار الدولي ({metrics.subjectAnalysis.filter(s => s.track === 'international' || s.track === 'both').length})
+                  </button>
+                </div>
 
+                <div style={{ position: 'relative', minWidth: '160px' }}>
+                  <Search size={14} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    value={chartSearchQuery}
+                    onChange={(e) => setChartSearchQuery(e.target.value)}
+                    placeholder="تصفية مادة..."
+                    style={{
+                      width: '100%',
+                      paddingRight: '26px',
+                      paddingLeft: '8px',
+                      paddingBlock: '4px',
+                      fontSize: '11px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: 'white'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Subject Cards List */}
+              {(() => {
+                const chartFiltered = metrics.subjectAnalysis.filter(sub => {
+                  if (chartTrackFilter !== 'all') {
+                    if (sub.track !== 'both' && sub.track !== chartTrackFilter) return false;
+                  }
+                  if (chartSearchQuery.trim()) {
+                    const q = chartSearchQuery.trim().toLowerCase();
+                    return (sub.subject || '').toLowerCase().includes(q);
+                  }
+                  return true;
+                });
+
+                const displayed = showAllChartSubjects ? chartFiltered : chartFiltered.slice(0, 8);
+
+                if (chartFiltered.length === 0) {
                   return (
-                    <div key={idx} style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{sub.subject}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>
-                            {sub.teachersCount} معلمين • {sub.totalTeachingCapacity} حصة طاقة
-                          </span>
-                          <span style={{
-                            fontSize: '11px',
-                            fontWeight: 800,
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            background: sub.status === 'surplus' ? '#dbeafe' : sub.status === 'deficit' ? '#fee2e2' : '#dcfce7',
-                            color: sub.status === 'surplus' ? '#1e40af' : sub.status === 'deficit' ? '#b91c1c' : '#15803d'
-                          }}>
-                            {sub.status === 'surplus' ? `فائض +${sub.netTeacherDiff}` : sub.status === 'deficit' ? `عجز -${sub.netTeacherDiff}` : 'متوازن'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Visual Bars */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#64748b' }}>
-                          <span style={{ width: '85px' }}>الحصص المطلوبة:</span>
-                          <div style={{ flex: 1, height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{ width: `${neededPercent}%`, height: '100%', background: '#64748b', borderRadius: '4px' }} />
-                          </div>
-                          <span style={{ width: '45px', textAlign: 'left', fontWeight: 600 }}>{sub.totalPeriodsNeeded} ح</span>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#0f766e' }}>
-                          <span style={{ width: '85px' }}>الطاقة المتوفرة:</span>
-                          <div style={{ flex: 1, height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{
-                              width: `${capacityPercent}%`,
-                              height: '100%',
-                              background: sub.status === 'surplus' ? '#3b82f6' : sub.status === 'deficit' ? '#ef4444' : '#10b981',
-                              borderRadius: '4px'
-                            }} />
-                          </div>
-                          <span style={{ width: '45px', textAlign: 'left', fontWeight: 700 }}>{sub.totalTeachingCapacity} ح</span>
-                        </div>
-                      </div>
+                    <div style={{ textAlign: 'center', padding: '30px 20px', color: '#64748b', fontSize: '13px' }}>
+                      لا توجد مواد مطابقة لخيارات الفلترة الحالية.
                     </div>
                   );
-                })}
-              </div>
+                }
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {displayed.map((sub, idx) => {
+                      const maxPeriods = Math.max(sub.totalPeriodsNeeded, sub.totalTeachingCapacity, 40);
+                      const neededPercent = Math.min(100, Math.round((sub.totalPeriodsNeeded / maxPeriods) * 100));
+                      const capacityPercent = Math.min(100, Math.round((sub.totalTeachingCapacity / maxPeriods) * 100));
+
+                      return (
+                        <div key={idx} style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#1e293b' }}>{sub.subject}</span>
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                borderRadius: '6px',
+                                background: sub.track === 'international' ? 'rgba(124, 58, 237, 0.12)' : sub.track === 'national' ? 'rgba(13, 148, 136, 0.12)' : '#f1f5f9',
+                                color: sub.track === 'international' ? '#7c3aed' : sub.track === 'national' ? '#0d9488' : '#475569'
+                              }}>
+                                {sub.track === 'international' ? 'دولي' : sub.track === 'national' ? 'أهلي' : 'مشترك'}
+                              </span>
+                              {sub.isCustom && (
+                                <span style={{
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(245, 158, 11, 0.15)',
+                                  color: '#b45309'
+                                }}>
+                                  ✨ مادة مضافة
+                                </span>
+                              )}
+                              {sub.isCustom && isSuperAdmin && (
+                                <button
+                                  onClick={() => handleDeleteCustomSubject(sub.id)}
+                                  title="حذف هذه المادة المخصصة"
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#dc2626' }}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                {sub.teachersCount} معلمين • {sub.totalTeachingCapacity} حصة
+                              </span>
+                              <span style={{
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                padding: '2px 7px',
+                                borderRadius: '10px',
+                                background: sub.status === 'surplus' ? '#dbeafe' : sub.status === 'deficit' ? '#fee2e2' : '#dcfce7',
+                                color: sub.status === 'surplus' ? '#1e40af' : sub.status === 'deficit' ? '#b91c1c' : '#15803d'
+                              }}>
+                                {sub.status === 'surplus' ? `فائض +${sub.netTeacherDiff}` : sub.status === 'deficit' ? `عجز -${sub.netTeacherDiff}` : 'متوازن'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Visual Bars */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#64748b' }}>
+                              <span style={{ width: '85px' }}>الحصص المطلوبة:</span>
+                              <div style={{ flex: 1, height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${neededPercent}%`, height: '100%', background: '#64748b', borderRadius: '4px' }} />
+                              </div>
+                              <span style={{ width: '45px', textAlign: 'left', fontWeight: 600 }}>{sub.totalPeriodsNeeded} ح</span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#0f766e' }}>
+                              <span style={{ width: '85px' }}>الطاقة المتوفرة:</span>
+                              <div style={{ flex: 1, height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{
+                                  width: `${capacityPercent}%`,
+                                  height: '100%',
+                                  background: sub.status === 'surplus' ? '#3b82f6' : sub.status === 'deficit' ? '#ef4444' : '#10b981',
+                                  borderRadius: '4px'
+                                }} />
+                              </div>
+                              <span style={{ width: '45px', textAlign: 'left', fontWeight: 700 }}>{sub.totalTeachingCapacity} ح</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Expand / Collapse Button */}
+                    {chartFiltered.length > 8 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllChartSubjects(!showAllChartSubjects)}
+                        style={{
+                          marginTop: '6px',
+                          padding: '8px 14px',
+                          borderRadius: '10px',
+                          border: '1px dashed #cbd5e1',
+                          background: 'white',
+                          color: '#0d9488',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        {showAllChartSubjects
+                          ? '▲ عرض أقل (8 مواد فقط)'
+                          : `▼ استعراض كافة المواد والتخصصات (${chartFiltered.length} مادة)`
+                        }
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Chart 2: Buildings & Facilities Capacity Utilization Breakdown */}
@@ -1488,21 +1893,123 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       {/* TAB 3: CLASSES, STUDENTS & TEACHER QUOTAS */}
       {activeTab === 'classes_quotas' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--color-primary-dark)' }}>
-              إدارة الفصول والطلاب والأنصبة الأسبوعية وحساب الفائض والعجز
-            </h2>
-            <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-muted)' }}>
-              المطابقة بين الأنصبة المعيارية للمواد وأعداد المعلمين المتاحين لكل تخصص ومسار
-            </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--color-primary-dark)' }}>
+                إدارة الفصول والطلاب والأنصبة الأسبوعية وحساب الفائض والعجز
+              </h2>
+              <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-muted)' }}>
+                المطابقة بين الأنصبة المعيارية للمواد وأعداد المعلمين المتاحين لكل تخصص ومسار ({metrics.subjectAnalysis.length} مادة وتخصص مدرج)
+              </p>
+            </div>
+
+            {isSuperAdmin && (
+              <button
+                onClick={() => {
+                  setNewSubjectForm({
+                    name: '',
+                    nameEn: '',
+                    category: 'التقنية والذكاء الاصطناعي',
+                    track: filterTrack !== 'all' ? filterTrack : 'both',
+                    stage: 'all',
+                    periodsPerClass: 3,
+                    standardTeacherLoad: 20,
+                    description: ''
+                  });
+                  setShowAddSubjectModal(true);
+                }}
+                className="btn btn-primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #0d9488 0%, #10b981 100%)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '9px 16px',
+                  borderRadius: '12px',
+                  fontWeight: 700
+                }}
+              >
+                <Plus size={17} /> إضافة مادة / تخصص جديد
+              </button>
+            )}
           </div>
 
-          {/* Subject Quotas Table */}
+          {/* Subject Quotas Table Panel */}
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '18px', overflowX: 'auto' }}>
+            {/* Table Search & Track Filter */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setFilterTrack('all')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: filterTrack === 'all' ? 700 : 500,
+                    background: filterTrack === 'all' ? 'var(--color-primary)' : '#f1f5f9',
+                    color: filterTrack === 'all' ? 'white' : '#64748b',
+                    cursor: 'pointer'
+                  }}
+                >
+                  الكل ({metrics.subjectAnalysis.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterTrack('national')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: filterTrack === 'national' ? 700 : 500,
+                    background: filterTrack === 'national' ? '#0d9488' : '#f1f5f9',
+                    color: filterTrack === 'national' ? 'white' : '#64748b',
+                    cursor: 'pointer'
+                  }}
+                >
+                  المسار الأهلي ({metrics.subjectAnalysis.filter(s => s.track === 'national' || s.track === 'both').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterTrack('international')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: filterTrack === 'international' ? 700 : 500,
+                    background: filterTrack === 'international' ? '#7c3aed' : '#f1f5f9',
+                    color: filterTrack === 'international' ? 'white' : '#64748b',
+                    cursor: 'pointer'
+                  }}
+                >
+                  المسار الدولي ({metrics.subjectAnalysis.filter(s => s.track === 'international' || s.track === 'both').length})
+                </button>
+              </div>
+
+              <div style={{ position: 'relative', minWidth: '220px' }}>
+                <Search size={16} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  className="input-field"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="بحث في المواد والتخصصات..."
+                  style={{ paddingRight: '34px', paddingLeft: '12px', paddingBlock: '6px', fontSize: '13px', borderRadius: '10px' }}
+                />
+              </div>
+            </div>
+
+            {/* Table */}
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
               <thead>
                 <tr style={{ background: 'rgba(99, 178, 198, 0.15)', borderBottom: '2px solid var(--color-primary)' }}>
-                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>المادة الدراسية</th>
+                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>المادة الدراسية / التخصص</th>
+                  <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>المسار</th>
                   <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>حصص/فصل</th>
                   <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>إجمالي الحصص المطلوبة</th>
                   <th style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-dark)' }}>المعلمون المتوفرون</th>
@@ -1512,60 +2019,108 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                 </tr>
               </thead>
               <tbody>
-                {metrics.subjectAnalysis.map((sub, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? 'rgba(255,255,255,0.6)' : 'transparent' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: '#1e293b' }}>{sub.subject}</td>
-                    <td style={{ padding: '14px 16px', color: '#64748b' }}>{sub.periodsPerClass} حصص</td>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: '#1e293b' }}>{sub.totalPeriodsNeeded} حصة</td>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: '#0f766e' }}>{sub.teachersCount} معلمين</td>
-                    <td style={{ padding: '14px 16px', color: '#64748b' }}>{sub.totalTeachingCapacity} حصة (نصاب {sub.standardLoad})</td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: 800,
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        background: sub.status === 'surplus' ? '#dbeafe' : sub.status === 'deficit' ? '#fee2e2' : '#dcfce7',
-                        color: sub.status === 'surplus' ? '#1e40af' : sub.status === 'deficit' ? '#b91c1c' : '#15803d'
-                      }}>
-                        {sub.status === 'surplus' && <TrendingUp size={14} />}
-                        {sub.status === 'deficit' && <AlertCircle size={14} />}
-                        {sub.status === 'balanced' && <CheckCircle2 size={14} />}
-                        {sub.status === 'surplus' ? `فائض (${sub.netTeacherDiff}) كادر` : sub.status === 'deficit' ? `عجز (${sub.netTeacherDiff}) كادر` : 'متوازن تماماً'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      {sub.status === 'deficit' ? (
-                        <button
-                          onClick={() => {
-                            setTransferForm(prev => ({ ...prev, type: 'need', subject: sub.subject, requiredPeriods: Math.abs(sub.diffPeriods) }));
-                            setShowTransferModal(true);
-                          }}
-                          className="btn btn-primary"
-                          style={{ padding: '6px 12px', fontSize: '12px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', border: 'none' }}
-                        >
-                          + طلب استعانة
-                        </button>
-                      ) : sub.status === 'surplus' ? (
-                        <button
-                          onClick={() => {
-                            setTransferForm(prev => ({ ...prev, type: 'release', subject: sub.subject, currentLoad: 8 }));
-                            setShowTransferModal(true);
-                          }}
-                          className="btn"
-                          style={{ padding: '6px 12px', fontSize: '12px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}
-                        >
-                          إتاحة للندب
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>مكتمل</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {metrics.subjectAnalysis
+                  .filter(sub => {
+                    if (filterTrack !== 'all') {
+                      if (sub.track !== 'both' && sub.track !== filterTrack) return false;
+                    }
+                    if (searchQuery.trim()) {
+                      const q = searchQuery.trim().toLowerCase();
+                      return (sub.subject || '').toLowerCase().includes(q);
+                    }
+                    return true;
+                  })
+                  .map((sub, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? 'rgba(255,255,255,0.6)' : 'transparent' }}>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{sub.subject}</span>
+                          {sub.isCustom && (
+                            <span style={{
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              padding: '2px 6px',
+                              borderRadius: '6px',
+                              background: 'rgba(245, 158, 11, 0.15)',
+                              color: '#b45309'
+                            }}>
+                              ✨ مضافة
+                            </span>
+                          )}
+                          {sub.isCustom && isSuperAdmin && (
+                            <button
+                              onClick={() => handleDeleteCustomSubject(sub.id)}
+                              title="حذف هذه المادة المخصصة"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#dc2626' }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '8px',
+                          background: sub.track === 'international' ? 'rgba(124, 58, 237, 0.12)' : sub.track === 'national' ? 'rgba(13, 148, 136, 0.12)' : '#f1f5f9',
+                          color: sub.track === 'international' ? '#7c3aed' : sub.track === 'national' ? '#0d9488' : '#475569'
+                        }}>
+                          {sub.track === 'international' ? 'دولي' : sub.track === 'national' ? 'أهلي' : 'مشترك'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#64748b' }}>{sub.periodsPerClass} حصص</td>
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: '#1e293b' }}>{sub.totalPeriodsNeeded} حصة</td>
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: '#0f766e' }}>{sub.teachersCount} معلمين</td>
+                      <td style={{ padding: '14px 16px', color: '#64748b' }}>{sub.totalTeachingCapacity} حصة (نصاب {sub.standardLoad})</td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{
+                          fontSize: '12px',
+                          fontWeight: 800,
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: sub.status === 'surplus' ? '#dbeafe' : sub.status === 'deficit' ? '#fee2e2' : '#dcfce7',
+                          color: sub.status === 'surplus' ? '#1e40af' : sub.status === 'deficit' ? '#b91c1c' : '#15803d'
+                        }}>
+                          {sub.status === 'surplus' && <TrendingUp size={14} />}
+                          {sub.status === 'deficit' && <AlertCircle size={14} />}
+                          {sub.status === 'balanced' && <CheckCircle2 size={14} />}
+                          {sub.status === 'surplus' ? `فائض (${sub.netTeacherDiff}) كادر` : sub.status === 'deficit' ? `عجز (${sub.netTeacherDiff}) كادر` : 'متوازن تماماً'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        {sub.status === 'deficit' ? (
+                          <button
+                            onClick={() => {
+                              setTransferForm(prev => ({ ...prev, type: 'need', subject: sub.subject, requiredPeriods: Math.abs(sub.diffPeriods) || 20 }));
+                              setShowTransferModal(true);
+                            }}
+                            className="btn btn-primary"
+                            style={{ padding: '6px 12px', fontSize: '12px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', border: 'none' }}
+                          >
+                            + طلب استعانة
+                          </button>
+                        ) : sub.status === 'surplus' ? (
+                          <button
+                            onClick={() => {
+                              setTransferForm(prev => ({ ...prev, type: 'release', subject: sub.subject, currentLoad: 8 }));
+                              setShowTransferModal(true);
+                            }}
+                            className="btn"
+                            style={{ padding: '6px 12px', fontSize: '12px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8' }}
+                          >
+                            إتاحة للندب
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: '#94a3b8' }}>متوازن</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -2410,6 +2965,206 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                 <div style={{ color: '#64748b' }}>الختم والاعتماد الرسمي</div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 5: Add Custom Subject / Specialty Modal (SuperAdmin) */}
+      {showAddSubjectModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1150,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto',
+            background: 'white', padding: '28px', borderRadius: '20px', position: 'relative'
+          }}>
+            <button
+              onClick={() => setShowAddSubjectModal(false)}
+              style={{ position: 'absolute', left: '20px', top: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <X size={20} color="#64748b" />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+              <div style={{
+                width: '42px', height: '42px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
+                boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)'
+              }}>
+                <BookOpen size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#0f766e' }}>
+                  إضافة مادة دراسية / تخصص جديد لمنظومة المدارس
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  إدراج تخصص جديد ضمن المسار الأهلي أو الدولي مع تحديد الأنصبة المعيارية وحساب الفائض والعجز تلقائياً
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddCustomSubject} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '6px', color: '#1e293b' }}>
+                    اسم المادة (بالعربية) *
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    required
+                    value={newSubjectForm.name}
+                    onChange={(e) => setNewSubjectForm({ ...newSubjectForm, name: e.target.value })}
+                    placeholder="مثال: علم البيانات والذكاء الاصطناعي"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>
+                    الاسم بالإنجليزية (اختياري)
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={newSubjectForm.nameEn}
+                    onChange={(e) => setNewSubjectForm({ ...newSubjectForm, nameEn: e.target.value })}
+                    placeholder="e.g. Data Science & AI"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                    تصنيف / قسم المادة *
+                  </label>
+                  <select
+                    className="input-field"
+                    value={newSubjectForm.category}
+                    onChange={(e) => setNewSubjectForm({ ...newSubjectForm, category: e.target.value })}
+                  >
+                    <option value="التقنية والذكاء الاصطناعي">التقنية والذكاء الاصطناعي والحاسب</option>
+                    <option value="الرياضيات">الرياضيات والإحصاء</option>
+                    <option value="العلوم الطبيعية">العلوم الطبيعية (فيزياء، كيمياء، أحياء)</option>
+                    <option value="اللغة الإنجليزية واللغات">اللغة الإنجليزية واللغات العالمية</option>
+                    <option value="اللغة العربية">اللغة العربية وآدابها</option>
+                    <option value="العلوم الشرعية والدراسات الإسلامية">العلوم الشرعية والدراسات الإسلامية</option>
+                    <option value="العلوم الاجتماعية والإنسانية">العلوم الاجتماعية والإنسانية</option>
+                    <option value="العلوم الإدارية والمالية">العلوم الإدارية والمالية والاقتصاد</option>
+                    <option value="الفنون والتربية البدنية">الفنون والتربية البدنية والتصميم</option>
+                    <option value="تخصصات ومواد مضافة">تخصصات ومواد إثرائية أخرى</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                    المسار المعتمد للمادة *
+                  </label>
+                  <select
+                    className="input-field"
+                    value={newSubjectForm.track}
+                    onChange={(e) => setNewSubjectForm({ ...newSubjectForm, track: e.target.value })}
+                  >
+                    <option value="both">كلا المسارين (الأهلي والدولي)</option>
+                    <option value="national">المسار الأهلي المطور فقط</option>
+                    <option value="international">المسار الدولي / الدبلومة الأمريكية فقط</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
+                    المرحلة المستهدفة
+                  </label>
+                  <select
+                    className="input-field"
+                    value={newSubjectForm.stage}
+                    onChange={(e) => setNewSubjectForm({ ...newSubjectForm, stage: e.target.value })}
+                    style={{ fontSize: '12px' }}
+                  >
+                    <option value="all">كافة المراحل</option>
+                    <option value="primary">الابتدائية</option>
+                    <option value="middle">المتوسطة</option>
+                    <option value="high">الثانوية</option>
+                    <option value="kindergarten">رياض الأطفال</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
+                    الحصص الأسبوعية / فصل *
+                  </label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    required
+                    min="1"
+                    max="10"
+                    value={newSubjectForm.periodsPerClass}
+                    onChange={(e) => setNewSubjectForm({ ...newSubjectForm, periodsPerClass: Number(e.target.value) })}
+                    style={{ fontSize: '12px' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
+                    النصاب المعياري للمعلم *
+                  </label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    required
+                    min="10"
+                    max="30"
+                    value={newSubjectForm.standardTeacherLoad}
+                    onChange={(e) => setNewSubjectForm({ ...newSubjectForm, standardTeacherLoad: Number(e.target.value) })}
+                    style={{ fontSize: '12px' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                  وصف المادة أو ملاحظات المنهج (اختياري)
+                </label>
+                <textarea
+                  className="input-field"
+                  rows="2"
+                  value={newSubjectForm.description}
+                  onChange={(e) => setNewSubjectForm({ ...newSubjectForm, description: e.target.value })}
+                  placeholder="وصف مختصر لمفردات المنهج أو متطلبات المعامل..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddSubjectModal(false)}
+                  className="btn btn-outline"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingSubject}
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 700
+                  }}
+                >
+                  <Plus size={16} />
+                  <span>{isAddingSubject ? 'جاري الإضافة...' : 'إضافة المادة للمنظومة الآن'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
