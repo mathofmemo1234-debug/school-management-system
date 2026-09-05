@@ -97,15 +97,15 @@ function AdminHome({ schoolId }) {
 
       snap.forEach(d => {
         const data = d.data();
-        const isMatch = 
-          !data.targetSchoolId || 
-          data.targetSchoolId === 'ALL' || 
-          data.targetSchoolId === 'all' || 
-          data.schoolId === 'ALL' || 
-          allowedIds.has(data.targetSchoolId) || 
-          allowedIds.has(data.schoolId) ||
+        const isCompanyWide = !data.targetSchoolId || data.targetSchoolId === 'ALL' || data.targetSchoolId === 'all' || data.schoolId === 'ALL' || data.schoolId === 'all';
+        const isAdminUnrestricted = !effectiveSchoolId || effectiveSchoolId === 'ALL' || effectiveSchoolId === 'all' || effectiveSchoolId === 'default_school_1' || effectiveSchoolId === 'main_school';
+        const isIdMatch = allowedIds.has(data.targetSchoolId) || allowedIds.has(data.schoolId) || allowedIds.has(data.targetSchoolCode) || allowedIds.has(data.schoolCode);
+        const isNameMatch = Boolean(
           (schoolInfo?.name && (data.targetSchoolName === schoolInfo.name || data.schoolName === schoolInfo.name)) ||
-          (userData?.schoolName && (data.targetSchoolName === userData.schoolName || data.schoolName === userData.schoolName));
+          (userData?.schoolName && (data.targetSchoolName === userData.schoolName || data.schoolName === userData.schoolName))
+        );
+
+        const isMatch = isCompanyWide || isAdminUnrestricted || isIdMatch || isNameMatch;
         if (isMatch) {
           list.push({ id: d.id, ...data });
         }
@@ -143,17 +143,31 @@ function AdminHome({ schoolId }) {
           }
         }
         const data = overrides[d.id] ? { ...rawData, ...overrides[d.id] } : rawData;
-        const isMatch = 
-          !effectiveSchoolId || 
-          effectiveSchoolId === 'ALL' ||
-          data.schoolId === 'ALL' || 
-          data.targetSchoolId === 'ALL' ||
+        const isMaster = Boolean(data.isDirective || data.requesterRole === 'superadmin' || data.source === 'master' || data.fromSchoolId === 'ALL');
+        
+        const isCompanyWide = !data.targetSchoolId || data.targetSchoolId === 'ALL' || data.targetSchoolId === 'all' || data.schoolId === 'ALL' || data.fromSchoolId === 'ALL' || data.toSchoolId === 'ALL';
+        const isAdminUnrestricted = !effectiveSchoolId || effectiveSchoolId === 'ALL' || effectiveSchoolId === 'all' || effectiveSchoolId === 'default_school_1' || effectiveSchoolId === 'main_school';
+        const isIdMatch = 
           allowedIds.has(data.schoolId) || 
           allowedIds.has(data.targetSchoolId) || 
           allowedIds.has(data.fromSchoolId) || 
           allowedIds.has(data.toSchoolId) ||
+          allowedIds.has(data.schoolCode) ||
+          allowedIds.has(data.targetSchoolCode) ||
+          allowedIds.has(data.fromSchoolCode) ||
+          allowedIds.has(data.toSchoolCode);
+
+        const isNameMatch = Boolean(
           (schoolInfo?.name && (data.schoolName === schoolInfo.name || data.targetSchoolName === schoolInfo.name || data.fromSchoolName === schoolInfo.name || data.toSchoolName === schoolInfo.name)) ||
-          (userData?.schoolName && (data.schoolName === userData.schoolName || data.targetSchoolName === userData.schoolName));
+          (userData?.schoolName && (data.schoolName === userData.schoolName || data.targetSchoolName === userData.schoolName || data.fromSchoolName === userData.schoolName || data.toSchoolName === userData.schoolName))
+        );
+
+        const isMyRequest = Boolean(
+          (userData?.nationalId && data.requesterNid === userData.nationalId) ||
+          (userData?.name && data.requesterName === userData.name)
+        );
+
+        const isMatch = isCompanyWide || isAdminUnrestricted || isIdMatch || isNameMatch || isMyRequest;
         if (isMatch) {
           list.push(data);
         }

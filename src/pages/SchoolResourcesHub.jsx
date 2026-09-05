@@ -377,14 +377,30 @@ export default function SchoolResourcesHub({ role }) {
       ].filter(Boolean));
 
       const filtered = isSuperAdmin ? list : list.filter(r => {
-        if (!targetSchool || targetSchool === 'ALL') return true;
-        const rFrom = r.schoolId || r.fromSchoolId;
-        const rTo = r.targetSchoolId || r.toSchoolId;
-        if (!rFrom && !rTo) return true;
-        if (allowedIds.has(rFrom) || allowedIds.has(rTo)) return true;
-        if (currentSchoolInfo?.name && (r.schoolName === currentSchoolInfo.name || r.targetSchoolName === currentSchoolInfo.name || r.fromSchoolName === currentSchoolInfo.name || r.toSchoolName === currentSchoolInfo.name)) return true;
-        if (userData?.schoolName && (r.schoolName === userData.schoolName || r.targetSchoolName === userData.schoolName || r.fromSchoolName === userData.schoolName || r.toSchoolName === userData.schoolName)) return true;
-        return false;
+        const isCompanyWide = !r.targetSchoolId || r.targetSchoolId === 'ALL' || r.targetSchoolId === 'all' || r.schoolId === 'ALL' || r.fromSchoolId === 'ALL' || r.toSchoolId === 'ALL';
+        const isAdminUnrestricted = !targetSchool || targetSchool === 'ALL' || targetSchool === 'all' || targetSchool === 'default_school_1' || targetSchool === 'main_school';
+        
+        const isIdMatch = 
+          allowedIds.has(r.schoolId) || 
+          allowedIds.has(r.targetSchoolId) || 
+          allowedIds.has(r.fromSchoolId) || 
+          allowedIds.has(r.toSchoolId) ||
+          allowedIds.has(r.schoolCode) ||
+          allowedIds.has(r.targetSchoolCode) ||
+          allowedIds.has(r.fromSchoolCode) ||
+          allowedIds.has(r.toSchoolCode);
+
+        const isNameMatch = Boolean(
+          (currentSchoolInfo?.name && (r.schoolName === currentSchoolInfo.name || r.targetSchoolName === currentSchoolInfo.name || r.fromSchoolName === currentSchoolInfo.name || r.toSchoolName === currentSchoolInfo.name)) ||
+          (userData?.schoolName && (r.schoolName === userData.schoolName || r.targetSchoolName === userData.schoolName || r.fromSchoolName === userData.schoolName || r.toSchoolName === userData.schoolName))
+        );
+
+        const isMyRequest = Boolean(
+          (userData?.nationalId && r.requesterNid === userData.nationalId) ||
+          (userData?.name && r.requesterName === userData.name)
+        );
+
+        return isCompanyWide || isAdminUnrestricted || isIdMatch || isNameMatch || isMyRequest;
       });
       setTransferRequests(filtered);
     }, (err) => {
@@ -407,12 +423,15 @@ export default function SchoolResourcesHub({ role }) {
       ].filter(Boolean));
 
       const filtered = isSuperAdmin ? list : list.filter(d => {
-        if (!targetSchool || targetSchool === 'ALL') return true;
-        const dTarget = d.targetSchoolId || d.schoolId;
-        if (!dTarget) return true;
-        if (allowedIds.has(dTarget)) return true;
-        if (currentSchoolInfo?.name && (d.targetSchoolName === currentSchoolInfo.name || d.schoolName === currentSchoolInfo.name)) return true;
-        return false;
+        const isCompanyWide = !d.targetSchoolId || d.targetSchoolId === 'ALL' || d.targetSchoolId === 'all' || d.schoolId === 'ALL' || d.schoolId === 'all';
+        const isAdminUnrestricted = !targetSchool || targetSchool === 'ALL' || targetSchool === 'all' || targetSchool === 'default_school_1' || targetSchool === 'main_school';
+        const isIdMatch = allowedIds.has(d.targetSchoolId) || allowedIds.has(d.schoolId) || allowedIds.has(d.targetSchoolCode) || allowedIds.has(d.schoolCode);
+        const isNameMatch = Boolean(
+          (currentSchoolInfo?.name && (d.targetSchoolName === currentSchoolInfo.name || d.schoolName === currentSchoolInfo.name)) ||
+          (userData?.schoolName && (d.targetSchoolName === userData.schoolName || d.schoolName === userData.schoolName))
+        );
+
+        return isCompanyWide || isAdminUnrestricted || isIdMatch || isNameMatch;
       });
       setDirectivesList(filtered);
     }, (err) => {

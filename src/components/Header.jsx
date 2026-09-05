@@ -124,6 +124,43 @@ export default function Header({ title, role }) {
     return () => unsub();
   }, [schoolId, myNid, effectiveRole, myClass, currentUser, userData]);
 
+  const [unreadDirectivesCount, setUnreadDirectivesCount] = useState(0);
+
+  // Listen to incoming directives and resource decisions for Admin/SuperAdmin
+  useEffect(() => {
+    if (effectiveRole !== 'admin' && effectiveRole !== 'superadmin') {
+      setUnreadDirectivesCount(0);
+      return;
+    }
+
+    const unsubD = onSnapshot(collection(db, 'resource_directives'), (snap) => {
+      let dCount = 0;
+      snap.forEach(d => {
+        const data = d.data();
+        if (effectiveRole === 'admin' && data.status !== 'acknowledged') {
+          dCount++;
+        }
+      });
+
+      const unsubT = onSnapshot(collection(db, 'resource_transfer_requests'), (tSnap) => {
+        let tCount = 0;
+        tSnap.forEach(td => {
+          const tData = td.data();
+          if (effectiveRole === 'admin' && (tData.status === 'approved' || tData.isDirective)) {
+            if (tData.status !== 'acknowledged') tCount++;
+          } else if (effectiveRole === 'superadmin' && tData.status === 'pending') {
+            tCount++;
+          }
+        });
+        setUnreadDirectivesCount(dCount + tCount);
+      }, () => setUnreadDirectivesCount(dCount));
+
+      return () => unsubT();
+    }, (err) => console.warn(err));
+
+    return () => unsubD();
+  }, [effectiveRole]);
+
   const activeSchoolName = schoolMeta?.name || userData?.schoolName || '';
   const activeSubTitle = schoolMeta?.subTitle || userData?.schoolSubTitle || '';
 
@@ -259,8 +296,35 @@ export default function Header({ title, role }) {
           )}
         </button>
 
-        <button className="btn" style={{ background: 'transparent', padding: '8px' }}>
-          <Bell size={20} color="var(--color-text-muted)" />
+        <button 
+          className="btn" 
+          onClick={() => navigate(`/${effectiveRole}/resources`)}
+          style={{ background: 'transparent', padding: '8px', position: 'relative', cursor: 'pointer' }}
+          title={unreadDirectivesCount > 0 ? `يوجد (${unreadDirectivesCount}) توجيهات وقرارات جديدة بانتظار الإجراء` : 'التنبيهات والقرارات'}
+        >
+          <Bell size={20} color={unreadDirectivesCount > 0 ? '#ea580c' : 'var(--color-text-muted)'} />
+          {unreadDirectivesCount > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: '2px',
+              right: '2px',
+              background: '#ea580c',
+              color: 'white',
+              fontSize: '10px',
+              fontWeight: '900',
+              borderRadius: '10px',
+              minWidth: '16px',
+              height: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '0 4px',
+              border: '2px solid white',
+              boxShadow: '0 0 8px rgba(234, 88, 12, 0.6)'
+            }}>
+              {unreadDirectivesCount}
+            </span>
+          )}
         </button>
         
         <div className="user-profile">
