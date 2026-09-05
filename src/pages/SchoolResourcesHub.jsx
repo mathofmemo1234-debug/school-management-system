@@ -78,6 +78,29 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
   const [chartSearchQuery, setChartSearchQuery] = useState('');
   const [showAllChartSubjects, setShowAllChartSubjects] = useState(false);
 
+  // Class Management State (Live Real-time Stage & Student Count System)
+  const [showClassModal, setShowClassModal] = useState(false);
+  const [editingClass, setEditingClass] = useState(null);
+  const [isSavingClass, setIsSavingClass] = useState(false);
+  const [showQuickBatchModal, setShowQuickBatchModal] = useState(false);
+  const [batchStage, setBatchStage] = useState('primary');
+  const [classStageFilter, setClassStageFilter] = useState('all'); // 'all' | 'kindergarten' | 'primary' | 'middle' | 'high'
+  const [classSearchQuery, setClassSearchQuery] = useState('');
+
+  const [classForm, setClassForm] = useState({
+    name: '',
+    stage: 'primary', // 'kindergarten' | 'primary' | 'middle' | 'high'
+    track: 'national', // 'national' | 'international'
+    gender: 'boys', // 'boys' | 'girls'
+    grade: 'الصف الأول الابتدائي',
+    section: 'أ',
+    studentCount: 24,
+    capacity: 25,
+    homeroomTeacher: '',
+    classroomNumber: '',
+    notes: ''
+  });
+
   // Modals
   const [showBuildingModal, setShowBuildingModal] = useState(false);
   const [editingBuilding, setEditingBuilding] = useState(null);
@@ -319,28 +342,62 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     });
   }, [buildingsList, filterTrack, filterGender, searchQuery]);
 
-  // Summary Metrics & Stats Calculation (100% Real Data Strictly - No Dummy Fallbacks)
+  // Summary Metrics & Stats Calculation (100% Real Data with Class-level Student Counts & Live Sync)
   const metrics = useMemo(() => {
-    let totalCapacity = 0;
-    let totalRooms = 0;
-    let totalActiveRooms = 0;
-
-    buildingsList.forEach(b => {
-      totalCapacity += Number(b.capacity || 0);
-      totalRooms += Number(b.totalRooms || 0);
-      totalActiveRooms += Number(b.activeClassrooms || 0);
-    });
-
-    const studentsCount = studentsList.length;
     const classesCount = classesList.length;
+    
+    // Sum of individual studentCount from each class
+    const totalStudentsFromClasses = classesList.reduce((acc, c) => acc + Number(c.studentCount || 0), 0);
+    const studentsCount = totalStudentsFromClasses > 0 ? totalStudentsFromClasses : studentsList.length;
+
+    // Total Capacity from classes and buildings
+    let totalCapacityFromClasses = classesList.reduce((acc, c) => {
+      const defCap = c.stage === 'kindergarten' ? 20 : c.stage === 'primary' ? 25 : c.stage === 'middle' ? 28 : 30;
+      return acc + Number(c.capacity || defCap);
+    }, 0);
+
+    let totalCapacity = totalCapacityFromClasses;
+    if (totalCapacity === 0 && buildingsList.length > 0) {
+      buildingsList.forEach(b => {
+        totalCapacity += Number(b.capacity || 0);
+      });
+    }
+
     const teachersCount = teachersList.length;
 
     const classDensity = classesCount > 0 ? (studentsCount / classesCount).toFixed(1) : '0';
     const capacityUtilization = totalCapacity > 0 ? Math.min(100, Math.round((studentsCount / totalCapacity) * 100)) : 0;
     const studentTeacherRatio = teachersCount > 0 ? (studentsCount / teachersCount).toFixed(1) : '0';
 
-    // Subject Quotas & Deficit / Surplus Analysis (Strictly from real database + Dynamic Custom Subjects)
+    // Stage-by-Stage Breakdown with Individual Student & Class Counts
+    const stagesBreakdown = RESOURCE_STAGES.map(stg => {
+      const stgClasses = classesList.filter(c => (c.stage || 'primary') === stg.id);
+      const stgClassCount = stgClasses.length;
+      const stgStudentCount = stgClasses.reduce((acc, c) => acc + Number(c.studentCount || 0), 0);
+      const stgCapacity = stgClasses.reduce((acc, c) => acc + Number(c.capacity || stg.defaultClassCapacity), 0);
+      const stgDensity = stgClassCount > 0 ? (stgStudentCount / stgClassCount).toFixed(1) : '0';
+      const stgUtilization = stgCapacity > 0 ? Math.min(100, Math.round((stgStudentCount / stgCapacity) * 100)) : 0;
+      
+      return {
+        ...stg,
+        classes: stgClasses,
+        classesCount: stgClassCount,
+        studentsCount: stgStudentCount,
+        capacity: stgCapacity,
+        density: stgDensity,
+        utilization: stgUtilization
+      };
+    });
+
+    // Subject Quotas & Deficit / Surplus Analysis (Linked directly to real classes)
     const subjectAnalysis = combinedQuotasList.map(item => {
+      // Find relevant classes for this subject's track
+      const relevantClasses = classesList.filter(c => {
+        if (item.track === 'both') return true;
+        return (c.track || 'national') === item.track;
+      });
+      const relevantClassCount = relevantClasses.length > 0 ? relevantClasses.length : classesCount;
+
       const assignedTeachers = teachersList.filter(t => {
         const subj = (t.subject || '').trim().toLowerCase();
         const itemSubj = (item.subject || '').trim().toLowerCase();
@@ -348,14 +405,14 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       });
       const tCount = assignedTeachers.length;
       
-      const totalPeriodsNeeded = classesCount * item.periodsPerClass;
+      const totalPeriodsNeeded = relevantClassCount * item.periodsPerClass;
       const totalTeachingCapacity = tCount * item.standardTeacherLoad;
       const diffPeriods = totalTeachingCapacity - totalPeriodsNeeded;
       
       let status = 'balanced'; // 'surplus' | 'deficit' | 'balanced'
       let netTeacherDiff = 0;
 
-      if (classesCount === 0 && tCount === 0) {
+      if (relevantClassCount === 0 && tCount === 0) {
         status = 'balanced';
         netTeacherDiff = 0;
       } else if (diffPeriods >= item.standardTeacherLoad) {
@@ -377,6 +434,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         periodsPerClass: item.periodsPerClass,
         standardLoad: item.standardTeacherLoad,
         teachersCount: tCount,
+        relevantClassCount,
         totalPeriodsNeeded,
         totalTeachingCapacity,
         diffPeriods,
@@ -390,19 +448,18 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
 
     return {
       totalCapacity,
-      totalRooms,
-      totalActiveRooms,
       studentsCount,
       classesCount,
       teachersCount,
       classDensity,
       capacityUtilization,
       studentTeacherRatio,
+      stagesBreakdown,
       subjectAnalysis,
       totalSurplusTeachers,
       totalDeficitTeachers
     };
-  }, [buildingsList, studentsList, classesList, teachersList]);
+  }, [classesList, studentsList, teachersList, buildingsList, combinedQuotasList]);
 
   // Smart Recommendations Engine (Real Data Driven)
   const recommendations = useMemo(() => {
@@ -625,6 +682,152 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     } catch (err) {
       console.error('Error deleting custom subject:', err);
       alert('حدث خطأ أثناء حذف المادة.');
+    }
+  };
+
+  // Save or Update Class (Real-time Live Sync to Master)
+  const handleSaveClass = async (e) => {
+    e.preventDefault();
+    if (!classForm.name.trim()) {
+      alert('يرجى كتابة اسم الفصل أو الشعبة.');
+      return;
+    }
+    setIsSavingClass(true);
+    try {
+      const targetSchool = isSuperAdmin ? (selectedSchoolId || 'main_school') : (userData?.schoolId || 'main_school');
+      const targetSchoolObj = schoolsList.find(s => s.id === targetSchool);
+
+      const classData = {
+        name: classForm.name.trim(),
+        stage: classForm.stage || 'primary',
+        track: classForm.track || 'national',
+        gender: classForm.gender || 'boys',
+        grade: classForm.grade || '',
+        section: classForm.section || 'أ',
+        studentCount: Math.max(0, Number(classForm.studentCount || 0)),
+        capacity: Math.max(1, Number(classForm.capacity || 25)),
+        homeroomTeacher: classForm.homeroomTeacher || '',
+        classroomNumber: classForm.classroomNumber || '',
+        notes: classForm.notes || '',
+        schoolId: targetSchool,
+        schoolName: targetSchoolObj?.name || currentSchoolInfo.name,
+        updatedAt: Date.now()
+      };
+
+      if (editingClass) {
+        await updateDoc(doc(db, 'classes', editingClass.id), classData);
+      } else {
+        await addDoc(collection(db, 'classes'), {
+          ...classData,
+          createdAt: Date.now()
+        });
+      }
+      setShowClassModal(false);
+      setEditingClass(null);
+    } catch (err) {
+      console.error('Error saving class:', err);
+      alert('حدث خطأ أثناء حفظ بيانات الفصل.');
+    } finally {
+      setIsSavingClass(false);
+    }
+  };
+
+  // Quick Inline Update of Student Count for a Specific Class
+  const handleQuickUpdateStudentCount = async (classId, newCount) => {
+    const validCount = Math.max(0, parseInt(newCount, 10) || 0);
+    try {
+      await updateDoc(doc(db, 'classes', classId), {
+        studentCount: validCount,
+        updatedAt: Date.now()
+      });
+    } catch (err) {
+      console.error('Error updating student count:', err);
+    }
+  };
+
+  // Delete Class
+  const handleDeleteClass = async (classId) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا الفصل من المنظومة وقاعدة البيانات؟')) return;
+    try {
+      await deleteDoc(doc(db, 'classes', classId));
+    } catch (err) {
+      console.error('Error deleting class:', err);
+      alert('حدث خطأ أثناء حذف الفصل.');
+    }
+  };
+
+  // Quick Batch Initialization of Standard Classes for a Stage
+  const handleBatchInitStageClasses = async (stageKey, trackKey = 'national', genderKey = 'boys') => {
+    if (!window.confirm(`هل ترغب في إنشاء وتوزيع الشعب الدراسية النموذجية للمرحلة تلقائياً مع أعداد الطلاب؟`)) return;
+    setIsSavingClass(true);
+    try {
+      const targetSchool = isSuperAdmin ? (selectedSchoolId || 'main_school') : (userData?.schoolId || 'main_school');
+      const targetSchoolObj = schoolsList.find(s => s.id === targetSchool);
+
+      let templates = [];
+      if (stageKey === 'kindergarten') {
+        templates = [
+          { name: 'تمهيدي أول (KG1 - أ)', grade: 'KG1', section: 'أ', studentCount: 18, capacity: 20 },
+          { name: 'تمهيدي أول (KG1 - ب)', grade: 'KG1', section: 'ب', studentCount: 18, capacity: 20 },
+          { name: 'تمهيدي ثانٍ (KG2 - أ)', grade: 'KG2', section: 'أ', studentCount: 20, capacity: 20 },
+          { name: 'تمهيدي ثانٍ (KG2 - ب)', grade: 'KG2', section: 'ب', studentCount: 20, capacity: 20 },
+          { name: 'تمهيدي ثالث (KG3 - أ)', grade: 'KG3', section: 'أ', studentCount: 20, capacity: 20 },
+          { name: 'تمهيدي ثالث (KG3 - ب)', grade: 'KG3', section: 'ب', studentCount: 20, capacity: 20 }
+        ];
+      } else if (stageKey === 'primary') {
+        templates = [
+          { name: 'الصف الأول الابتدائي (أ)', grade: 'الصف الأول', section: 'أ', studentCount: 24, capacity: 25 },
+          { name: 'الصف الأول الابتدائي (ب)', grade: 'الصف الأول', section: 'ب', studentCount: 24, capacity: 25 },
+          { name: 'الصف الثاني الابتدائي (أ)', grade: 'الصف الثاني', section: 'أ', studentCount: 25, capacity: 25 },
+          { name: 'الصف الثاني الابتدائي (ب)', grade: 'الصف الثاني', section: 'ب', studentCount: 25, capacity: 25 },
+          { name: 'الصف الثالث الابتدائي (أ)', grade: 'الصف الثالث', section: 'أ', studentCount: 25, capacity: 25 },
+          { name: 'الصف الثالث الابتدائي (ب)', grade: 'الصف الثالث', section: 'ب', studentCount: 25, capacity: 25 },
+          { name: 'الصف الرابع الابتدائي (أ)', grade: 'الصف الرابع', section: 'أ', studentCount: 26, capacity: 28 },
+          { name: 'الصف الرابع الابتدائي (ب)', grade: 'الصف الرابع', section: 'ب', studentCount: 26, capacity: 28 },
+          { name: 'الصف الخامس الابتدائي (أ)', grade: 'الصف الخامس', section: 'أ', studentCount: 26, capacity: 28 },
+          { name: 'الصف الخامس الابتدائي (ب)', grade: 'الصف الخامس', section: 'ب', studentCount: 26, capacity: 28 },
+          { name: 'الصف السادس الابتدائي (أ)', grade: 'الصف السادس', section: 'أ', studentCount: 27, capacity: 28 },
+          { name: 'الصف السادس الابتدائي (ب)', grade: 'الصف السادس', section: 'ب', studentCount: 27, capacity: 28 }
+        ];
+      } else if (stageKey === 'middle') {
+        templates = [
+          { name: 'الصف الأول المتوسط (أ)', grade: 'أول متوسط', section: 'أ', studentCount: 28, capacity: 30 },
+          { name: 'الصف الأول المتوسط (ب)', grade: 'أول متوسط', section: 'ب', studentCount: 28, capacity: 30 },
+          { name: 'الصف الثاني المتوسط (أ)', grade: 'ثاني متوسط', section: 'أ', studentCount: 28, capacity: 30 },
+          { name: 'الصف الثاني المتوسط (ب)', grade: 'ثاني متوسط', section: 'ب', studentCount: 28, capacity: 30 },
+          { name: 'الصف الثالث المتوسط (أ)', grade: 'ثالث متوسط', section: 'أ', studentCount: 28, capacity: 30 },
+          { name: 'الصف الثالث المتوسط (ب)', grade: 'ثالث متوسط', section: 'ب', studentCount: 28, capacity: 30 }
+        ];
+      } else if (stageKey === 'high') {
+        templates = [
+          { name: 'الصف الأول الثانوي (أ)', grade: 'أول ثانوي', section: 'أ', studentCount: 30, capacity: 32 },
+          { name: 'الصف الأول الثانوي (ب)', grade: 'أول ثانوي', section: 'ب', studentCount: 30, capacity: 32 },
+          { name: 'الصف الثاني الثانوي (أ)', grade: 'ثاني ثانوي', section: 'أ', studentCount: 30, capacity: 32 },
+          { name: 'الصف الثاني الثانوي (ب)', grade: 'ثاني ثانوي', section: 'ب', studentCount: 30, capacity: 32 },
+          { name: 'الصف الثالث الثانوي (أ)', grade: 'ثالث ثانوي', section: 'أ', studentCount: 30, capacity: 32 },
+          { name: 'الصف الثالث الثانوي (ب)', grade: 'ثالث ثانوي', section: 'ب', studentCount: 30, capacity: 32 }
+        ];
+      }
+
+      for (const t of templates) {
+        await addDoc(collection(db, 'classes'), {
+          ...t,
+          stage: stageKey,
+          track: trackKey,
+          gender: genderKey,
+          schoolId: targetSchool,
+          schoolName: targetSchoolObj?.name || currentSchoolInfo.name,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+      }
+      setShowQuickBatchModal(false);
+      alert(`تمت تهيئة ${templates.length} فصول وشعب للمرحلة بنجاح مع أعداد الطلاب!`);
+    } catch (err) {
+      console.error('Error batch creating classes:', err);
+      alert('حدث خطأ أثناء تهيئة الفصول.');
+    } finally {
+      setIsSavingClass(false);
     }
   };
 
@@ -1066,7 +1269,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         </button>
 
         <button
-          onClick={() => setActiveTab('buildings')}
+          onClick={() => setActiveTab('classes_management')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -1077,13 +1280,13 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
             fontSize: '14px',
             fontWeight: 700,
             cursor: 'pointer',
-            background: activeTab === 'buildings' ? 'linear-gradient(135deg, #0d9488, #0369a1)' : 'transparent',
-            color: activeTab === 'buildings' ? 'white' : 'var(--color-text-main)',
-            boxShadow: activeTab === 'buildings' ? '0 4px 12px rgba(13, 148, 136, 0.25)' : 'none'
+            background: activeTab === 'classes_management' ? 'linear-gradient(135deg, #0d9488, #0369a1)' : 'transparent',
+            color: activeTab === 'classes_management' ? 'white' : 'var(--color-text-main)',
+            boxShadow: activeTab === 'classes_management' ? '0 4px 12px rgba(13, 148, 136, 0.25)' : 'none'
           }}
         >
-          <Building2 size={18} />
-          <span>إدارة المباني والمرافق ({buildingsList.length})</span>
+          <School size={18} />
+          <span>إدارة المراحل والفصول والطلاب ({metrics.classesCount} فصل • {metrics.studentsCount} طالب)</span>
         </button>
 
         <button
@@ -1104,7 +1307,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
           }}
         >
           <BookOpen size={18} />
-          <span>الفصول والأنصبة وتوازن الكوادر</span>
+          <span>الأنصبة الأسبوعية وتوازن الكوادر</span>
         </button>
 
         <button
@@ -1627,76 +1830,108 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
               })()}
             </div>
 
-            {/* Chart 2: Buildings & Facilities Capacity Utilization Breakdown */}
+            {/* Chart 2: Educational Stages, Classes & Student Distribution Breakdown */}
             <div className="glass-panel" style={{ padding: '24px', borderRadius: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <PieChart size={19} color="#7c3aed" />
-                  مؤشر إشغال المباني والمرافق وتوزيع الطلاب
-                </h3>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <PieChart size={19} color="#7c3aed" />
+                    مؤشر توزيع الطلاب والشعب والطاقة الاستيعابية حسب المراحل
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                    حصر فوري لأعداد الطلاب والفصول ومتوسط الكثافة لكل مرحلة تعليمية
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('classes_management')}
+                  className="btn"
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    background: '#f5f3ff',
+                    border: '1px solid #c7d2fe',
+                    color: '#6d28d9',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <School size={14} /> إدارة الفصول
+                </button>
               </div>
 
-              {buildingsList.length === 0 ? (
+              {metrics.stagesBreakdown.every(stg => stg.classesCount === 0) ? (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)' }}>
-                  <Building2 size={40} style={{ opacity: 0.3, marginBottom: '10px' }} />
-                  <p>لم يتم تسجيل مباني في هذا الفرع بعد.</p>
+                  <School size={40} style={{ opacity: 0.3, marginBottom: '10px' }} />
+                  <p>لم يتم تسجيل فصول في هذا الفرع بعد.</p>
+                  <button
+                    onClick={() => setActiveTab('classes_management')}
+                    className="btn btn-primary"
+                    style={{ fontSize: '12px', padding: '7px 16px', marginTop: '6px' }}
+                  >
+                    + إضافة فصول وتهيئة المرحلة
+                  </button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {buildingsList.map(bld => {
-                    const bldStudents = studentsList.filter(s => s.buildingId === bld.id).length;
-                    const bldCap = Number(bld.capacity || 0);
-                    const util = bldCap > 0 ? Math.min(100, Math.round((bldStudents / bldCap) * 100)) : 0;
-
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {metrics.stagesBreakdown.map(stg => {
+                    const icon = stg.id === 'kindergarten' ? '🧸' : stg.id === 'primary' ? '🎒' : stg.id === 'middle' ? '🏫' : '🎓';
                     return (
-                      <div key={bld.id} style={{ background: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                      <div key={stg.id} style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <div>
-                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>{bld.buildingName}</span>
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                              <span style={{
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                padding: '1px 8px',
-                                borderRadius: '10px',
-                                background: bld.track === 'international' ? 'rgba(124, 58, 237, 0.15)' : 'rgba(13, 148, 136, 0.15)',
-                                color: bld.track === 'international' ? '#7c3aed' : '#0d9488'
-                              }}>
-                                {bld.track === 'international' ? 'مسار دولي' : 'مسار أهلي'}
-                              </span>
-                              <span style={{
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                padding: '1px 8px',
-                                borderRadius: '10px',
-                                background: bld.gender === 'girls' ? 'rgba(219, 39, 119, 0.15)' : 'rgba(37, 99, 235, 0.15)',
-                                color: bld.gender === 'girls' ? '#db2777' : '#2563eb'
-                              }}>
-                                {bld.gender === 'girls' ? 'قسم البنات' : 'قسم البنين'}
-                              </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '18px' }}>{icon}</span>
+                            <div>
+                              <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{stg.name}</span>
+                              <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+                                <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                  {stg.classesCount} شعبة دراسية
+                                </span>
+                                <span style={{ fontSize: '11px', color: '#cbd5e1' }}>•</span>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#0d9488' }}>
+                                  {stg.studentsCount} طالب مسجل
+                                </span>
+                              </div>
                             </div>
                           </div>
 
                           <div style={{ textAlign: 'left' }}>
-                            <div style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>{util}%</div>
-                            <span style={{ fontSize: '11px', color: '#64748b' }}>إشغال السعة ({bldStudents} / {bldCap || 0})</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                              <span style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: '8px',
+                                background: Number(stg.density) > 30 ? '#fee2e2' : '#f0fdf4',
+                                color: Number(stg.density) > 30 ? '#dc2626' : '#166534'
+                              }}>
+                                الكثافة: {stg.density} طالب/فصل
+                              </span>
+                              <span style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>
+                                {stg.utilization}%
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '10.5px', color: '#64748b' }}>
+                              السعة: {stg.capacity} مقعد
+                            </span>
                           </div>
                         </div>
 
                         {/* Progress Bar */}
-                        <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', marginBlock: '8px' }}>
+                        <div style={{ width: '100%', height: '7px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', marginBlock: '4px' }}>
                           <div style={{
-                            width: `${util}%`,
+                            width: `${stg.utilization}%`,
                             height: '100%',
-                            background: bld.gender === 'girls' ? 'linear-gradient(90deg, #ec4899, #db2777)' : 'linear-gradient(90deg, #3b82f6, #0284c7)',
+                            background: stg.id === 'kindergarten' 
+                              ? 'linear-gradient(90deg, #ec4899, #f43f5e)' 
+                              : stg.id === 'primary' 
+                              ? 'linear-gradient(90deg, #0d9488, #10b981)' 
+                              : stg.id === 'middle' 
+                              ? 'linear-gradient(90deg, #2563eb, #0284c7)' 
+                              : 'linear-gradient(90deg, #7c3aed, #6366f1)',
                             borderRadius: '4px'
                           }} />
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b' }}>
-                          <span>الطاقة: <strong>{bld.capacity || 0} طالب</strong></span>
-                          <span>القاعات المستغلة: <strong>{bld.activeClassrooms || 0} / {bld.totalRooms || 0}</strong></span>
-                          <span>المساحة: <strong>{bld.areaSqMeters || 0} م²</strong></span>
                         </div>
                       </div>
                     );
@@ -1708,185 +1943,509 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         </div>
       )}
 
-      {/* TAB 2: BUILDINGS & FACILITIES MANAGEMENT */}
-      {activeTab === 'buildings' && (
+      {/* TAB 2: STAGES, CLASSES & STUDENT COUNTS MANAGEMENT (LIVE REAL-TIME SYNC) */}
+      {activeTab === 'classes_management' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Top Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--color-primary-dark)' }}>
-                سجل المباني والمرافق التعليمية والتجهيزات
-              </h2>
-              <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-muted)' }}>
-                إدارة الطاقة الاستيعابية، القاعات الدراسية، المعامل، وحالة البنية التحتية
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--color-primary-dark)' }}>
+                  إدارة المراحل الدراسية والفصول وحصر أعداد الطلاب
+                </h2>
+                <span style={{
+                  background: '#ecfdf5',
+                  color: '#059669',
+                  border: '1px solid #a7f3d0',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                  مزامنة لحظية مع حساب الماستر
+                </span>
+              </div>
+              <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: 'var(--color-text-muted)' }}>
+                إدارة تفصيلية لكل مرحلة وشعبة، مع تعديل فوري لأعداد الطلاب واحتساب الإجماليات والمقاعد الشاغرة
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <button
                 onClick={() => {
-                  setEditingBuilding(null);
-                  setBuildingForm({
-                    buildingName: '',
-                    code: `BLD-${Date.now().toString().slice(-4)}`,
+                  setBatchStage(classStageFilter !== 'all' ? classStageFilter : 'primary');
+                  setShowQuickBatchModal(true);
+                }}
+                className="btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: '#f0fdf4',
+                  border: '1px solid #86efac',
+                  color: '#166534',
+                  fontWeight: 700,
+                  padding: '9px 16px',
+                  borderRadius: '12px'
+                }}
+              >
+                <Sparkles size={16} />
+                <span>⚡ تهيئة فصول وشعب المرحلة سريعاً</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setEditingClass(null);
+                  setClassForm({
+                    name: '',
+                    stage: classStageFilter !== 'all' ? classStageFilter : 'primary',
                     track: filterTrack !== 'all' ? filterTrack : 'national',
                     gender: filterGender !== 'all' ? filterGender : 'boys',
-                    stages: ['primary', 'middle', 'high'],
-                    floors: 3,
-                    totalRooms: 30,
-                    activeClassrooms: 20,
-                    capacity: 600,
-                    areaSqMeters: 3500,
-                    condition: 'ممتاز',
-                    facilities: ['science_lab', 'computer_lab', 'sports_gym', 'library', 'prayer_hall'],
+                    grade: 'الصف الأول الابتدائي',
+                    section: 'أ',
+                    studentCount: 24,
+                    capacity: 25,
+                    homeroomTeacher: '',
+                    classroomNumber: '',
                     notes: ''
                   });
-                  setShowBuildingModal(true);
+                  setShowClassModal(true);
                 }}
                 className="btn btn-primary"
-                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #0d9488 0%, #10b981 100%)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '9px 18px',
+                  borderRadius: '12px',
+                  fontWeight: 700
+                }}
               >
-                <Plus size={18} /> إضافة مبنى أو مرفق جديد
+                <Plus size={18} /> إضافة فصل / شعبة جديدة
               </button>
             </div>
           </div>
 
-          {filteredBuildings.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '60px 20px', textAlign: 'center', borderRadius: '16px' }}>
-              <Building2 size={48} style={{ color: 'var(--color-primary)', opacity: 0.5, marginBottom: '12px' }} />
-              <h3 style={{ margin: '0 0 8px 0', color: 'var(--color-primary-dark)' }}>لا توجد مباني مطابقة لخيارات الفلترة</h3>
-              <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>يمكنك إضافة مبنى جديد أو تغيير محددات التصفية في الأعلى.</p>
+          {/* Quick Real-time Totals KPIs Strip */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: '14px'
+          }}>
+            <div className="glass-panel" style={{ padding: '16px 20px', borderRadius: '16px', background: 'white' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>إجمالي الطلاب المسجلين</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#0d9488' }}>
+                {metrics.studentsCount} <span style={{ fontSize: '13px', fontWeight: 500 }}>طالب مسجل</span>
+              </div>
+              <span style={{ fontSize: '11px', color: '#059669', display: 'block', marginTop: '4px' }}>
+                ✓ مجموع طلاب كافة الفصول
+              </span>
             </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
-              {filteredBuildings.map(bld => (
-                <div key={bld.id} className="glass-panel" style={{
-                  padding: '24px',
-                  borderRadius: '18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  border: '1px solid rgba(255, 255, 255, 0.7)'
-                }}>
-                  <div>
-                    {/* Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+
+            <div className="glass-panel" style={{ padding: '16px 20px', borderRadius: '16px', background: 'white' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>إجمالي الفصول والشعب</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb' }}>
+                {metrics.classesCount} <span style={{ fontSize: '13px', fontWeight: 500 }}>شعبة دراسية</span>
+              </div>
+              <span style={{ fontSize: '11px', color: '#3b82f6', display: 'block', marginTop: '4px' }}>
+                موزعة على كافة المراحل
+              </span>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '16px 20px', borderRadius: '16px', background: 'white' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>متوسط الكثافة الصفية</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: Number(metrics.classDensity) > 30 ? '#dc2626' : '#059669' }}>
+                {metrics.classDensity} <span style={{ fontSize: '13px', fontWeight: 500 }}>طالب / فصل</span>
+              </div>
+              <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                المعيار النموذجي: 20-28 طالب
+              </span>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '16px 20px', borderRadius: '16px', background: 'white' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>الطاقة الاستيعابية والمقاعد</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#7c3aed' }}>
+                {metrics.capacityUtilization}% <span style={{ fontSize: '13px', fontWeight: 500 }}>({metrics.studentsCount} / {metrics.totalCapacity})</span>
+              </div>
+              <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                المقاعد الشاغرة: {Math.max(0, metrics.totalCapacity - metrics.studentsCount)} مقعد
+              </span>
+            </div>
+          </div>
+
+          {/* Stage Filter Pills & Search */}
+          <div className="glass-panel" style={{
+            padding: '12px 18px',
+            borderRadius: '14px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+            background: 'white'
+          }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setClassStageFilter('all')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: classStageFilter === 'all' ? 700 : 500,
+                  background: classStageFilter === 'all' ? 'var(--color-primary)' : '#f1f5f9',
+                  color: classStageFilter === 'all' ? 'white' : '#64748b',
+                  cursor: 'pointer'
+                }}
+              >
+                كافة المراحل ({classesList.length})
+              </button>
+              {RESOURCE_STAGES.map(stg => {
+                const count = classesList.filter(c => (c.stage || 'primary') === stg.id).length;
+                return (
+                  <button
+                    key={stg.id}
+                    type="button"
+                    onClick={() => setClassStageFilter(stg.id)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: classStageFilter === stg.id ? 700 : 500,
+                      background: classStageFilter === stg.id ? '#0d9488' : '#f1f5f9',
+                      color: classStageFilter === stg.id ? 'white' : '#64748b',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {stg.name} ({count})
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ position: 'relative', minWidth: '220px' }}>
+              <Search size={16} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+              <input
+                type="text"
+                className="input-field"
+                value={classSearchQuery}
+                onChange={(e) => setClassSearchQuery(e.target.value)}
+                placeholder="بحث في الفصول ورواد الفصول..."
+                style={{ paddingRight: '34px', paddingLeft: '12px', paddingBlock: '6px', fontSize: '13px', borderRadius: '10px' }}
+              />
+            </div>
+          </div>
+
+          {/* Stages Breakdown & Individual Classes Sections */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+            {metrics.stagesBreakdown
+              .filter(stg => classStageFilter === 'all' || classStageFilter === stg.id)
+              .map(stg => {
+                const stageClasses = (stg.classes || []).filter(c => {
+                  if (filterTrack !== 'all' && (c.track || 'national') !== filterTrack) return false;
+                  if (filterGender !== 'all' && (c.gender || 'boys') !== filterGender) return false;
+                  if (classSearchQuery.trim()) {
+                    const q = classSearchQuery.trim().toLowerCase();
+                    const matchName = (c.name || '').toLowerCase().includes(q);
+                    const matchGrade = (c.grade || '').toLowerCase().includes(q);
+                    const matchTeacher = (c.homeroomTeacher || '').toLowerCase().includes(q);
+                    if (!matchName && !matchGrade && !matchTeacher) return false;
+                  }
+                  return true;
+                });
+
+                return (
+                  <div key={stg.id} className="glass-panel" style={{
+                    padding: '22px',
+                    borderRadius: '18px',
+                    background: 'white',
+                    border: '1px solid rgba(13, 148, 136, 0.2)',
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.03)'
+                  }}>
+                    {/* Stage Section Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '18px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                       <div>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', letterSpacing: '0.5px' }}>{bld.code || 'BLD-01'}</span>
-                        <h3 style={{ margin: '2px 0 0 0', fontSize: '18px', color: 'var(--color-primary-dark)' }}>{bld.buildingName}</h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '20px' }}>
+                            {stg.id === 'kindergarten' ? '🧸' : stg.id === 'primary' ? '🎒' : stg.id === 'middle' ? '🏫' : '🎓'}
+                          </span>
+                          <h3 style={{ margin: 0, fontSize: '17px', color: 'var(--color-primary-dark)' }}>
+                            {stg.name}
+                          </h3>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '6px', fontSize: '12px', color: '#64748b' }}>
+                          <span>إجمالي الفصول: <strong>{stg.classesCount} شعبة</strong></span>
+                          <span>•</span>
+                          <span>إجمالي الطلاب: <strong style={{ color: '#0d9488' }}>{stg.studentsCount} طالب</strong></span>
+                          <span>•</span>
+                          <span>متوسط الكثافة: <strong>{stg.density} طالب/فصل</strong></span>
+                          <span>•</span>
+                          <span>نسبة الإشغال: <strong>{stg.utilization}%</strong></span>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           onClick={() => {
-                            setEditingBuilding(bld);
-                            setBuildingForm({ ...bld });
-                            setShowBuildingModal(true);
+                            setBatchStage(stg.id);
+                            handleBatchInitStageClasses(stg.id, filterTrack !== 'all' ? filterTrack : 'national', filterGender !== 'all' ? filterGender : 'boys');
                           }}
-                          style={{ padding: '6px', background: '#f1f5f9', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#475569' }}
-                          title="تعديل المبنى"
+                          className="btn"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            background: '#f0fdf4',
+                            border: '1px solid #86efac',
+                            color: '#166534',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
                         >
-                          <Edit size={16} />
+                          <Sparkles size={13} /> تهيئة سريعة للمرحلة
                         </button>
+
                         <button
-                          onClick={() => handleDeleteBuilding(bld.id)}
-                          style={{ padding: '6px', background: '#fee2e2', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#dc2626' }}
-                          title="حذف المبنى"
+                          onClick={() => {
+                            setEditingClass(null);
+                            setClassForm({
+                              name: '',
+                              stage: stg.id,
+                              track: filterTrack !== 'all' ? filterTrack : 'national',
+                              gender: filterGender !== 'all' ? filterGender : 'boys',
+                              grade: '',
+                              section: 'أ',
+                              studentCount: stg.id === 'kindergarten' ? 18 : 24,
+                              capacity: stg.defaultClassCapacity || 25,
+                              homeroomTeacher: '',
+                              classroomNumber: '',
+                              notes: ''
+                            });
+                            setShowClassModal(true);
+                          }}
+                          className="btn btn-primary"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                            border: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
                         >
-                          <Trash2 size={16} />
+                          <Plus size={14} /> إضافة فصل
                         </button>
                       </div>
                     </div>
 
-                    {/* Badges */}
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        padding: '3px 10px',
-                        borderRadius: '12px',
-                        background: bld.track === 'international' ? 'rgba(124, 58, 237, 0.15)' : 'rgba(13, 148, 136, 0.15)',
-                        color: bld.track === 'international' ? '#7c3aed' : '#0d9488'
-                      }}>
-                        {bld.track === 'international' ? 'المسار الدولي' : 'المسار الأهلي'}
-                      </span>
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        padding: '3px 10px',
-                        borderRadius: '12px',
-                        background: bld.gender === 'girls' ? 'rgba(219, 39, 119, 0.15)' : 'rgba(37, 99, 235, 0.15)',
-                        color: bld.gender === 'girls' ? '#db2777' : '#2563eb'
-                      }}>
-                        {bld.gender === 'girls' ? 'قسم البنات' : 'قسم البنين'}
-                      </span>
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        padding: '3px 10px',
-                        borderRadius: '12px',
-                        background: '#ecfdf5',
-                        color: '#059669'
-                      }}>
-                        حالة المبنى: {bld.condition || 'ممتاز'}
-                      </span>
-                    </div>
+                    {/* Stage Classes Grid */}
+                    {stageClasses.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '36px 20px', background: '#f8fafc', borderRadius: '14px', border: '1px dashed #cbd5e1' }}>
+                        <School size={36} style={{ color: '#94a3b8', marginBottom: '8px' }} />
+                        <h4 style={{ margin: '0 0 6px 0', color: '#475569' }}>لم يتم تسجيل فصول في هذه المرحلة بعد</h4>
+                        <p style={{ margin: '0 0 14px 0', color: '#64748b', fontSize: '13px' }}>
+                          يمكنك إضافة شعبة دراسية مخصصة أو استخدام التهيئة السريعة لإنشاء كافة شعب المرحلة بضغطة زر.
+                        </p>
+                        <button
+                          onClick={() => handleBatchInitStageClasses(stg.id, filterTrack !== 'all' ? filterTrack : 'national', filterGender !== 'all' ? filterGender : 'boys')}
+                          className="btn btn-primary"
+                          style={{ fontSize: '12px', padding: '7px 16px' }}
+                        >
+                          ⚡ إنشاء كافة شعب المرحلة تلقائياً
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+                        {stageClasses.map(cls => {
+                          const count = Number(cls.studentCount || 0);
+                          const cap = Number(cls.capacity || stg.defaultClassCapacity || 25);
+                          const util = cap > 0 ? Math.min(100, Math.round((count / cap) * 100)) : 0;
 
-                    {/* Stats Grid */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: '10px',
-                      background: '#f8fafc',
-                      padding: '14px',
-                      borderRadius: '12px',
-                      marginBottom: '16px',
-                      textAlign: 'center'
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>الطاقة القصوى</div>
-                        <div style={{ fontSize: '17px', fontWeight: 800, color: '#1e293b' }}>{bld.capacity}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>الفصول المستغلة</div>
-                        <div style={{ fontSize: '17px', fontWeight: 800, color: '#0d9488' }}>{bld.activeClassrooms} / {bld.totalRooms}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>الأدوار / المساحة</div>
-                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>{bld.floors} د • {bld.areaSqMeters}م²</div>
-                      </div>
-                    </div>
-
-                    {/* Facilities Pills */}
-                    <div>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>المرافق والتجهيزات المتوفرة:</span>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {(bld.facilities || []).map(facKey => {
-                          const facItem = BUILDING_FACILITIES_CATALOG.find(f => f.id === facKey);
                           return (
-                            <span key={facKey} style={{
-                              fontSize: '11px',
-                              background: 'white',
-                              border: '1px solid #cbd5e1',
-                              padding: '2px 8px',
-                              borderRadius: '8px',
-                              color: '#334155'
+                            <div key={cls.id} style={{
+                              background: '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '14px',
+                              padding: '16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              transition: 'all 0.2s ease',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
                             }}>
-                              ✓ {facItem?.name || facKey}
-                            </span>
+                              <div>
+                                {/* Class Header */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                  <div>
+                                    <h4 style={{ margin: 0, fontSize: '15px', color: '#1e293b' }}>{cls.name}</h4>
+                                    <span style={{ fontSize: '11px', color: '#64748b' }}>{cls.grade || 'الصف'} • شعبة ({cls.section || 'أ'})</span>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '4px' }}>
+                                    <button
+                                      onClick={() => {
+                                        setEditingClass(cls);
+                                        setClassForm({ ...cls });
+                                        setShowClassModal(true);
+                                      }}
+                                      style={{ padding: '5px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', color: '#475569' }}
+                                      title="تعديل بيانات الفصل"
+                                    >
+                                      <Edit size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteClass(cls.id)}
+                                      style={{ padding: '5px', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', color: '#dc2626' }}
+                                      title="حذف الفصل"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Track & Gender Badges */}
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                                  <span style={{
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
+                                    borderRadius: '8px',
+                                    background: cls.track === 'international' ? 'rgba(124, 58, 237, 0.12)' : 'rgba(13, 148, 136, 0.12)',
+                                    color: cls.track === 'international' ? '#7c3aed' : '#0d9488'
+                                  }}>
+                                    {cls.track === 'international' ? 'مسار دولي' : 'مسار أهلي'}
+                                  </span>
+                                  <span style={{
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
+                                    borderRadius: '8px',
+                                    background: cls.gender === 'girls' ? 'rgba(219, 39, 119, 0.12)' : 'rgba(37, 99, 235, 0.12)',
+                                    color: cls.gender === 'girls' ? '#db2777' : '#2563eb'
+                                  }}>
+                                    {cls.gender === 'girls' ? 'بنات' : 'بنين'}
+                                  </span>
+                                  {cls.classroomNumber && (
+                                    <span style={{ fontSize: '11px', background: 'white', padding: '2px 6px', borderRadius: '6px', border: '1px solid #e2e8f0', color: '#475569' }}>
+                                      قاعة: {cls.classroomNumber}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Interactive Student Count Live Controller */}
+                                <div style={{
+                                  background: 'white',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '10px',
+                                  padding: '10px 12px',
+                                  marginBottom: '10px'
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+                                      عدد طلاب هذا الفصل:
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleQuickUpdateStudentCount(cls.id, count - 1)}
+                                        style={{
+                                          width: '24px',
+                                          height: '24px',
+                                          borderRadius: '6px',
+                                          border: '1px solid #cbd5e1',
+                                          background: '#f8fafc',
+                                          cursor: 'pointer',
+                                          fontWeight: 800,
+                                          fontSize: '14px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          color: '#475569'
+                                        }}
+                                        title="إنقاص طالب"
+                                      >
+                                        -
+                                      </button>
+                                      <input
+                                        type="number"
+                                        value={count}
+                                        onChange={(e) => handleQuickUpdateStudentCount(cls.id, e.target.value)}
+                                        style={{
+                                          width: '45px',
+                                          textAlign: 'center',
+                                          fontSize: '15px',
+                                          fontWeight: 800,
+                                          color: '#0f766e',
+                                          border: '1px solid #0d9488',
+                                          borderRadius: '6px',
+                                          padding: '2px 4px'
+                                        }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleQuickUpdateStudentCount(cls.id, count + 1)}
+                                        style={{
+                                          width: '24px',
+                                          height: '24px',
+                                          borderRadius: '6px',
+                                          border: '1px solid #cbd5e1',
+                                          background: '#f0fdf4',
+                                          cursor: 'pointer',
+                                          fontWeight: 800,
+                                          fontSize: '14px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          color: '#16a34a'
+                                        }}
+                                        title="إضافة طالب"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Occupancy bar */}
+                                  <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden', marginBlock: '4px' }}>
+                                    <div style={{
+                                      width: `${util}%`,
+                                      height: '100%',
+                                      background: util > 100 ? '#dc2626' : util >= 80 ? '#10b981' : '#f59e0b',
+                                      borderRadius: '3px'
+                                    }} />
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                                    <span>السعة القصوى: {cap} طالب</span>
+                                    <span style={{ fontWeight: 700, color: util > 100 ? '#dc2626' : '#0f766e' }}>{util}% إشغال</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Homeroom teacher */}
+                              <div style={{ fontSize: '11.5px', color: '#64748b', borderTop: '1px solid #f1f5f9', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>رائد الفصل: <strong>{cls.homeroomTeacher || 'غير معين'}</strong></span>
+                                <span style={{ fontSize: '10px', color: '#10b981' }}>● متزامن لحظياً</span>
+                              </div>
+                            </div>
                           );
                         })}
                       </div>
-                    </div>
+                    )}
                   </div>
-
-                  {bld.notes && (
-                    <div style={{ marginTop: '14px', fontSize: '12px', color: '#64748b', fontStyle: 'italic', borderTop: '1px dashed #e2e8f0', paddingTop: '8px' }}>
-                      ملاحظة: {bld.notes}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                );
+              })}
+          </div>
         </div>
       )}
 
@@ -3165,6 +3724,363 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 6: Add / Edit Class & Section (Real-time Live Sync) */}
+      {showClassModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '640px', maxHeight: '92vh', overflowY: 'auto',
+            background: 'white', padding: '28px', borderRadius: '20px', position: 'relative'
+          }}>
+            <button
+              onClick={() => { setShowClassModal(false); setEditingClass(null); }}
+              style={{ position: 'absolute', left: '20px', top: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <X size={20} color="#64748b" />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+              <div style={{
+                width: '42px', height: '42px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
+                boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)'
+              }}>
+                <School size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--color-primary-dark)' }}>
+                  {editingClass ? 'تعديل بيانات الفصل والشعبة' : 'إضافة فصل / شعبة دراسية جديدة'}
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  يتم حفظ وتحديث عدد الطلاب والطاقة الاستيعابية ومزامنتها لحظياً مع حساب الماستر
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveClass} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>اسم الفصل / الشعبة *</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  required
+                  value={classForm.name}
+                  onChange={(e) => setClassForm({ ...classForm, name: e.target.value })}
+                  placeholder="مثال: الصف الأول الابتدائي (أ) أو KG2 - شعبة الزهور"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>المرحلة التعليمية *</label>
+                  <select
+                    className="input-field"
+                    value={classForm.stage}
+                    onChange={(e) => {
+                      const newStage = e.target.value;
+                      const defCap = newStage === 'kindergarten' ? 20 : newStage === 'primary' ? 25 : newStage === 'middle' ? 28 : 30;
+                      setClassForm({ ...classForm, stage: newStage, capacity: defCap });
+                    }}
+                  >
+                    {RESOURCE_STAGES.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>المسار التعليمي *</label>
+                  <select
+                    className="input-field"
+                    value={classForm.track}
+                    onChange={(e) => setClassForm({ ...classForm, track: e.target.value })}
+                  >
+                    <option value="national">المسار الأهلي المطور</option>
+                    <option value="international">المسار الدولي / الدبلومة الأمريكية</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>القسم (الجنس) *</label>
+                  <select
+                    className="input-field"
+                    value={classForm.gender}
+                    onChange={(e) => setClassForm({ ...classForm, gender: e.target.value })}
+                    style={{ fontSize: '12px' }}
+                  >
+                    <option value="boys">بنين (Boys)</option>
+                    <option value="girls">بنات (Girls)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>الصف الدراسي</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={classForm.grade}
+                    onChange={(e) => setClassForm({ ...classForm, grade: e.target.value })}
+                    placeholder="الصف الأول"
+                    style={{ fontSize: '12px' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>رمز الشعبة</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={classForm.section}
+                    onChange={(e) => setClassForm({ ...classForm, section: e.target.value })}
+                    placeholder="أ / 1"
+                    style={{ fontSize: '12px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#0d9488', marginBottom: '6px' }}>
+                    عدد الطلاب الفعلي المسجلين *
+                  </label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    required
+                    min="0"
+                    max="60"
+                    value={classForm.studentCount}
+                    onChange={(e) => setClassForm({ ...classForm, studentCount: Number(e.target.value) })}
+                    style={{ fontSize: '15px', fontWeight: 800, color: '#0f766e' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                    الطاقة الاستيعابية للفصل *
+                  </label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    required
+                    min="1"
+                    max="60"
+                    value={classForm.capacity}
+                    onChange={(e) => setClassForm({ ...classForm, capacity: Number(e.target.value) })}
+                    style={{ fontSize: '14px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>رائد / مربي الفصل (اختياري)</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={classForm.homeroomTeacher}
+                    onChange={(e) => setClassForm({ ...classForm, homeroomTeacher: e.target.value })}
+                    placeholder="اسم المعلم"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>رقم القاعة الدراسية</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={classForm.classroomNumber}
+                    onChange={(e) => setClassForm({ ...classForm, classroomNumber: e.target.value })}
+                    placeholder="قاعة 102"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>ملاحظات وتفاصيل إضافية</label>
+                <textarea
+                  className="input-field"
+                  rows="2"
+                  value={classForm.notes}
+                  onChange={(e) => setClassForm({ ...classForm, notes: e.target.value })}
+                  placeholder="ملاحظات حول التجهيزات، الطلاب الموهوبين، شاشات التعلم الذكي..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowClassModal(false); setEditingClass(null); }}
+                  className="btn btn-outline"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingClass}
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 700
+                  }}
+                >
+                  <Check size={16} />
+                  <span>{isSavingClass ? 'جاري الحفظ والمزامنة...' : (editingClass ? 'حفظ التعديلات' : 'إضافة وتثبيت الفصل')}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 7: Quick Batch Stage Initialization Modal */}
+      {showQuickBatchModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto',
+            background: 'white', padding: '28px', borderRadius: '20px', position: 'relative'
+          }}>
+            <button
+              onClick={() => setShowQuickBatchModal(false)}
+              style={{ position: 'absolute', left: '20px', top: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <X size={20} color="#64748b" />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+              <div style={{
+                width: '42px', height: '42px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, #059669, #10b981)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+              }}>
+                <Sparkles size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#166534' }}>
+                  تهيئة وتوليد شعب المرحلة دفعة واحدة
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  إنشاء الشعب الدراسية النموذجية للمرحلة المحددة تلقائياً مع أعداد الطلاب والسعات
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>المرحلة التعليمية المراد تهيئتها *</label>
+                <select
+                  className="input-field"
+                  value={batchStage}
+                  onChange={(e) => setBatchStage(e.target.value)}
+                  style={{ fontWeight: 600 }}
+                >
+                  {RESOURCE_STAGES.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.defaultGrades?.join('، ') || 'كافة الصفوف'})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>المسار *</label>
+                  <select
+                    className="input-field"
+                    value={filterTrack !== 'all' ? filterTrack : 'national'}
+                    onChange={(e) => setFilterTrack(e.target.value)}
+                  >
+                    <option value="national">المسار الأهلي</option>
+                    <option value="international">المسار الدولي</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>القسم *</label>
+                  <select
+                    className="input-field"
+                    value={filterGender !== 'all' ? filterGender : 'boys'}
+                    onChange={(e) => setFilterGender(e.target.value)}
+                  >
+                    <option value="boys">بنين (Boys)</option>
+                    <option value="girls">بنات (Girls)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '14px', borderRadius: '12px' }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '13.5px', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 size={16} /> ملخص الشعب التي سيتم إنشاؤها تلقائياً:
+                </h4>
+                <ul style={{ margin: 0, paddingRight: '20px', fontSize: '12.5px', color: '#15803d', lineHeight: 1.7 }}>
+                  {batchStage === 'kindergarten' && (
+                    <>
+                      <li>شعب تمهيدي أول (KG1 - أ / ب) بمعدل 18 طالباً</li>
+                      <li>شعب تمهيدي ثانٍ (KG2 - أ / ب) بمعدل 20 طالباً</li>
+                      <li>شعب تمهيدي ثالث (KG3 - أ / ب) بمعدل 20 طالباً</li>
+                    </>
+                  )}
+                  {batchStage === 'primary' && (
+                    <>
+                      <li>شعب الصف الأول والثاني والثالث الابتدائي (أ / ب) بمعدل 24-25 طالباً</li>
+                      <li>شعب الصف الرابع والخامس والسادس الابتدائي (أ / ب) بمعدل 26-27 طالباً</li>
+                    </>
+                  )}
+                  {batchStage === 'middle' && (
+                    <>
+                      <li>شعب الصف الأول والثاني والثالث المتوسط (أ / ب) بمعدل 28 طالباً</li>
+                    </>
+                  )}
+                  {batchStage === 'high' && (
+                    <>
+                      <li>شعب الصف الأول والثاني والثالث الثانوي (أ / ب) بمعدل 30 طالباً</li>
+                    </>
+                  )}
+                </ul>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickBatchModal(false)}
+                  className="btn btn-outline"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingClass}
+                  onClick={() => handleBatchInitStageClasses(batchStage, filterTrack !== 'all' ? filterTrack : 'national', filterGender !== 'all' ? filterGender : 'boys')}
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #059669, #10b981)',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 700
+                  }}
+                >
+                  <Sparkles size={16} />
+                  <span>{isSavingClass ? 'جاري الإنشاء والرفع...' : 'تأكيد وإنشاء شعب المرحلة الآن'}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
