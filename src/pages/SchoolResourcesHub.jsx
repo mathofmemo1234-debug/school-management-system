@@ -18,6 +18,7 @@ import {
   RESOURCE_GENDERS,
   BUILDING_FACILITIES_CATALOG,
   STANDARD_SUBJECT_QUOTAS,
+  ALL_SCHOOL_SUBJECTS,
   DEFAULT_BRANCH_BUILDINGS_SEED
 } from '../data/resourceData';
 
@@ -74,10 +75,22 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     notes: ''
   });
 
+  // Grouped Subjects Catalog for Selectors
+  const subjectsByCategory = useMemo(() => {
+    const map = {};
+    (ALL_SCHOOL_SUBJECTS || []).forEach(sub => {
+      const cat = sub.category || 'عام';
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(sub);
+    });
+    return map;
+  }, []);
+
   // Transfer Request Form State
   const [transferForm, setTransferForm] = useState({
     type: 'need', // 'need' | 'release'
     subject: 'الرياضيات',
+    customSubject: '',
     track: 'national',
     gender: 'boys',
     stage: 'primary',
@@ -94,6 +107,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
   const [directiveForm, setDirectiveForm] = useState({
     targetSchoolId: '',
     subject: 'الرياضيات',
+    customSubject: '',
     actionType: 'transfer_surplus', // 'transfer_surplus' | 'fill_deficit' | 'optimize_density' | 'custom'
     title: '',
     content: '',
@@ -426,23 +440,40 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
     }
   };
 
-  // Submit Transfer Request (Need / Release)
+  // Submit Transfer Request (Need / Release / Directive)
   const handleSubmitTransferRequest = async (e) => {
     e.preventDefault();
     try {
-      const currentTargetSchool = selectedSchoolId || userData?.schoolId || 'main_school';
+      const finalSubject = (transferForm.subject.includes('أخرى') || transferForm.subject === 'مادة أخرى (تحديد يدوي)') && transferForm.customSubject.trim()
+        ? transferForm.customSubject.trim()
+        : transferForm.subject;
+
+      const currentTargetSchool = isSuperAdmin 
+        ? (transferForm.targetSchoolId || selectedSchoolId || 'main_school')
+        : (selectedSchoolId || userData?.schoolId || 'main_school');
+
+      const targetSchoolObj = schoolsList.find(s => s.id === currentTargetSchool);
+
       await addDoc(collection(db, 'resource_transfer_requests'), {
         ...transferForm,
+        subject: finalSubject,
         schoolId: currentTargetSchool,
-        schoolName: currentSchoolInfo.name,
-        requesterName: userData?.name || 'مدير المدرسة',
+        schoolName: targetSchoolObj?.name || currentSchoolInfo.name,
+        targetSchoolId: currentTargetSchool,
+        targetSchoolName: targetSchoolObj?.name || currentSchoolInfo.name,
+        requesterName: isSuperAdmin ? (userData?.name || 'الماستر العام (Super Admin)') : (userData?.name || 'مدير المدرسة'),
         requesterRole: effectiveRole,
         requesterNid: userData?.nationalId || '',
-        status: 'pending', // 'pending' | 'approved' | 'rejected' | 'completed'
+        isDirective: isSuperAdmin,
+        status: isSuperAdmin ? 'approved' : 'pending', // 'pending' | 'approved' | 'rejected' | 'completed'
         createdAt: Date.now()
       });
       setShowTransferModal(false);
-      alert('تم إرسال الطلب بنجاح إلى الإدارة العامة والماستر للنظر والتوجيه.');
+      if (isSuperAdmin) {
+        alert(`تم إرسال وتوجيه القرار الإداري بنجاح إلى مدير ${targetSchoolObj?.name || 'المدرسة'}.`);
+      } else {
+        alert('تم إرسال الطلب بنجاح إلى الإدارة العامة والماستر للنظر والاعتماد.');
+      }
     } catch (err) {
       console.error('Error submitting transfer request:', err);
       alert('حدث خطأ أثناء إرسال الطلب.');
@@ -453,9 +484,18 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
   const handleSubmitDirective = async (e) => {
     e.preventDefault();
     try {
+      const finalSubject = (directiveForm.subject.includes('أخرى') || directiveForm.subject === 'مادة أخرى (تحديد يدوي)') && directiveForm.customSubject.trim()
+        ? directiveForm.customSubject.trim()
+        : directiveForm.subject;
+
+      const targetSchool = directiveForm.targetSchoolId || selectedSchoolId || 'ALL';
+      const targetSchoolObj = schoolsList.find(s => s.id === targetSchool);
+
       await addDoc(collection(db, 'resource_directives'), {
         ...directiveForm,
-        targetSchoolId: directiveForm.targetSchoolId || selectedSchoolId || 'ALL',
+        subject: finalSubject,
+        targetSchoolId: targetSchool,
+        targetSchoolName: targetSchool === 'ALL' ? 'كافة فروع ومجمعات الشركة' : (targetSchoolObj?.name || 'الفرع المستهدف'),
         senderName: userData?.name || 'الماستر العام (Super Admin)',
         senderRole: 'superadmin',
         createdAt: Date.now(),
@@ -574,6 +614,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
               setTransferForm({
                 type: 'need',
                 subject: 'الرياضيات',
+                customSubject: '',
                 track: 'national',
                 gender: 'boys',
                 stage: 'primary',
@@ -583,7 +624,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                 requiredPeriods: 20,
                 urgency: 'high',
                 reason: '',
-                targetSchoolId: ''
+                targetSchoolId: selectedSchoolId || ''
               });
               setShowTransferModal(true);
             }}
@@ -592,7 +633,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              background: 'linear-gradient(135deg, #0d9488 0%, #0284c7 100%)',
+              background: isSuperAdmin ? 'linear-gradient(135deg, #0f766e 0%, #0369a1 100%)' : 'linear-gradient(135deg, #0d9488 0%, #0284c7 100%)',
               color: 'white',
               border: 'none',
               padding: '10px 18px',
@@ -601,7 +642,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
             }}
           >
             <ArrowLeftRight size={17} />
-            <span>طلب استعانة / ندب معلمين</span>
+            <span>{isSuperAdmin ? 'إصدار قرار ندب / سد عجز لمدرسة' : 'طلب استعانة / ندب معلمين'}</span>
           </button>
 
           <button
@@ -1546,6 +1587,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                   setTransferForm({
                     type: 'need',
                     subject: 'الرياضيات',
+                    customSubject: '',
                     track: 'national',
                     gender: 'boys',
                     stage: 'primary',
@@ -1555,14 +1597,14 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                     requiredPeriods: 20,
                     urgency: 'high',
                     reason: '',
-                    targetSchoolId: ''
+                    targetSchoolId: selectedSchoolId || ''
                   });
                   setShowTransferModal(true);
                 }}
                 className="btn btn-primary"
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, #ef4444, #dc2626)', border: 'none' }}
               >
-                <Plus size={17} /> تقديم طلب استعانة (سد عجز)
+                <Plus size={17} /> {isSuperAdmin ? 'إصدار قرار سد عجز وتكليف كادر لمدرسة' : 'تقديم طلب استعانة (سد عجز)'}
               </button>
 
               <button
@@ -1570,6 +1612,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                   setTransferForm({
                     type: 'release',
                     subject: 'الرياضيات',
+                    customSubject: '',
                     track: 'national',
                     gender: 'boys',
                     stage: 'primary',
@@ -1579,14 +1622,14 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                     requiredPeriods: 20,
                     urgency: 'normal',
                     reason: '',
-                    targetSchoolId: ''
+                    targetSchoolId: selectedSchoolId || ''
                   });
                   setShowTransferModal(true);
                 }}
                 className="btn btn-primary"
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', border: 'none' }}
               >
-                <TrendingUp size={17} /> إتاحة / ندب معلم فائض
+                <TrendingUp size={17} /> {isSuperAdmin ? 'إصدار قرار ندب كادر فائض لمدرسة أخرى' : 'إتاحة / ندب معلم فائض'}
               </button>
             </div>
           </div>
@@ -1628,7 +1671,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
           {/* Transfer Requests Board */}
           <div className="glass-panel" style={{ padding: '24px', borderRadius: '18px' }}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: '17px', color: 'var(--color-primary-dark)' }}>
-              سجل طلبات التنقل والاستعانة والاستغناء ({transferRequests.length})
+              سجل طلبات التنقل والاستعانة والاستغناء والتوجيهات ({transferRequests.length})
             </h3>
 
             {transferRequests.length === 0 ? (
@@ -1638,58 +1681,66 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {transferRequests.map(req => (
-                  <div key={req.id} style={{
-                    background: 'white',
-                    borderRadius: '14px',
-                    padding: '16px 20px',
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '14px'
-                  }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                {transferRequests.map(req => {
+                  const isMasterDirective = req.isDirective || req.requesterRole === 'superadmin';
+                  return (
+                    <div key={req.id} style={{
+                      background: isMasterDirective ? 'linear-gradient(135deg, rgba(245, 243, 255, 0.6), rgba(255, 255, 255, 0.9))' : 'white',
+                      borderRadius: '14px',
+                      padding: '16px 20px',
+                      border: isMasterDirective ? '1px solid #c7d2fe' : '1px solid #e2e8f0',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '14px'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                          <span style={{
+                            fontSize: '12px',
+                            fontWeight: 800,
+                            padding: '3px 10px',
+                            borderRadius: '8px',
+                            background: isMasterDirective ? '#e0e7ff' : req.type === 'need' ? '#fee2e2' : '#dbeafe',
+                            color: isMasterDirective ? '#4338ca' : req.type === 'need' ? '#b91c1c' : '#1e40af'
+                          }}>
+                            {isMasterDirective 
+                              ? '📢 قرار وتوجيه إداري من الماستر' 
+                              : req.type === 'need' ? '🚨 طلب استعانة (سد عجز)' : '🌟 طلب إتاحة / ندب كادر فائض'}
+                          </span>
+
+                          <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>
+                            مادة {req.subject} • {req.track === 'international' ? 'مسار دولي' : 'مسار أهلي'} • {req.gender === 'girls' ? 'بنات' : 'بنين'}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '13px', color: '#64748b' }}>
+                          {req.teacherName ? `المعلم المرشح: ${req.teacherName} (نصاب ${req.currentLoad || 8} حصص)` : `الحصص المطلوبة: ${req.requiredPeriods || 20} حصة أسبوعية`}
+                          {req.reason && ` • البيان: ${req.reason}`}
+                        </div>
+
+                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                          {isMasterDirective ? (
+                            <span>📢 الصادر من: <strong>{req.requesterName}</strong> • موجه إلى: <strong style={{ color: '#4338ca' }}>{req.targetSchoolName || req.schoolName}</strong> • {new Date(req.createdAt).toLocaleDateString('ar-SA')}</span>
+                          ) : (
+                            <span>📩 مقدم الطلب: <strong>{req.requesterName}</strong> ({req.schoolName}) • موجه إلى: <strong>الإدارة العامة والماستر</strong> • {new Date(req.createdAt).toLocaleDateString('ar-SA')}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {/* Status Badge */}
                         <span style={{
                           fontSize: '12px',
                           fontWeight: 800,
-                          padding: '3px 10px',
-                          borderRadius: '8px',
-                          background: req.type === 'need' ? '#fee2e2' : '#dbeafe',
-                          color: req.type === 'need' ? '#b91c1c' : '#1e40af'
+                          padding: '5px 12px',
+                          borderRadius: '10px',
+                          background: req.status === 'approved' ? '#dcfce7' : req.status === 'rejected' ? '#fee2e2' : '#fef3c7',
+                          color: req.status === 'approved' ? '#15803d' : req.status === 'rejected' ? '#b91c1c' : '#b45309'
                         }}>
-                          {req.type === 'need' ? '🚨 طلب استعانة (سد عجز)' : '🌟 طلب إتاحة / ندب كادر فائض'}
+                          {req.status === 'approved' ? '✓ تم الاعتماد والتوجيه' : req.status === 'rejected' ? '✕ مرفوض' : '⏳ قيد الدراسة لدى الماستر'}
                         </span>
-
-                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>
-                          مادة {req.subject} • {req.track === 'international' ? 'مسار دولي' : 'مسار أهلي'} • {req.gender === 'girls' ? 'بنات' : 'بنين'}
-                        </span>
-                      </div>
-
-                      <div style={{ fontSize: '13px', color: '#64748b' }}>
-                        {req.teacherName ? `المعلم المرشح: ${req.teacherName} (نصاب ${req.currentLoad || 8} حصص)` : `الحصص المطلوبة: ${req.requiredPeriods || 20} حصة أسبوعية`}
-                        {req.reason && ` • السبب: ${req.reason}`}
-                      </div>
-
-                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
-                        مقدم الطلب: {req.requesterName} ({req.schoolName}) • {new Date(req.createdAt).toLocaleDateString('ar-SA')}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      {/* Status Badge */}
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: 800,
-                        padding: '5px 12px',
-                        borderRadius: '10px',
-                        background: req.status === 'approved' ? '#dcfce7' : req.status === 'rejected' ? '#fee2e2' : '#fef3c7',
-                        color: req.status === 'approved' ? '#15803d' : req.status === 'rejected' ? '#b91c1c' : '#b45309'
-                      }}>
-                        {req.status === 'approved' ? '✓ تم الاعتماد والتوجيه' : req.status === 'rejected' ? '✕ مرفوض' : '⏳ قيد الدراسة لدى الماستر'}
-                      </span>
 
                       {/* SuperAdmin Action Buttons */}
                       {isSuperAdmin && req.status === 'pending' && (
@@ -1712,7 +1763,8 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                       )}
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
             )}
           </div>
@@ -1884,14 +1936,14 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
         </div>
       )}
 
-      {/* Modal 2: Transfer / Need Request */}
+      {/* Modal 2: Transfer / Need Request & SuperAdmin Directives */}
       {showTransferModal && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100,
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
         }}>
           <div className="glass-panel" style={{
-            width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto',
+            width: '100%', maxWidth: '620px', maxHeight: '90vh', overflowY: 'auto',
             background: 'white', padding: '28px', borderRadius: '20px', position: 'relative'
           }}>
             <button
@@ -1901,13 +1953,53 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
               <X size={20} color="#64748b" />
             </button>
 
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: 'var(--color-primary-dark)' }}>
-              {transferForm.type === 'need' ? 'طلب استعانة بمعلم جديد (سد عجز)' : 'طلب إتاحة / ندب معلم فائض (إتاحة كادر)'}
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{
+                width: '38px', height: '38px', borderRadius: '10px',
+                background: isSuperAdmin ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' : 'linear-gradient(135deg, #0d9488, #0284c7)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white'
+              }}>
+                {isSuperAdmin ? <Send size={20} /> : <ArrowLeftRight size={20} />}
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: isSuperAdmin ? '#4338ca' : 'var(--color-primary-dark)' }}>
+                  {isSuperAdmin
+                    ? (transferForm.type === 'need' ? 'توجيه وقرار إداري بسد عجز وتكليف كادر لمدرسة' : 'قرار إداري بنقل وندب معلم فائض لفرع آخر')
+                    : (transferForm.type === 'need' ? 'طلب استعانة بمعلم جديد لسد العجز (للإدارة العامة والماستر)' : 'طلب إتاحة / ندب معلم فائض (للإدارة العامة والماستر)')
+                  }
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  {isSuperAdmin ? 'توجيه رسمي مباشر صادر من الإدارة العامة إلى مدير المجمع والفرع' : 'رفع طلب رسمي للإدارة العامة وسوبر أدمن المدارس لاتخاذ قرار التوزيع'}
+                </p>
+              </div>
+            </div>
 
             <form onSubmit={handleSubmitTransferRequest} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Target School Selector for SuperAdmin */}
+              {isSuperAdmin && (
+                <div style={{ background: '#f5f3ff', border: '1px solid #c7d2fe', padding: '12px 14px', borderRadius: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#4338ca', marginBottom: '6px' }}>
+                    المدرسة / مدير المدرسة الموجه إليه القرار الإداري *
+                  </label>
+                  <select
+                    className="input-field"
+                    required
+                    value={transferForm.targetSchoolId || selectedSchoolId}
+                    onChange={(e) => setTransferForm({ ...transferForm, targetSchoolId: e.target.value })}
+                    style={{ borderColor: '#818cf8', fontWeight: 600 }}
+                  >
+                    {schoolsList.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: '11px', color: '#6366f1', marginTop: '4px', display: 'block' }}>
+                    💡 سيصل هذا القرار والتوجيه فوراً إلى لوحة تحكم مدير الفرع المختار.
+                  </span>
+                </div>
+              )}
+
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>نوع الطلب *</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>نوع المعاملة *</label>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
                     <input
@@ -1917,7 +2009,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                       checked={transferForm.type === 'need'}
                       onChange={() => setTransferForm({ ...transferForm, type: 'need' })}
                     />
-                    <span>🚨 طلب استعانة (سد عجز)</span>
+                    <span>🚨 {isSuperAdmin ? 'قرار تكليف لسد عجز' : 'طلب استعانة (سد عجز)'}</span>
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
                     <input
@@ -1927,45 +2019,72 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                       checked={transferForm.type === 'release'}
                       onChange={() => setTransferForm({ ...transferForm, type: 'release' })}
                     />
-                    <span>🌟 إتاحة وندب كادر فائض</span>
+                    <span>🌟 {isSuperAdmin ? 'قرار ندب كادر فائض' : 'إتاحة وندب كادر فائض'}</span>
                   </label>
                 </div>
               </div>
 
+              {/* Comprehensive Subjects Dropdown */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                  المادة الدراسية / التخصص (جميع المواد والمسارات) *
+                </label>
+                <select
+                  className="input-field"
+                  value={transferForm.subject}
+                  onChange={(e) => setTransferForm({ ...transferForm, subject: e.target.value })}
+                  style={{ fontWeight: 600 }}
+                >
+                  {Object.entries(subjectsByCategory).map(([cat, list]) => (
+                    <optgroup key={cat} label={`── ${cat} ──`}>
+                      {list.map(s => (
+                        <option key={s.id} value={s.name}>{s.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              {/* Custom Subject Text Input if 'أخرى' is selected */}
+              {(transferForm.subject.includes('أخرى') || transferForm.subject === 'مادة أخرى (تحديد يدوي)') && (
+                <div style={{ background: '#f0fdf4', padding: '10px 14px', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '4px', color: '#166534' }}>
+                    اكتب اسم المادة أو التخصص بالتفصيل *
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    required
+                    value={transferForm.customSubject}
+                    onChange={(e) => setTransferForm({ ...transferForm, customSubject: e.target.value })}
+                    placeholder="مثال: علم البيانات والذكاء الاصطناعي، AP Microeconomics، الروبوت..."
+                  />
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>المادة الدراسية *</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>المسار التعليمي *</label>
                   <select
                     className="input-field"
-                    value={transferForm.subject}
-                    onChange={(e) => setTransferForm({ ...transferForm, subject: e.target.value })}
+                    value={transferForm.track}
+                    onChange={(e) => setTransferForm({ ...transferForm, track: e.target.value })}
                   >
-                    {STANDARD_SUBJECT_QUOTAS.map(s => (
-                      <option key={s.subject} value={s.subject}>{s.subject}</option>
-                    ))}
+                    <option value="national">المسار الأهلي المطور</option>
+                    <option value="international">المسار الدولي / الدبلومة الأمريكية</option>
                   </select>
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>المسار والقسم *</label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <select
-                      className="input-field"
-                      value={transferForm.track}
-                      onChange={(e) => setTransferForm({ ...transferForm, track: e.target.value })}
-                    >
-                      <option value="national">أهلي</option>
-                      <option value="international">دولي</option>
-                    </select>
-                    <select
-                      className="input-field"
-                      value={transferForm.gender}
-                      onChange={(e) => setTransferForm({ ...transferForm, gender: e.target.value })}
-                    >
-                      <option value="boys">بنين</option>
-                      <option value="girls">بنات</option>
-                    </select>
-                  </div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>القسم (الجنس) *</label>
+                  <select
+                    className="input-field"
+                    value={transferForm.gender}
+                    onChange={(e) => setTransferForm({ ...transferForm, gender: e.target.value })}
+                  >
+                    <option value="boys">بنين (Boys)</option>
+                    <option value="girls">بنات (Girls)</option>
+                  </select>
                 </div>
               </div>
 
@@ -1997,13 +2116,15 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
               )}
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>مبررات وتفاصيل الطلب</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                  {isSuperAdmin ? 'التوجيهات والقرارات المرفقة لمدير المدرسة' : 'مبررات وتفاصيل الطلب'}
+                </label>
                 <textarea
                   className="input-field"
                   rows="3"
                   value={transferForm.reason}
                   onChange={(e) => setTransferForm({ ...transferForm, reason: e.target.value })}
-                  placeholder="بيان سبب العجز أو ظروف الندب المقترح..."
+                  placeholder={isSuperAdmin ? 'اكتب التعليمات والقرارات الإدارية للمدير بخصوص تغطية الحصص والندب...' : 'بيان سبب العجز أو ظروف الندب المقترح...'}
                 />
               </div>
 
@@ -2011,8 +2132,22 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                 <button type="button" onClick={() => setShowTransferModal(false)} className="btn btn-outline">
                   إلغاء
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  إرسال الطلب للماستر
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    background: isSuperAdmin ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' : 'linear-gradient(135deg, #0d9488, #0284c7)',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: 700
+                  }}
+                >
+                  <Send size={16} />
+                  <span>
+                    {isSuperAdmin ? 'إرسال وتوجيه القرار لمدير المدرسة' : 'إرسال الطلب للإدارة العامة والماستر'}
+                  </span>
                 </button>
               </div>
             </form>
@@ -2027,7 +2162,7 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
         }}>
           <div className="glass-panel" style={{
-            width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto',
+            width: '100%', maxWidth: '620px', maxHeight: '90vh', overflowY: 'auto',
             background: 'white', padding: '28px', borderRadius: '20px', position: 'relative'
           }}>
             <button
@@ -2037,9 +2172,23 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
               <X size={20} color="#64748b" />
             </button>
 
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '19px', color: '#4f46e5' }}>
-              إرسال توجيه إداري رسمي لمدير المدرسة بخصوص الفائض والعجز
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{
+                width: '38px', height: '38px', borderRadius: '10px',
+                background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white'
+              }}>
+                <Send size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#4338ca' }}>
+                  إرسال توجيه إداري رسمي لمدير المدرسة بخصوص الفائض والعجز
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  قرارات وتعاميم الإدارة العامة للمدارس بخصوص الكوادر والفصول
+                </p>
+              </div>
+            </div>
 
             <form onSubmit={handleSubmitDirective} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
@@ -2055,6 +2204,40 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                   ))}
                 </select>
               </div>
+
+              {/* Subject Dropdown for Directives */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>المادة / التخصص المعني بالتوجيه *</label>
+                <select
+                  className="input-field"
+                  value={directiveForm.subject}
+                  onChange={(e) => setDirectiveForm({ ...directiveForm, subject: e.target.value })}
+                >
+                  {Object.entries(subjectsByCategory).map(([cat, list]) => (
+                    <optgroup key={cat} label={`── ${cat} ──`}>
+                      {list.map(s => (
+                        <option key={s.id} value={s.name}>{s.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              {(directiveForm.subject.includes('أخرى') || directiveForm.subject === 'مادة أخرى (تحديد يدوي)') && (
+                <div style={{ background: '#f0fdf4', padding: '10px 14px', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '4px', color: '#166534' }}>
+                    اكتب اسم المادة أو التخصص بالتفصيل *
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    required
+                    value={directiveForm.customSubject}
+                    onChange={(e) => setDirectiveForm({ ...directiveForm, customSubject: e.target.value })}
+                    placeholder="مثال: علم البيانات، الروبوت والذكاء الاصطناعي..."
+                  />
+                </div>
+              )}
 
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>عنوان التوجيه الإداري *</label>
@@ -2095,8 +2278,9 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                 <button type="button" onClick={() => setShowDirectiveModal(false)} className="btn btn-outline">
                   إلغاء
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ background: '#4f46e5', border: 'none' }}>
-                  إرسال التوجيه الفوري
+                <button type="submit" className="btn btn-primary" style={{ background: '#4f46e5', border: 'none', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+                  <Send size={16} />
+                  <span>إرسال التوجيه لمدير المدرسة</span>
                 </button>
               </div>
             </form>

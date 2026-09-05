@@ -1,5 +1,5 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence, createUserWithEmailAndPassword } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -30,3 +30,23 @@ setPersistence(auth, browserLocalPersistence).catch(console.error);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Secondary Firebase Auth instance helper to create user accounts without signing out the SuperAdmin
+export const createSecondaryAuthUser = async (email, password) => {
+  try {
+    let secondaryApp;
+    const existingApps = getApps();
+    const found = existingApps.find(a => a.name === "SecondaryAuthApp");
+    if (!found) {
+      secondaryApp = initializeApp(firebaseConfig, "SecondaryAuthApp");
+    } else {
+      secondaryApp = getApp("SecondaryAuthApp");
+    }
+    const secondaryAuth = getAuth(secondaryApp);
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    return cred.user;
+  } catch (err) {
+    console.warn("Secondary auth user creation warning:", err);
+    throw err;
+  }
+};
