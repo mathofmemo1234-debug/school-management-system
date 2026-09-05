@@ -18,7 +18,8 @@ import {
   RESOURCE_GENDERS,
   BUILDING_FACILITIES_CATALOG,
   STANDARD_SUBJECT_QUOTAS,
-  ALL_SCHOOL_SUBJECTS
+  ALL_SCHOOL_SUBJECTS,
+  ADVANCED_SCHOOLS_CATALOG
 } from '../data/resourceData';
 
 export default function SchoolResourcesHub({ role = 'admin' }) {
@@ -38,8 +39,10 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
   const [filterStage, setFilterStage] = useState('all'); // 'all' | 'kindergarten' | 'primary' | 'middle' | 'high'
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Data Collections State
-  const [schoolsList, setSchoolsList] = useState([]);
+  // Data Collections State - Always initialized with MSC 43 Approved Schools Catalog
+  const [schoolsList, setSchoolsList] = useState(() => {
+    return ADVANCED_SCHOOLS_CATALOG.map((s, i) => ({ id: s.code || `msc_school_${i+1}`, ...s }));
+  });
   const [buildingsList, setBuildingsList] = useState([]);
   const [teachersList, setTeachersList] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
@@ -117,11 +120,26 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
   // 1. Fetch Schools List (for SuperAdmin & selector)
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'schools'), (snap) => {
-      const list = [];
-      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
-      setSchoolsList(list);
-      if (!selectedSchoolId && list.length > 0) {
-        setSelectedSchoolId(list[0].id);
+      if (!snap.empty) {
+        const list = [];
+        snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+        setSchoolsList(list);
+        if (!selectedSchoolId && list.length > 0) {
+          setSelectedSchoolId(list[0].id);
+        }
+      } else {
+        const fallback = ADVANCED_SCHOOLS_CATALOG.map((s, i) => ({ id: s.code || `msc_school_${i+1}`, ...s }));
+        setSchoolsList(fallback);
+        if (!selectedSchoolId && fallback.length > 0) {
+          setSelectedSchoolId(fallback[0].id);
+        }
+      }
+    }, (err) => {
+      console.warn("Schools snapshot notice in resources:", err);
+      const fallback = ADVANCED_SCHOOLS_CATALOG.map((s, i) => ({ id: s.code || `msc_school_${i+1}`, ...s }));
+      setSchoolsList(fallback);
+      if (!selectedSchoolId && fallback.length > 0) {
+        setSelectedSchoolId(fallback[0].id);
       }
     });
     return () => unsub();
