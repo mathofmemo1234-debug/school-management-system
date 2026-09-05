@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Routes, Route, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers } from 'lucide-react';
+import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers, Send, ArrowLeftRight, CheckCircle2, AlertCircle, Sparkles, Check } from 'lucide-react';
 import ManageSchedules from './ManageSchedules';
 import { db } from '../firebase';
 import { collection, addDoc, setDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
@@ -32,6 +32,9 @@ function AdminHome({ schoolId }) {
   const { userData } = useAuth();
   const [stats, setStats] = useState({ teachers: 0, students: 0, classes: 0, supervisors: 0, staff: 0 });
   const [schoolInfo, setSchoolInfo] = useState(null);
+  const [incomingDirectives, setIncomingDirectives] = useState([]);
+  const [incomingTransfers, setIncomingTransfers] = useState([]);
+  const [ackLoading, setAckLoading] = useState({});
 
   useEffect(() => {
     if (!schoolId) return;
@@ -64,6 +67,33 @@ function AdminHome({ schoolId }) {
     const unsubStaff = onSnapshot(qStaff, (snap) => {
       setStats(prev => ({ ...prev, staff: snap.size }));
     });
+
+    // 📡 Live listener for Directives from General Administration (Master)
+    const unsubDirectives = onSnapshot(collection(db, 'resource_directives'), (snap) => {
+      const list = [];
+      snap.forEach(d => {
+        const data = d.data();
+        if (data.targetSchoolId === schoolId || data.targetSchoolId === 'ALL' || data.schoolId === schoolId || data.targetSchool === 'ALL') {
+          list.push({ id: d.id, ...data });
+        }
+      });
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setIncomingDirectives(list);
+    }, (err) => console.warn("Admin directives listener notice:", err));
+
+    // 🔄 Live listener for Transfer Decisions & Surplus-Deficit Requests from Master
+    const unsubTransfers = onSnapshot(collection(db, 'resource_transfer_requests'), (snap) => {
+      const list = [];
+      snap.forEach(d => {
+        const data = d.data();
+        if (data.schoolId === schoolId || data.targetSchoolId === schoolId || data.fromSchoolId === schoolId || data.toSchoolId === schoolId) {
+          list.push({ id: d.id, ...data });
+        }
+      });
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setIncomingTransfers(list);
+    }, (err) => console.warn("Admin transfers listener notice:", err));
+
     return () => { 
       if (unsubSchool) unsubSchool();
       unsubTeachers(); 
@@ -71,8 +101,46 @@ function AdminHome({ schoolId }) {
       unsubClasses(); 
       unsubSupervisors(); 
       unsubStaff(); 
+      unsubDirectives();
+      unsubTransfers();
     };
   }, [schoolId]);
+
+  const handleAcknowledgeDirective = async (directiveId) => {
+    try {
+      setAckLoading(prev => ({ ...prev, [directiveId]: true }));
+      await updateDoc(doc(db, 'resource_directives', directiveId), {
+        status: 'acknowledged',
+        acknowledgedAt: new Date(),
+        acknowledgedByName: userData?.name || 'مدير المدرسة',
+        acknowledgedByRole: userData?.role || 'admin'
+      });
+      alert('✅ تم تأكيد استلام التوجيه الوزاري/الإداري وتوثيقه لدى الماستر بنجاح');
+    } catch (err) {
+      console.error(err);
+      alert('خطأ أثناء تأكيد الاستلام: ' + err.message);
+    } finally {
+      setAckLoading(prev => ({ ...prev, [directiveId]: false }));
+    }
+  };
+
+  const handleAcknowledgeTransfer = async (transferId) => {
+    try {
+      setAckLoading(prev => ({ ...prev, [transferId]: true }));
+      await updateDoc(doc(db, 'resource_transfer_requests', transferId), {
+        status: 'acknowledged',
+        acknowledgedAt: new Date(),
+        acknowledgedByName: userData?.name || 'مدير المدرسة',
+        acknowledgedByRole: userData?.role || 'admin'
+      });
+      alert('✅ تم تأكيد استلام قرار الندب/سد العجز وتوثيقه بنجاح');
+    } catch (err) {
+      console.error(err);
+      alert('خطأ أثناء تأكيد الاستلام: ' + err.message);
+    } finally {
+      setAckLoading(prev => ({ ...prev, [transferId]: false }));
+    }
+  };
 
   const handleSeedData = async () => {
     try {
@@ -232,6 +300,247 @@ function AdminHome({ schoolId }) {
           </div>
         </div>
       </div>
+
+      {/* 📢 Master Directives & Resource Transfers Section */}
+      {(incomingDirectives.length > 0 || incomingTransfers.length > 0) && (
+        <div style={{
+          background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+          borderRadius: '18px',
+          border: '1.5px solid #e2e8f0',
+          padding: '20px 24px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Send size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#1e293b' }}>
+                  قرارات وتوجيهات الإدارة العامة (الماستر) الواردة
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  متابعة وتأكيد استلام التوجيهات الوزارية والإدارية وقرارات سد العجز والندب فور صدورها لحظياً
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/admin/resources"
+              className="btn btn-outline"
+              style={{
+                fontSize: '12px',
+                padding: '6px 14px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: '#6366f1',
+                color: '#4338ca',
+                fontWeight: 700
+              }}
+            >
+              <Layers size={14} /> فتح منصة الموارد الشاملة
+            </Link>
+          </div>
+
+          {/* 1. Directives List */}
+          {incomingDirectives.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>📜 التوجيهات الإدارية والتعاميم:</span>
+                <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: '10px', fontSize: '11px' }}>
+                  {incomingDirectives.length}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+                {incomingDirectives.slice(0, 4).map((dir) => {
+                  const isAck = dir.status === 'acknowledged' || dir.status === 'completed';
+                  return (
+                    <div
+                      key={dir.id}
+                      style={{
+                        background: isAck ? '#f8fafc' : '#ffffff',
+                        border: isAck ? '1px solid #e2e8f0' : '1.5px solid #818cf8',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        boxShadow: isAck ? 'none' : '0 4px 12px rgba(99, 102, 241, 0.08)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: dir.priority === 'urgent' ? '#fee2e2' : (dir.priority === 'mandatory' ? '#fef3c7' : '#e0e7ff'),
+                            color: dir.priority === 'urgent' ? '#991b1b' : (dir.priority === 'mandatory' ? '#92400e' : '#3730a3')
+                          }}>
+                            {dir.priority === 'urgent' ? '⚡ عاجل جداً' : (dir.priority === 'mandatory' ? '⚠️ إلزامي' : '📌 تعميم رسمي')}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                            {dir.directiveNumber || `#DIR-${dir.id.slice(0, 5)}`}
+                          </span>
+                        </div>
+                        <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>
+                          {dir.subject || 'توجيه إداري عام'}
+                        </h4>
+                        <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#475569', lineHeight: 1.5 }}>
+                          {dir.content || dir.description || 'لا يوجد نص مرفق'}
+                        </p>
+                        {dir.actionRequired && (
+                          <div style={{ fontSize: '11px', color: '#0369a1', background: '#e0f2fe', padding: '6px 10px', borderRadius: '6px', marginBottom: '6px' }}>
+                            🎯 <strong>المطلوب:</strong> {dir.actionRequired}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#64748b' }}>
+                          {isAck ? (
+                            <span style={{ color: '#16a34a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle2 size={13} /> تم تأكيد الاستلام
+                            </span>
+                          ) : (
+                            <span style={{ color: '#d97706', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <AlertCircle size={13} /> في انتظار التأكيد
+                            </span>
+                          )}
+                        </span>
+                        {!isAck && (
+                          <button
+                            onClick={() => handleAcknowledgeDirective(dir.id)}
+                            disabled={ackLoading[dir.id]}
+                            className="btn btn-primary"
+                            style={{
+                              fontSize: '11px',
+                              padding: '5px 12px',
+                              background: '#4f46e5',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Check size={13} /> {ackLoading[dir.id] ? 'جاري التأكيد...' : 'تأكيد الاستلام'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 2. Transfer Decisions & Surplus-Deficit List */}
+          {incomingTransfers.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🔄 قرارات سد العجز والندب:</span>
+                <span style={{ background: '#ecfdf5', color: '#065f46', padding: '2px 8px', borderRadius: '10px', fontSize: '11px' }}>
+                  {incomingTransfers.length}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+                {incomingTransfers.slice(0, 4).map((tr) => {
+                  const isAck = tr.status === 'acknowledged' || tr.status === 'completed';
+                  return (
+                    <div
+                      key={tr.id}
+                      style={{
+                        background: isAck ? '#f8fafc' : '#ffffff',
+                        border: isAck ? '1px solid #e2e8f0' : '1.5px solid #10b981',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        boxShadow: isAck ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.08)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: tr.type === 'need' ? '#fef3c7' : '#e0e7ff',
+                            color: tr.type === 'need' ? '#92400e' : '#3730a3'
+                          }}>
+                            {tr.type === 'need' ? 'طلب سد عجز' : (tr.type === 'release' ? 'إتاحة كادر فائض' : 'قرار ندب مباشر')}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                            {tr.requestNumber || `#TR-${tr.id.slice(0, 5)}`}
+                          </span>
+                        </div>
+                        <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>
+                          {tr.subjectName || 'مادة تخصص'} - {tr.periodsCount ? `${tr.periodsCount} حصة` : ''}
+                        </h4>
+                        <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
+                          👤 <strong>الكادر:</strong> {tr.teacherName || 'محدد من الإدارة العامة'}
+                        </div>
+                        {tr.reason && (
+                          <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#64748b' }}>
+                            {tr.reason}
+                          </p>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#64748b' }}>
+                          {isAck ? (
+                            <span style={{ color: '#16a34a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle2 size={13} /> تم التوثيق والاستلام
+                            </span>
+                          ) : (
+                            <span style={{ color: '#d97706', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <AlertCircle size={13} /> بانتظار تأكيد المدرسة
+                            </span>
+                          )}
+                        </span>
+                        {!isAck && (
+                          <button
+                            onClick={() => handleAcknowledgeTransfer(tr.id)}
+                            disabled={ackLoading[tr.id]}
+                            className="btn btn-primary"
+                            style={{
+                              fontSize: '11px',
+                              padding: '5px 12px',
+                              background: '#059669',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Check size={13} /> {ackLoading[tr.id] ? 'جاري التأكيد...' : 'تأكيد القرار'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <Link 

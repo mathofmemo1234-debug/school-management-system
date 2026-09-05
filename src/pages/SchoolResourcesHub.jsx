@@ -325,28 +325,32 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       console.warn("Classes snapshot notice in resources:", err);
     });
 
-    // Transfer Requests
-    const qTransfers = targetSchool 
-      ? query(collection(db, 'resource_transfer_requests'), where('schoolId', '==', targetSchool))
-      : collection(db, 'resource_transfer_requests');
-    const unsubTrans = onSnapshot(qTransfers, (snap) => {
+    // Transfer Requests - Listen live and filter in memory for 100% accuracy
+    const unsubTrans = onSnapshot(collection(db, 'resource_transfer_requests'), (snap) => {
       const list = [];
       snap.forEach(d => list.push({ id: d.id, ...d.data() }));
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      setTransferRequests(list);
+      
+      const filtered = isSuperAdmin ? list : list.filter(r => {
+        if (!targetSchool || targetSchool === 'ALL') return true;
+        return r.schoolId === targetSchool || r.targetSchoolId === targetSchool || r.targetSchoolId === 'ALL' || r.schoolId === 'ALL';
+      });
+      setTransferRequests(filtered);
     }, (err) => {
       console.warn("Transfer requests snapshot notice in resources:", err);
     });
 
-    // Directives
-    const qDirectives = targetSchool 
-      ? query(collection(db, 'resource_directives'), where('targetSchoolId', 'in', [targetSchool, 'ALL']))
-      : collection(db, 'resource_directives');
-    const unsubDir = onSnapshot(qDirectives, (snap) => {
+    // Directives - Listen live and filter in memory for 100% delivery
+    const unsubDir = onSnapshot(collection(db, 'resource_directives'), (snap) => {
       const list = [];
       snap.forEach(d => list.push({ id: d.id, ...d.data() }));
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      setDirectivesList(list);
+      
+      const filtered = isSuperAdmin ? list : list.filter(d => {
+        if (!targetSchool || targetSchool === 'ALL') return true;
+        return d.targetSchoolId === targetSchool || d.targetSchoolId === 'ALL' || d.schoolId === targetSchool;
+      });
+      setDirectivesList(filtered);
     }, (err) => {
       console.warn("Directives snapshot notice in resources:", err);
     });
