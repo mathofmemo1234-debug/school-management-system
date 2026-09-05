@@ -201,19 +201,45 @@ export const STANDARD_SUBJECT_QUOTAS = [
 // Comprehensive Official Catalog for MSC (شركة المدارس المتقدمة - 43 مجمع وفروع معتمدة)
 export const ADVANCED_SCHOOLS_CATALOG = [
   {
-    name: "مجمع مدارس المتقدمة للتعلم الذكي للبنين - جدة",
-    subTitle: "فرع حي الزهراء - المسار الأهلي والدبلومة الأمريكية",
+    name: "مجمع مدارس المتقدمة للتعلم الذكي للبنين - جدة (المسار الأهلي)",
+    subTitle: "فرع حي الزهراء - المسار الأهلي المطور",
     city: "جدة",
-    track: "أهلي متقدم + STEM",
-    code: "msc_jed_smart_boys",
+    track: "أهلي متقدم",
+    trackCategory: "national",
+    gender: "boys",
+    code: "msc_jed_smart_boys_national",
+    legacyCode: "msc_jed_smart_boys",
     address: "حي الزهراء، جدة"
   },
   {
-    name: "مجمع مدارس المتقدمة للتعلم الذكي للبنات - جدة",
-    subTitle: "فرع حي الزهراء - المسار الأهلي والدبلومة الأمريكية",
+    name: "مجمع مدارس المتقدمة للتعلم الذكي للبنين - جدة (الدبلومة الأمريكية)",
+    subTitle: "فرع حي الزهراء - مسار الدبلومة الأمريكية والمسار الدولي",
     city: "جدة",
-    track: "أهلي متقدم + STEM",
-    code: "msc_jed_smart_girls",
+    track: "مسار دولي / دبلومة أمريكية",
+    trackCategory: "diploma",
+    gender: "boys",
+    code: "msc_jed_smart_boys_diploma",
+    address: "حي الزهراء، جدة"
+  },
+  {
+    name: "مجمع مدارس المتقدمة للتعلم الذكي للبنات - جدة (المسار الأهلي)",
+    subTitle: "فرع حي الزهراء - المسار الأهلي المطور",
+    city: "جدة",
+    track: "أهلي متقدم",
+    trackCategory: "national",
+    gender: "girls",
+    code: "msc_jed_smart_girls_national",
+    legacyCode: "msc_jed_smart_girls",
+    address: "حي الزهراء، جدة"
+  },
+  {
+    name: "مجمع مدارس المتقدمة للتعلم الذكي للبنات - جدة (الدبلومة الأمريكية)",
+    subTitle: "فرع حي الزهراء - مسار الدبلومة الأمريكية والمسار الدولي",
+    city: "جدة",
+    track: "مسار دولي / دبلومة أمريكية",
+    trackCategory: "diploma",
+    gender: "girls",
+    code: "msc_jed_smart_girls_diploma",
     address: "حي الزهراء، جدة"
   },
   {

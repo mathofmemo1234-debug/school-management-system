@@ -8,7 +8,7 @@ import {
   Eye, Trash2, Reply, Check, CheckCheck, AlertCircle, AlertTriangle,
   Users, User, Search, Filter, Printer, X, Plus, Clock, Tag, ArrowRight,
   ShieldCheck, UserCheck, BookOpen, Sparkles, RefreshCw, CheckCircle2,
-  BarChart2, Archive, Undo2, EyeOff
+  BarChart2, Archive, Undo2, EyeOff, Landmark, CheckSquare
 } from 'lucide-react';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
 import { ADVANCED_SCHOOLS_CATALOG } from '../data/resourceData';
@@ -96,6 +96,15 @@ export default function SchoolMessagingHub() {
     ].filter(Boolean).map(s => String(s).trim().toLowerCase()));
     return ids;
   }, [myNid, userData, currentUser, myName]);
+
+  // Current school catalog object for track, curriculum, and gender verification
+  const currentSchoolCatalog = useMemo(() => {
+    return ADVANCED_SCHOOLS_CATALOG.find(s => 
+      s.code === schoolId || 
+      s.legacyCode === schoolId || 
+      (userData?.schoolName && s.name === userData.schoolName)
+    ) || null;
+  }, [schoolId, userData?.schoolName]);
 
   // 1. Load Recipients Directory filtered by schoolId
   useEffect(() => {
@@ -304,6 +313,60 @@ export default function SchoolMessagingHub() {
     const isAdminUser = userRole === 'admin' || userData?.role === 'admin' || myRole === 'admin';
     const isSuperAdminUser = userRole === 'superadmin' || userData?.role === 'superadmin' || myRole === 'superadmin';
 
+    // 👑 A. MASTER EXECUTIVE DIRECTIVES & CIRCULARS (قرارات وتوجيهات الإدارة العامة المركزية)
+    if (msg.isDirective || msg.senderRole === 'superadmin' || (msg.senderName && msg.senderName.includes('الماستر'))) {
+      if (isSuperAdminUser) return true;
+      if (isAdminUser) {
+        const scope = msg.targetScope || 'ALL';
+        if (scope === 'ALL') return true;
+        if (scope === 'diploma') {
+          return currentSchoolCatalog?.trackCategory === 'diploma' || currentSchoolCatalog?.track?.includes('دبلوم') || currentSchoolCatalog?.track?.includes('دولي');
+        }
+        if (scope === 'national') {
+          return currentSchoolCatalog?.trackCategory === 'national' || currentSchoolCatalog?.track?.includes('أهلي');
+        }
+        if (scope === 'boys') {
+          return currentSchoolCatalog?.gender === 'boys' || currentSchoolCatalog?.name?.includes('بنين');
+        }
+        if (scope === 'girls') {
+          return currentSchoolCatalog?.gender === 'girls' || currentSchoolCatalog?.name?.includes('بنات');
+        }
+        if (scope === 'city') {
+          return currentSchoolCatalog?.city === msg.targetCity;
+        }
+        if (scope === 'specific') {
+          return (
+            msg.targetSchoolId === schoolId ||
+            msg.schoolId === schoolId ||
+            (currentSchoolCatalog && (msg.targetSchoolId === currentSchoolCatalog.code || msg.schoolId === currentSchoolCatalog.code)) ||
+            (currentSchoolCatalog?.legacyCode && (msg.targetSchoolId === currentSchoolCatalog.legacyCode || msg.schoolId === currentSchoolCatalog.legacyCode))
+          );
+        }
+        return true;
+      }
+    }
+
+    // 📞 B. HOTLINE 1-ON-1 DIRECT PRINCIPAL HOTLINE WITH MASTER
+    if (msg.isHotline) {
+      if (isSuperAdminUser) return true;
+      if (isAdminUser) {
+        const recNid = String(msg.receiverNationalId || '').trim().toLowerCase();
+        const targetSch = String(msg.targetSchoolId || '').trim().toLowerCase();
+        const mySch = String(schoolId || '').trim().toLowerCase();
+        const legacySch = String(currentSchoolCatalog?.legacyCode || '').trim().toLowerCase();
+        const codeSch = String(currentSchoolCatalog?.code || '').trim().toLowerCase();
+
+        return (
+          myIdentities.has(recNid) ||
+          targetSch === mySch ||
+          (codeSch && targetSch === codeSch) ||
+          (legacySch && targetSch === legacySch) ||
+          msg.receiverId === `admin_${mySch}` ||
+          (codeSch && msg.receiverId === `admin_${codeSch}`)
+        );
+      }
+    }
+
     // Global / Multi-school matching
     const isGlobal = (
       !msg.schoolId || 
@@ -319,7 +382,7 @@ export default function SchoolMessagingHub() {
       (msg.senderRole === 'superadmin' && isAdminUser)
     );
 
-    // A. Direct / Individual Message: Delivered unconditionally if addressed to my identity or my role
+    // C. Direct / Individual Message: Delivered if addressed to my identity or my role
     if (msg.messageType === 'individual') {
       const recNid = String(msg.receiverNationalId || '').trim().toLowerCase();
       const recId = String(msg.receiverId || '').trim().toLowerCase();
@@ -335,72 +398,49 @@ export default function SchoolMessagingHub() {
         (recName && myIdentities.has(recName)) ||
         (recName && myNameLower && (recName.includes(myNameLower) || myNameLower.includes(recName))) ||
         (isSuperAdminUser && (recNid === 'super@admin.com' || recEmail === 'super@admin.com' || recName.includes('ماستر') || recName.includes('الإدارة العامة'))) ||
-        // 👑 CRITICAL: If recipient is 'admin' and current user is Admin of the school or message is global/from Master
         (isAdminUser && (
-          msg.receiverRole === 'admin' ||
-          recName.includes('مدير') ||
-          recName.includes('إدارة') ||
-          recName.includes('الادارة') ||
           recNid === 'all_admins' ||
           recId === 'all_schools_principals' ||
-          (msg.senderRole === 'superadmin' && isGlobal)
+          recId === `admin_${schoolId}` ||
+          (currentSchoolCatalog && recId === `admin_${currentSchoolCatalog.code}`) ||
+          recNid === String(schoolId).toLowerCase() ||
+          (currentSchoolCatalog && recNid === String(currentSchoolCatalog.code).toLowerCase()) ||
+          (currentSchoolCatalog?.legacyCode && recNid === String(currentSchoolCatalog.legacyCode).toLowerCase())
         ))
       );
 
       return Boolean(isAddressedToMe);
     }
 
-    // B. Group / Broadcast Message (تعميم جماعي)
+    // D. Group / Broadcast Message (تعميم جماعي داخلي للمدرسة)
     if (!isGlobal && msg.schoolId !== schoolId) {
       return false;
     }
 
     if (msg.messageType === 'group') {
-      // Admins and SuperAdmins receive ALL group circulars!
       if (isAdminUser || isSuperAdminUser) return true;
 
       const tg = msg.targetGroup || 'all';
-      
-      // All school community
       if (tg === 'all') return true;
-
-      // Teachers
       if (tg === 'teachers') {
         return myRole === 'teacher' || userRole === 'teacher' || userData?.role === 'teacher' || Boolean(userData?.subject);
       }
-
-      // Students
       if (tg === 'students') {
         return myRole === 'student' || userRole === 'student' || userData?.role === 'student';
       }
-
-      // Parents
       if (tg === 'parents') {
         return myRole === 'parent' || userRole === 'parent' || userData?.role === 'parent';
       }
-
-      // Specific Class (e.g. 1/أ)
       if (tg === 'class') {
         const targetCls = String(msg.targetClassName || '').trim().toLowerCase();
         const userCls = String(myClass || userData?.class || userData?.className || userData?.studentClass || '').trim().toLowerCase();
-        
-        if (myRole === 'student' || myRole === 'parent' || userRole === 'student' || userRole === 'parent' || userData?.role === 'student' || userData?.role === 'parent') {
+        if (myRole === 'student' || myRole === 'parent' || userRole === 'student' || userRole === 'parent') {
           if (!targetCls || targetCls === userCls || userCls.includes(targetCls) || targetCls.includes(userCls)) return true;
         }
-        if (myRole === 'teacher' || myRole === 'staff' || userRole === 'teacher' || userRole === 'staff') {
-          return true;
-        }
+        if (myRole === 'teacher' || myRole === 'staff') return true;
       }
-
-      // Staff / Deputies
-      if (tg === 'staff') {
-        return myRole === 'staff' || userRole === 'staff';
-      }
-
-      // Supervisors
-      if (tg === 'supervisors') {
-        return myRole === 'supervisor' || userRole === 'supervisor';
-      }
+      if (tg === 'staff') return myRole === 'staff' || userRole === 'staff';
+      if (tg === 'supervisors') return myRole === 'supervisor' || userRole === 'supervisor';
     }
 
     return false;
@@ -436,6 +476,15 @@ export default function SchoolMessagingHub() {
     });
   }, [messages, myIdentities, myName, isMessageForMe]);
 
+  // Master General Admin Directives & Circulars
+  const masterDirectivesList = useMemo(() => {
+    return messages.filter(m => {
+      if (m.archived) return false;
+      const isFromMaster = m.isDirective || m.senderRole === 'superadmin' || (m.senderName && m.senderName.includes('الماستر'));
+      return isFromMaster && isMessageForMe(m);
+    });
+  }, [messages, isMessageForMe]);
+
   // Unread Count
   const unreadCount = useMemo(() => {
     return inboxMessages.filter(m => {
@@ -447,7 +496,7 @@ export default function SchoolMessagingHub() {
   // Filtered List based on Search & Filter
   const currentTabList = activeTab === 'inbox' 
     ? inboxMessages 
-    : (activeTab === 'sent' ? sentMessages : archivedMessages);
+    : (activeTab === 'sent' ? sentMessages : (activeTab === 'master_directives' ? masterDirectivesList : archivedMessages));
 
   const displayedMessages = useMemo(() => {
     return currentTabList.filter(m => {
@@ -649,6 +698,48 @@ export default function SchoolMessagingHub() {
     setRecipientNid(msg.senderNationalId || msg.senderId);
     setSubject(`رد على: ${msg.subject || 'الرسالة'}`);
     setBody(`\n\n--- رداً على رسالة: ${msg.senderName} (${msg.senderRoleTitle || ''}) ---\n> ${msg.body?.slice(0, 120)}...`);
+    setActiveTab('compose');
+    setSelectedMessage(null);
+  };
+
+  // Official Acknowledgment by School Principal of a Master Presidential Directive
+  const handleAcknowledgeDirective = async (msg) => {
+    try {
+      const ackEntry = {
+        schoolId: currentSchoolCatalog?.code || schoolId,
+        schoolName: currentSchoolCatalog?.name || userData?.schoolName || 'المدرسة',
+        principalName: myName,
+        nationalId: myNid,
+        principalTitle: myRoleTitle,
+        acknowledgedAt: new Date().toISOString()
+      };
+
+      await updateDoc(doc(db, 'school_messages', msg.id), {
+        acknowledgments: arrayUnion(ackEntry),
+        readBy: arrayUnion(myNid, currentUser?.uid || myNid)
+      });
+
+      broadcastRealtimeEvent('MESSAGE_UPDATE', {
+        message: {
+          id: msg.id,
+          acknowledgments: [...(msg.acknowledgments || []), ackEntry]
+        }
+      });
+
+      alert(`✓ تم توثيق وتأكيد الاستلام رسمياً للقرار [${msg.decreeNumber || 'الرئاسي'}].\nتم تسجيل إقراركم واعتماده لدى الإدارة العامة فورياً.`);
+    } catch (err) {
+      console.error('Error acknowledging directive:', err);
+      alert('حدث خطأ أثناء توثيق الاستلام: ' + err.message);
+    }
+  };
+
+  // Official Pre-formatted Reply to Master General Administration
+  const handleReplyToMasterDirective = (msg) => {
+    setReplyingTo(msg);
+    setMessageType('individual');
+    setRecipientNid('super@admin.com');
+    setSubject(`رد رسمي على القرار [${msg.decreeNumber || 'الرئاسي'}]: ${msg.subject}`);
+    setBody(`سعادة الماستر العام / الإدارة العامة المحترمين،\n\nالسلام عليكم ورحمة الله وبركاته،\nإشارة إلى القرار الرئاسي رقم [${msg.decreeNumber || ''}] بتاريخ [${new Date(msg.createdAt || 0).toLocaleDateString('ar-SA')}] بشأن:\n"${msg.subject}"\n\nنود إفادتكم بالتالي:\n\n\nشاكرين ومقدرين توجيهاتكم السديدة،\n${myName}\n${currentSchoolCatalog?.name || userData?.schoolName || 'مدير المدرسة'}`);
     setActiveTab('compose');
     setSelectedMessage(null);
   };
@@ -942,7 +1033,43 @@ export default function SchoolMessagingHub() {
         <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
           {/* Navigation Tabs */}
-          <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+          <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', flexWrap: 'wrap' }}>
+            {userRole === 'admin' && (
+              <button
+                onClick={() => { setActiveTab('master_directives'); setSelectedMessage(null); }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: activeTab === 'master_directives' ? 'none' : '1px solid #bae6fd',
+                  background: activeTab === 'master_directives' ? 'linear-gradient(135deg, #0f172a, #1e293b)' : '#f0f9ff',
+                  color: activeTab === 'master_directives' ? '#38bdf8' : '#0369a1',
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: activeTab === 'master_directives' ? '0 3px 10px rgba(15, 23, 42, 0.25)' : 'none',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Landmark size={16} color={activeTab === 'master_directives' ? '#38bdf8' : '#0284c7'} />
+                <span>قرارات وتوجيهات الماستر العام</span>
+                {masterDirectivesList.length > 0 && (
+                  <span style={{
+                    background: '#dc2626',
+                    color: '#fff',
+                    fontSize: '11px',
+                    padding: '2px 7px',
+                    borderRadius: '10px',
+                    fontWeight: '900'
+                  }}>
+                    {masterDirectivesList.length}
+                  </span>
+                )}
+              </button>
+            )}
+
             <button
               onClick={() => { setActiveTab('inbox'); setSelectedMessage(null); }}
               style={{
@@ -1132,6 +1259,12 @@ export default function SchoolMessagingHub() {
                     );
 
                     const readersCount = (msg.readers?.length) || (msg.readBy?.length ? Math.max(0, msg.readBy.length - 1) : 0);
+                    const isMasterMsg = msg.isDirective || msg.senderRole === 'superadmin' || (msg.senderName && msg.senderName.includes('الماستر'));
+                    const isAckedByMe = msg.acknowledgments?.some(a => 
+                      String(a.nationalId).toLowerCase() === myNid.toLowerCase() || 
+                      String(a.schoolId).toLowerCase() === String(schoolId).toLowerCase() ||
+                      (currentSchoolCatalog?.legacyCode && String(a.schoolId).toLowerCase() === currentSchoolCatalog.legacyCode.toLowerCase())
+                    );
 
                     return (
                       <div
@@ -1140,16 +1273,47 @@ export default function SchoolMessagingHub() {
                         style={{
                           padding: '14px 16px',
                           borderRadius: '12px',
-                          border: isSelected ? '2px solid #0e7490' : isUnread ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
-                          background: isSelected ? '#f0fdf4' : isUnread ? '#f0f9ff' : 'white',
+                          border: isSelected ? '2px solid #0e7490' : isMasterMsg ? '2px solid #38bdf8' : isUnread ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
+                          background: isSelected ? '#f0fdf4' : isMasterMsg ? '#f0f9ff' : isUnread ? '#f8fafc' : 'white',
                           cursor: 'pointer',
                           transition: 'all 0.15s',
-                          boxShadow: isUnread ? '0 3px 8px rgba(2, 132, 199, 0.12)' : 'none',
+                          boxShadow: isMasterMsg ? '0 3px 12px rgba(56, 189, 248, 0.18)' : isUnread ? '0 3px 8px rgba(2, 132, 199, 0.12)' : 'none',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '8px'
                         }}
                       >
+                        {/* Master Directive Crown Banner */}
+                        {isMasterMsg && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                            <span style={{
+                              background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+                              color: '#38bdf8',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <Landmark size={12} color="#38bdf8" />
+                              <span>قرار رئاسي • {msg.decreeNumber || 'الماستر العام'}</span>
+                            </span>
+
+                            {msg.requiresAcknowledgment && (
+                              isAckedByMe ? (
+                                <span style={{ background: '#dcfce7', color: '#166534', fontSize: '11px', padding: '1px 6px', borderRadius: '6px', fontWeight: 800 }}>
+                                  ✓ تم توثيق الاستلام
+                                </span>
+                              ) : (
+                                <span style={{ background: '#fee2e2', color: '#b91c1c', fontSize: '11px', padding: '1px 6px', borderRadius: '6px', fontWeight: 800 }}>
+                                  ⏳ يلزم توثيق الاستلام
+                                </span>
+                              )
+                            )}
+                          </div>
+                        )}
                         {/* Top Line: Sender, Date, Badges */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1620,6 +1784,110 @@ export default function SchoolMessagingHub() {
             >
               <X size={20} color="#64748b" />
             </button>
+
+            {/* 👑 MASTER EXECUTIVE DIRECTIVE LETTERHEAD BANNER */}
+            {(selectedMessage.isDirective || selectedMessage.senderRole === 'superadmin') && (
+              <div style={{
+                background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+                color: '#ffffff',
+                padding: '16px 20px',
+                borderRadius: '14px',
+                marginBottom: '14px',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                boxShadow: '0 4px 15px rgba(15, 23, 42, 0.2)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ background: 'rgba(56, 189, 248, 0.15)', padding: '8px', borderRadius: '10px' }}>
+                      <Landmark size={24} color="#38bdf8" />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 800 }}>
+                        رئاسة شركة المدارس المتقدمة • قرار رئاسي رقم: {selectedMessage.decreeNumber || 'ق-2026'}
+                      </div>
+                      <div style={{ fontSize: '15px', fontWeight: 900, marginTop: '2px' }}>
+                        توجيه صادر من الإدارة العامة (الماستر العام)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions for School Principal */}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {selectedMessage.requiresAcknowledgment && (
+                      selectedMessage.acknowledgments?.some(a => 
+                        String(a.nationalId).toLowerCase() === myNid.toLowerCase() || 
+                        String(a.schoolId).toLowerCase() === String(schoolId).toLowerCase() ||
+                        (currentSchoolCatalog?.legacyCode && String(a.schoolId).toLowerCase() === currentSchoolCatalog.legacyCode.toLowerCase())
+                      ) ? (
+                        <span style={{
+                          background: '#16a34a',
+                          color: '#ffffff',
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          fontWeight: 800,
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 2px 8px rgba(22, 163, 74, 0.3)'
+                        }}>
+                          <CheckCheck size={16} /> تم توثيق وتأكيد الاستلام رسمياً
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleAcknowledgeDirective(selectedMessage)}
+                          style={{
+                            background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '9px 16px',
+                            borderRadius: '10px',
+                            fontWeight: 900,
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            boxShadow: '0 4px 14px rgba(22, 163, 74, 0.35)'
+                          }}
+                        >
+                          <CheckSquare size={16} />
+                          <span>✅ توثيق وتأكيد الاستلام والاطلاع رسمياً</span>
+                        </button>
+                      )
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleReplyToMasterDirective(selectedMessage)}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.12)',
+                        color: '#ffffff',
+                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                        padding: '9px 14px',
+                        borderRadius: '10px',
+                        fontWeight: 800,
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Reply size={15} />
+                      <span>إرسال رد رسمي للماستر</span>
+                    </button>
+                  </div>
+                </div>
+
+                {selectedMessage.acknowledgmentDeadline && (
+                  <div style={{ fontSize: '11px', color: '#fde68a', background: 'rgba(217, 119, 6, 0.2)', padding: '4px 10px', borderRadius: '6px', display: 'inline-block' }}>
+                    ⏳ الموعد الأقصى المحدد لتوثيق الإقرار: {selectedMessage.acknowledgmentDeadline}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Header / Letterhead formatting */}
             <div style={{ borderBottom: '2px solid #0e7490', paddingBottom: '14px' }}>

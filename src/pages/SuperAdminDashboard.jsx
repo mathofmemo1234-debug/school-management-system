@@ -17,7 +17,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import Layout from '../components/Layout';
 import ChangePassword from '../components/ChangePassword';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
-import SchoolMessagingHub from './SchoolMessagingHub';
+import MasterMessagingHub from './MasterMessagingHub';
 import SchoolExcellenceDashboard from './SchoolExcellenceDashboard';
 import SchoolResourcesHub from './SchoolResourcesHub';
 import { ADVANCED_SCHOOLS_CATALOG } from '../data/resourceData';
@@ -3883,7 +3883,7 @@ export default function SuperAdminDashboard() {
         <Route path="/" element={<SuperAdminHome />} />
         <Route path="/resources" element={<SchoolResourcesHub role="superadmin" />} />
         <Route path="/portfolio" element={<AchievementPortfolioPage targetRole="superadmin" />} />
-        <Route path="/messages" element={<SchoolMessagingHub />} />
+        <Route path="/messages" element={<MasterMessagingHub />} />
         <Route path="/excellence" element={<SchoolExcellenceDashboard />} />
         <Route path="/settings" element={<div style={{ padding: '24px' }}><ChangePassword /></div>} />
         <Route path="*" element={<SuperAdminHome />} />

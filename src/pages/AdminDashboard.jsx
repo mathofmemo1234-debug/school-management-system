@@ -39,7 +39,7 @@ function AdminHome({ schoolId }) {
   const [ackLoading, setAckLoading] = useState({});
   const [showArchived, setShowArchived] = useState(false);
 
-  const effectiveSchoolId = schoolId || userData?.schoolId || 'msc_jed_smart_boys';
+  const effectiveSchoolId = schoolId || userData?.schoolId || 'msc_jed_smart_boys_national';
 
   // Use ref to avoid stale closure in onSnapshot callbacks
   const schoolInfoRef = useRef(null);
@@ -52,7 +52,7 @@ function AdminHome({ schoolId }) {
     const unsubSchool = onSnapshot(collection(db, 'schools'), snap => {
       if (!snap.empty) {
         const found = snap.docs.map(d => ({ id: d.id, ...d.data() })).find(s => 
-          s.id === effectiveSchoolId || s.code === effectiveSchoolId || (userData?.schoolName && s.name === userData.schoolName)
+          s.id === effectiveSchoolId || s.code === effectiveSchoolId || s.legacyCode === effectiveSchoolId || (userData?.schoolName && s.name === userData.schoolName)
         );
         if (found) {
           setSchoolInfo(prev => {
@@ -246,18 +246,43 @@ function AdminHome({ schoolId }) {
 
         if (!isFromMaster) return;
 
-        const isTargetingMySchool = Boolean(
-          !data.targetSchoolId || 
-          data.targetSchoolId === 'ALL' || 
-          data.targetSchoolId === 'all' || 
-          data.schoolId === 'ALL' || 
-          data.schoolId === 'all' ||
-          data.targetSchoolId === effectiveSchoolId ||
-          data.schoolId === effectiveSchoolId ||
-          data.receiverRole === 'admin' ||
-          (currentUserData?.schoolId && (data.targetSchoolId === currentUserData.schoolId || data.schoolId === currentUserData.schoolId)) ||
-          (currentSchoolInfo?.id && (data.targetSchoolId === currentSchoolInfo.id || data.schoolId === currentSchoolInfo.id))
+        const currentSchoolObj = ADVANCED_SCHOOLS_CATALOG.find(s => 
+          s.code === effectiveSchoolId || 
+          s.legacyCode === effectiveSchoolId ||
+          (currentUserData?.schoolName && s.name === currentUserData.schoolName)
         );
+
+        let isTargetingMySchool = false;
+        const scope = data.targetScope || 'ALL';
+
+        if (scope === 'ALL' || !data.targetScope) {
+          isTargetingMySchool = true;
+        } else if (scope === 'diploma') {
+          isTargetingMySchool = Boolean(currentSchoolObj?.trackCategory === 'diploma' || currentSchoolObj?.track?.includes('دبلوم') || currentSchoolObj?.track?.includes('دولي'));
+        } else if (scope === 'national') {
+          isTargetingMySchool = Boolean(currentSchoolObj?.trackCategory === 'national' || currentSchoolObj?.track?.includes('أهلي'));
+        } else if (scope === 'boys') {
+          isTargetingMySchool = Boolean(currentSchoolObj?.gender === 'boys' || currentSchoolObj?.name?.includes('بنين'));
+        } else if (scope === 'girls') {
+          isTargetingMySchool = Boolean(currentSchoolObj?.gender === 'girls' || currentSchoolObj?.name?.includes('بنات'));
+        } else if (scope === 'city') {
+          isTargetingMySchool = Boolean(currentSchoolObj?.city === data.targetCity);
+        } else if (scope === 'specific') {
+          isTargetingMySchool = Boolean(
+            data.targetSchoolId === effectiveSchoolId ||
+            data.schoolId === effectiveSchoolId ||
+            (currentSchoolObj && (data.targetSchoolId === currentSchoolObj.code || data.schoolId === currentSchoolObj.code)) ||
+            (currentSchoolObj?.legacyCode && (data.targetSchoolId === currentSchoolObj.legacyCode || data.schoolId === currentSchoolObj.legacyCode))
+          );
+        }
+
+        // Direct / Individual Hotline matching
+        if (!isTargetingMySchool && data.messageType === 'individual') {
+          const recNid = String(data.receiverNationalId || '').trim().toLowerCase();
+          const myNid = String(currentUserData?.nationalId || '').trim().toLowerCase();
+          if (recNid && myNid && recNid === myNid) isTargetingMySchool = true;
+          if (data.receiverId === `admin_${effectiveSchoolId}` || (currentSchoolObj && data.receiverId === `admin_${currentSchoolObj.code}`)) isTargetingMySchool = true;
+        }
 
         if (isTargetingMySchool) {
           mList.push(data);
