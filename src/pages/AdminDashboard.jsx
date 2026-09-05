@@ -35,6 +35,7 @@ function AdminHome({ schoolId }) {
   const [schoolInfo, setSchoolInfo] = useState(null);
   const [incomingDirectives, setIncomingDirectives] = useState([]);
   const [incomingTransfers, setIncomingTransfers] = useState([]);
+  const [masterMessages, setMasterMessages] = useState([]);
   const [ackLoading, setAckLoading] = useState({});
   const [showArchived, setShowArchived] = useState(false);
 
@@ -227,6 +228,46 @@ function AdminHome({ schoolId }) {
       setIncomingTransfers(list);
     }, (err) => console.warn("Admin transfers listener notice:", err));
 
+    // ✉️ Live listener for Messages & Directives from General Administration (Master)
+    const unsubMessages = onSnapshot(collection(db, 'school_messages'), (snap) => {
+      const currentSchoolInfo = schoolInfoRef.current;
+      const currentUserData = userDataRef.current;
+      const mList = [];
+
+      snap.forEach(d => {
+        const data = { id: d.id, ...d.data() };
+
+        const isFromMaster = (
+          data.senderRole === 'superadmin' || 
+          data.isDirective || 
+          (data.senderName && (data.senderName.includes('الماستر') || data.senderName.includes('الإدارة العامة'))) ||
+          (data.senderRoleTitle && data.senderRoleTitle.includes('الماستر'))
+        );
+
+        if (!isFromMaster) return;
+
+        const isTargetingMySchool = Boolean(
+          !data.targetSchoolId || 
+          data.targetSchoolId === 'ALL' || 
+          data.targetSchoolId === 'all' || 
+          data.schoolId === 'ALL' || 
+          data.schoolId === 'all' ||
+          data.targetSchoolId === effectiveSchoolId ||
+          data.schoolId === effectiveSchoolId ||
+          data.receiverRole === 'admin' ||
+          (currentUserData?.schoolId && (data.targetSchoolId === currentUserData.schoolId || data.schoolId === currentUserData.schoolId)) ||
+          (currentSchoolInfo?.id && (data.targetSchoolId === currentSchoolInfo.id || data.schoolId === currentSchoolInfo.id))
+        );
+
+        if (isTargetingMySchool) {
+          mList.push(data);
+        }
+      });
+
+      mList.sort((a, b) => (new Date(b.createdAt || b.timestamp || 0).getTime()) - (new Date(a.createdAt || a.timestamp || 0).getTime()));
+      setMasterMessages(mList);
+    }, (err) => console.warn("Admin master messages listener notice:", err));
+
     // ⚡ Cross-Tab Instant BroadcastChannel Subscription (0ms Latency)
     const unsubBroadcast = subscribeRealtimeEvents((event) => {
       if (event?.type === 'DIRECTIVE_UPDATE' && event.payload?.directive) {
@@ -243,6 +284,15 @@ function AdminHome({ schoolId }) {
           if (exists) return prev.map(item => item.id === t.id ? { ...item, ...t } : item);
           return [{ isTargetingMySchool: true, ...t }, ...prev];
         });
+      } else if (event?.type === 'MESSAGE_UPDATE' && event.payload?.message) {
+        const m = event.payload.message;
+        if (m.senderRole === 'superadmin' || m.isDirective) {
+          setMasterMessages(prev => {
+            const exists = prev.some(item => item.id === m.id);
+            if (exists) return prev.map(item => item.id === m.id ? { ...item, ...m } : item);
+            return [m, ...prev];
+          });
+        }
       }
     });
 
@@ -254,6 +304,7 @@ function AdminHome({ schoolId }) {
       unsubStaff(); 
       unsubDirectives();
       unsubTransfers();
+      unsubMessages();
       unsubBroadcast();
     };
   }, [effectiveSchoolId, schoolId]);
@@ -382,7 +433,29 @@ function AdminHome({ schoolId }) {
     } catch (err) { console.error('Restore transfer error:', err); }
   };
 
-  // Filter directives and transfers based on archive visibility
+  const handleArchiveMasterMessage = async (msgId) => {
+    try {
+      const updateData = { archived: true, archivedAt: Date.now(), archivedBy: userData?.name || 'مدير المدرسة' };
+      setMasterMessages(prev => prev.map(m => m.id === msgId ? { ...m, ...updateData } : m));
+      broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: msgId, ...updateData } });
+      try {
+        await updateDoc(doc(db, 'school_messages', msgId), updateData);
+      } catch (e) {}
+    } catch (err) { console.error('Archive message error:', err); }
+  };
+
+  const handleRestoreMasterMessage = async (msgId) => {
+    try {
+      const updateData = { archived: false, archivedAt: null, archivedBy: null };
+      setMasterMessages(prev => prev.map(m => m.id === msgId ? { ...m, ...updateData } : m));
+      broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: msgId, ...updateData } });
+      try {
+        await updateDoc(doc(db, 'school_messages', msgId), updateData);
+      } catch (e) {}
+    } catch (err) { console.error('Restore message error:', err); }
+  };
+
+  // Filter directives, transfers, and master messages based on archive visibility
   const isResolved = (item) => ['acknowledged', 'completed', 'approved', 'rejected'].includes(item.status);
   const visibleDirectives = showArchived 
     ? incomingDirectives.filter(d => d.archived) 
@@ -390,8 +463,12 @@ function AdminHome({ schoolId }) {
   const visibleTransfers = showArchived 
     ? incomingTransfers.filter(t => t.archived) 
     : incomingTransfers.filter(t => !t.archived);
+  const visibleMessages = showArchived
+    ? masterMessages.filter(m => m.archived)
+    : masterMessages.filter(m => !m.archived);
   const archivedDirectivesCount = incomingDirectives.filter(d => d.archived).length;
   const archivedTransfersCount = incomingTransfers.filter(t => t.archived).length;
+  const archivedMessagesCount = masterMessages.filter(m => m.archived).length;
 
   const handleSeedData = async () => {
     try {
@@ -553,7 +630,7 @@ function AdminHome({ schoolId }) {
       </div>
 
       {/* 📢 Master Directives & Resource Transfers Section */}
-      {(incomingDirectives.length > 0 || incomingTransfers.length > 0) && (
+      {(incomingDirectives.length > 0 || incomingTransfers.length > 0 || masterMessages.length > 0) && (
         <div style={{
           background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
           borderRadius: '18px',
@@ -589,7 +666,7 @@ function AdminHome({ schoolId }) {
             </div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               {/* Archive Toggle Button */}
-              {(archivedDirectivesCount > 0 || archivedTransfersCount > 0) && (
+              {(archivedDirectivesCount > 0 || archivedTransfersCount > 0 || archivedMessagesCount > 0) && (
                 <button
                   onClick={() => setShowArchived(!showArchived)}
                   className="btn btn-outline"
@@ -606,7 +683,7 @@ function AdminHome({ schoolId }) {
                   }}
                 >
                   {showArchived ? <Eye size={13} /> : <Archive size={13} />}
-                  {showArchived ? `العودة للنشطة` : `الأرشيف (${archivedDirectivesCount + archivedTransfersCount})`}
+                  {showArchived ? `العودة للنشطة` : `الأرشيف (${archivedDirectivesCount + archivedTransfersCount + archivedMessagesCount})`}
                 </button>
               )}
               <Link
@@ -672,10 +749,10 @@ function AdminHome({ schoolId }) {
                           </span>
                         </div>
                         <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>
-                          {dir.subject || 'توجيه إداري عام'}
+                          {dir.title || dir.subject || 'توجيه وقرار إداري'}
                         </h4>
                         <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#475569', lineHeight: 1.5 }}>
-                          {dir.content || dir.description || 'لا يوجد نص مرفق'}
+                          {dir.content || dir.notes || dir.description || 'لا يوجد نص مرفق'}
                         </p>
                         {dir.actionRequired && (
                           <div style={{ fontSize: '11px', color: '#0369a1', background: '#e0f2fe', padding: '6px 10px', borderRadius: '6px', marginBottom: '6px' }}>
@@ -872,6 +949,107 @@ function AdminHome({ schoolId }) {
                             <Archive size={12} /> أرشفة
                           </button>
                         ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Direct Master Official Messages & Correspondence */}
+          {visibleMessages.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>{showArchived ? '🗂️ المراسلات والتعاميم المؤرشفة من الماستر:' : '✉️ المراسلات والمخاطبات الرسمية الواردة من الماستر:'}</span>
+                <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 800 }}>
+                  {visibleMessages.length}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+                {visibleMessages.slice(0, 10).map((msg) => {
+                  return (
+                    <div
+                      key={msg.id}
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255, 251, 235, 0.8), rgba(255, 255, 255, 0.95))',
+                        border: '1.5px solid #f59e0b',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        boxShadow: '0 4px 12px rgba(245, 158, 11, 0.08)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: '#fef3c7',
+                            color: '#b45309'
+                          }}>
+                            {msg.isDirective ? '📢 تعميم وقرار إداري' : (msg.priority === 'urgent' ? '⚡ رسالة عاجلة جداً' : '✉️ رسالة رسمية من الماستر')}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                            {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString('ar-SA') : ''}
+                          </span>
+                        </div>
+
+                        <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>
+                          {msg.subject || msg.title || 'رسالة إدارية رسمية'}
+                        </h4>
+                        <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#475569', lineHeight: 1.5, maxHeight: '60px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {msg.body || msg.content || msg.message || 'لا يوجد نص'}
+                        </p>
+                        {msg.senderName && (
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>
+                            👤 المرسل: <strong>{msg.senderName}</strong> {msg.senderRoleTitle ? `(${msg.senderRoleTitle})` : ''}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #fef3c7', paddingTop: '8px' }}>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {showArchived ? (
+                            <button
+                              onClick={() => handleRestoreMasterMessage(msg.id)}
+                              className="btn btn-outline"
+                              style={{ fontSize: '10px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#f59e0b', color: '#d97706' }}
+                            >
+                              <Undo2 size={12} /> استعادة
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleArchiveMasterMessage(msg.id)}
+                              className="btn btn-outline"
+                              style={{ fontSize: '10px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderColor: '#94a3b8', color: '#64748b' }}
+                            >
+                              <Archive size={12} /> أرشفة
+                            </button>
+                          )}
+                        </div>
+                        <Link
+                          to="/admin/messages"
+                          className="btn btn-primary"
+                          style={{
+                            fontSize: '11px',
+                            padding: '5px 12px',
+                            background: '#f59e0b',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            textDecoration: 'none',
+                            color: '#fff',
+                            fontWeight: 700
+                          }}
+                        >
+                          <Send size={12} /> فتح المراسلة والرد
+                        </Link>
                       </div>
                     </div>
                   );

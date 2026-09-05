@@ -65,17 +65,31 @@ export default function Header({ title, role }) {
       cleanName
     ].filter(Boolean).map(s => String(s).trim().toLowerCase()));
 
-    const msgQuery = schoolId === 'ALL' 
-      ? collection(db, 'school_messages') 
-      : query(collection(db, 'school_messages'), where('schoolId', '==', schoolId));
+    const msgQuery = collection(db, 'school_messages');
 
     const unsub = onSnapshot(msgQuery, (snap) => {
       let count = 0;
+      const isAdminUser = effectiveRole === 'admin' || userData?.role === 'admin';
+      const isSuperAdminUser = effectiveRole === 'superadmin' || userData?.role === 'superadmin';
+
       snap.docs.forEach(docSnap => {
         const msg = docSnap.data();
+        if (msg.archived) return;
 
-        // Multi-school strict isolation
-        if (schoolId !== 'ALL' && msg.schoolId !== schoolId) return;
+        // Multi-school isolation with global override for SuperAdmin messages and global broadcasts
+        const isGlobal = (
+          !msg.schoolId || 
+          msg.schoolId === 'ALL' || 
+          msg.schoolId === 'all' || 
+          schoolId === 'ALL' || 
+          schoolId === 'all' || 
+          msg.targetSchoolId === 'ALL' || 
+          msg.targetSchoolId === 'all' ||
+          msg.targetSchoolId === schoolId || 
+          msg.schoolId === schoolId ||
+          isSuperAdminUser ||
+          (msg.senderRole === 'superadmin' && isAdminUser)
+        );
 
         const readBy = msg.readBy || [];
         const hasRead = Array.isArray(readBy) && readBy.some(id => myIdentities.has(String(id).trim().toLowerCase()));
@@ -94,17 +108,38 @@ export default function Header({ title, role }) {
             (recId && myIdentities.has(recId)) ||
             (recEmail && myIdentities.has(recEmail)) ||
             (recName && myIdentities.has(recName)) ||
-            (recName && myNameLower && (recName.includes(myNameLower) || myNameLower.includes(recName)))
+            (recName && myNameLower && (recName.includes(myNameLower) || myNameLower.includes(recName))) ||
+            (isSuperAdminUser && (recNid === 'super@admin.com' || recEmail === 'super@admin.com' || recName.includes('ماستر') || recName.includes('الإدارة العامة'))) ||
+            // 👑 Admin always receives individual messages directed to 'admin' or school principal
+            (isAdminUser && (
+              msg.receiverRole === 'admin' ||
+              recName.includes('مدير') ||
+              recName.includes('إدارة') ||
+              recName.includes('الادارة') ||
+              recNid === 'all_admins' ||
+              recId === 'all_schools_principals' ||
+              (msg.senderRole === 'superadmin' && isGlobal)
+            ))
           );
 
           if (isToMe) count++;
         } else if (msg.messageType === 'group') {
+          if (!isGlobal && msg.schoolId !== schoolId) return;
+
           const tg = msg.targetGroup || 'all';
-          if (tg === 'all') count++;
-          else if (tg === 'teachers' && (effectiveRole === 'teacher' || userData?.role === 'teacher' || !!userData?.subject)) count++;
-          else if (tg === 'students' && (effectiveRole === 'student' || userData?.role === 'student')) count++;
-          else if (tg === 'parents' && (effectiveRole === 'parent' || userData?.role === 'parent')) count++;
-          else if (tg === 'class') {
+
+          // Admins & SuperAdmins see ALL broadcasts/circulars targeting their school
+          if (isAdminUser || isSuperAdminUser) {
+            count++;
+          } else if (tg === 'all' || tg === 'admins') {
+            count++;
+          } else if (tg === 'teachers' && (effectiveRole === 'teacher' || userData?.role === 'teacher' || !!userData?.subject)) {
+            count++;
+          } else if (tg === 'students' && (effectiveRole === 'student' || userData?.role === 'student')) {
+            count++;
+          } else if (tg === 'parents' && (effectiveRole === 'parent' || userData?.role === 'parent')) {
+            count++;
+          } else if (tg === 'class') {
             const targetCls = String(msg.targetClassName || '').trim().toLowerCase();
             const userCls = String(myClass || userData?.class || userData?.className || userData?.studentClass || '').trim().toLowerCase();
             if (effectiveRole === 'student' || effectiveRole === 'parent' || userData?.role === 'student' || userData?.role === 'parent') {
@@ -114,9 +149,11 @@ export default function Header({ title, role }) {
             } else if (effectiveRole === 'admin' || effectiveRole === 'teacher' || effectiveRole === 'staff') {
               count++;
             }
+          } else if (tg === 'staff' && (effectiveRole === 'staff' || effectiveRole === 'admin')) {
+            count++;
+          } else if (tg === 'supervisors' && effectiveRole === 'supervisor') {
+            count++;
           }
-          else if (tg === 'staff' && (effectiveRole === 'staff' || effectiveRole === 'admin')) count++;
-          else if (tg === 'supervisors' && effectiveRole === 'supervisor') count++;
         }
       });
       setUnreadMsgCount(count);
@@ -145,7 +182,7 @@ export default function Header({ title, role }) {
       dCount = 0;
       snap.forEach(d => {
         const data = d.data();
-        if (effectiveRole === 'admin' && data.status !== 'acknowledged') {
+        if (!data.archived && effectiveRole === 'admin' && data.status !== 'acknowledged') {
           dCount++;
         }
       });
@@ -156,10 +193,12 @@ export default function Header({ title, role }) {
       tCount = 0;
       tSnap.forEach(td => {
         const tData = td.data();
-        if (effectiveRole === 'admin' && (tData.status === 'approved' || tData.isDirective)) {
-          if (tData.status !== 'acknowledged') tCount++;
-        } else if (effectiveRole === 'superadmin' && tData.status === 'pending') {
-          tCount++;
+        if (!tData.archived) {
+          if (effectiveRole === 'admin' && (tData.status === 'approved' || tData.isDirective)) {
+            if (tData.status !== 'acknowledged') tCount++;
+          } else if (effectiveRole === 'superadmin' && tData.status === 'pending') {
+            tCount++;
+          }
         }
       });
       recalc();

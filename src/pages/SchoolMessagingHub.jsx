@@ -11,6 +11,7 @@ import {
   BarChart2, Archive, Undo2, EyeOff
 } from 'lucide-react';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
+import { ADVANCED_SCHOOLS_CATALOG } from '../data/resourceData';
 
 const ROLE_BADGES = {
   admin: { label: 'مدير المدرسة', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', icon: '👑' },
@@ -23,6 +24,7 @@ const ROLE_BADGES = {
 
 const TARGET_GROUPS = [
   { id: 'all', label: '📢 تعميم عام لكافة منسوبي المدرسة', desc: 'يصل للمدير والمعلمين والطلاب والكادر والمشرفين وأولياء الأمور' },
+  { id: 'admins', label: '👑 كافة مدراء المدارس والإدارات التعليمية', desc: 'يصل لجميع مدراء الفروع والمدارس' },
   { id: 'teachers', label: '👨‍🏫 كافة المعلمين والمعلمات', desc: 'يصل لجميع معلمي المدرسة' },
   { id: 'students', label: '🎓 كافة الطلاب والطالبات', desc: 'يصل لجميع طلاب المدرسة' },
   { id: 'parents', label: '👨‍👩‍👧‍👦 كافة أولياء الأمور', desc: 'يصل لأولياء أمور جميع طلاب المدرسة' },
@@ -97,7 +99,15 @@ export default function SchoolMessagingHub() {
 
   // 1. Load Recipients Directory filtered by schoolId
   useEffect(() => {
-    const unsubAdmins = onSnapshot(collection(db, 'users'), snap => {
+    // Also load local admins from localStorage if available
+    const getLocalAdmins = () => {
+      try {
+        const raw = localStorage.getItem('msc_custom_admins');
+        return raw ? JSON.parse(raw) : [];
+      } catch { return []; }
+    };
+
+    const unsubAdmins = onSnapshot(collection(db, 'users'), async snap => {
       let admins = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(d => (d.role === 'admin' || d.role === 'superadmin') && (schoolId === 'ALL' || userRole === 'superadmin' || d.schoolId === schoolId || d.schoolId === 'ALL' || d.role === 'superadmin'))
@@ -107,6 +117,83 @@ export default function SchoolMessagingHub() {
           roleTitle: d.role === 'superadmin' ? 'الإدارة العامة (الماستر العام)' : (d.roleTitle || 'مدير المدرسة'),
           name: d.role === 'superadmin' ? (d.name || 'الماستر العام') : (d.name || 'مدير المدرسة')
         }));
+
+      // Merge local admins
+      const localAdmins = getLocalAdmins();
+      localAdmins.forEach(la => {
+        if (!admins.some(a => a.nationalId === la.nationalId || a.id === la.id || a.email === la.email)) {
+          admins.push({
+            id: la.id || `local_admin_${la.nationalId}`,
+            nationalId: la.nationalId,
+            email: la.email,
+            name: la.name || 'مدير المدرسة',
+            role: 'admin',
+            roleTitle: 'مدير المدرسة',
+            schoolId: la.schoolId || 'main_school',
+            schoolName: la.schoolName || ''
+          });
+        }
+      });
+
+      // Ensure each known school from Firestore and catalog has a designated principal entry
+      try {
+        const schoolsSnap = await getDocs(collection(db, 'schools'));
+        schoolsSnap.docs.forEach(sDoc => {
+          const s = sDoc.data();
+          const sid = sDoc.id;
+          const hasSchoolAdmin = admins.some(a => a.role === 'admin' && (a.schoolId === sid || a.schoolId === s.code || a.id === `admin_${sid}`));
+          if (!hasSchoolAdmin && (schoolId === 'ALL' || userRole === 'superadmin' || schoolId === sid)) {
+            admins.push({
+              id: `admin_${sid}`,
+              nationalId: s.code || sid,
+              email: `admin_${sid}@school.local`,
+              name: `مدير ${s.name || 'المدرسة'}`,
+              role: 'admin',
+              roleTitle: `إدارة مدرسة • ${s.name || 'الفرع'}`,
+              schoolId: sid,
+              schoolName: s.name || ''
+            });
+          }
+        });
+      } catch (err) {
+        console.warn("Notice loading schools for admins list:", err);
+      }
+
+      // Ensure all 43 MSC schools from ADVANCED_SCHOOLS_CATALOG have a designated principal entry
+      try {
+        ADVANCED_SCHOOLS_CATALOG.forEach(s => {
+          const sid = s.code;
+          const hasSchoolAdmin = admins.some(a => a.role === 'admin' && (a.schoolId === sid || a.schoolId === s.code || a.id === `admin_${sid}`));
+          if (!hasSchoolAdmin && (schoolId === 'ALL' || userRole === 'superadmin' || schoolId === sid)) {
+            admins.push({
+              id: `admin_${sid}`,
+              nationalId: s.code || sid,
+              email: `admin_${sid}@school.local`,
+              name: `مدير ${s.name}`,
+              role: 'admin',
+              roleTitle: `إدارة مدرسة • ${s.name}`,
+              schoolId: sid,
+              schoolName: s.name
+            });
+          }
+        });
+      } catch (err) {
+        console.warn("Notice loading catalog schools for admins list:", err);
+      }
+
+      // Add a dedicated broadcast option for SuperAdmin to send to ALL principals at once
+      if (!admins.some(a => a.id === 'all_schools_principals')) {
+        admins.unshift({
+          id: 'all_schools_principals',
+          nationalId: 'ALL_ADMINS',
+          email: 'all_admins@school.local',
+          name: '👑 كافة مدراء المدارس (تعميم لكافة الفروع)',
+          role: 'admin',
+          roleTitle: 'إدارة كافة الفروع والمجمعات',
+          schoolId: 'ALL',
+          schoolName: 'جميع المدارس'
+        });
+      }
 
       // Ensure Master / SuperAdmin is always available in directory for all schools
       if (!admins.some(a => a.role === 'superadmin' || a.email === 'super@admin.com' || a.id === 'master_general_admin')) {
@@ -214,7 +301,25 @@ export default function SchoolMessagingHub() {
   const isMessageForMe = (msg) => {
     if (!msg) return false;
 
-    // A. Direct / Individual Message: Delivered unconditionally if addressed to my identity
+    const isAdminUser = userRole === 'admin' || userData?.role === 'admin' || myRole === 'admin';
+    const isSuperAdminUser = userRole === 'superadmin' || userData?.role === 'superadmin' || myRole === 'superadmin';
+
+    // Global / Multi-school matching
+    const isGlobal = (
+      !msg.schoolId || 
+      msg.schoolId === 'ALL' || 
+      msg.schoolId === 'all' || 
+      schoolId === 'ALL' || 
+      schoolId === 'all' ||
+      msg.targetSchoolId === 'ALL' || 
+      msg.targetSchoolId === 'all' ||
+      msg.targetSchoolId === schoolId || 
+      msg.schoolId === schoolId ||
+      isSuperAdminUser ||
+      (msg.senderRole === 'superadmin' && isAdminUser)
+    );
+
+    // A. Direct / Individual Message: Delivered unconditionally if addressed to my identity or my role
     if (msg.messageType === 'individual') {
       const recNid = String(msg.receiverNationalId || '').trim().toLowerCase();
       const recId = String(msg.receiverId || '').trim().toLowerCase();
@@ -229,19 +334,31 @@ export default function SchoolMessagingHub() {
         (recEmail && myIdentities.has(recEmail)) ||
         (recName && myIdentities.has(recName)) ||
         (recName && myNameLower && (recName.includes(myNameLower) || myNameLower.includes(recName))) ||
-        (userRole === 'superadmin' && (recNid === 'super@admin.com' || recEmail === 'super@admin.com' || recName.includes('ماستر') || recName.includes('الإدارة العامة')))
+        (isSuperAdminUser && (recNid === 'super@admin.com' || recEmail === 'super@admin.com' || recName.includes('ماستر') || recName.includes('الإدارة العامة'))) ||
+        // 👑 CRITICAL: If recipient is 'admin' and current user is Admin of the school or message is global/from Master
+        (isAdminUser && (
+          msg.receiverRole === 'admin' ||
+          recName.includes('مدير') ||
+          recName.includes('إدارة') ||
+          recName.includes('الادارة') ||
+          recNid === 'all_admins' ||
+          recId === 'all_schools_principals' ||
+          (msg.senderRole === 'superadmin' && isGlobal)
+        ))
       );
 
       return Boolean(isAddressedToMe);
     }
 
     // B. Group / Broadcast Message (تعميم جماعي)
-    const isGlobal = !msg.schoolId || msg.schoolId === 'ALL' || schoolId === 'ALL' || userRole === 'superadmin' || userData?.role === 'superadmin';
     if (!isGlobal && msg.schoolId !== schoolId) {
       return false;
     }
 
     if (msg.messageType === 'group') {
+      // Admins and SuperAdmins receive ALL group circulars!
+      if (isAdminUser || isSuperAdminUser) return true;
+
       const tg = msg.targetGroup || 'all';
       
       // All school community
@@ -249,17 +366,17 @@ export default function SchoolMessagingHub() {
 
       // Teachers
       if (tg === 'teachers') {
-        return myRole === 'teacher' || userRole === 'teacher' || userData?.role === 'teacher' || Boolean(userData?.subject) || userRole === 'superadmin';
+        return myRole === 'teacher' || userRole === 'teacher' || userData?.role === 'teacher' || Boolean(userData?.subject);
       }
 
       // Students
       if (tg === 'students') {
-        return myRole === 'student' || userRole === 'student' || userData?.role === 'student' || userRole === 'superadmin';
+        return myRole === 'student' || userRole === 'student' || userData?.role === 'student';
       }
 
       // Parents
       if (tg === 'parents') {
-        return myRole === 'parent' || userRole === 'parent' || userData?.role === 'parent' || userRole === 'superadmin';
+        return myRole === 'parent' || userRole === 'parent' || userData?.role === 'parent';
       }
 
       // Specific Class (e.g. 1/أ)
@@ -270,19 +387,19 @@ export default function SchoolMessagingHub() {
         if (myRole === 'student' || myRole === 'parent' || userRole === 'student' || userRole === 'parent' || userData?.role === 'student' || userData?.role === 'parent') {
           if (!targetCls || targetCls === userCls || userCls.includes(targetCls) || targetCls.includes(userCls)) return true;
         }
-        if (myRole === 'admin' || myRole === 'teacher' || myRole === 'staff' || userRole === 'admin' || userRole === 'teacher' || userRole === 'staff' || userRole === 'superadmin') {
+        if (myRole === 'teacher' || myRole === 'staff' || userRole === 'teacher' || userRole === 'staff') {
           return true;
         }
       }
 
       // Staff / Deputies
       if (tg === 'staff') {
-        return myRole === 'staff' || myRole === 'admin' || userRole === 'staff' || userRole === 'admin' || userRole === 'superadmin';
+        return myRole === 'staff' || userRole === 'staff';
       }
 
       // Supervisors
       if (tg === 'supervisors') {
-        return myRole === 'supervisor' || userRole === 'supervisor' || userRole === 'superadmin';
+        return myRole === 'supervisor' || userRole === 'supervisor';
       }
     }
 
@@ -595,7 +712,9 @@ export default function SchoolMessagingHub() {
           receiverNationalId: targetUser.nationalId || targetUser.id,
           receiverName: targetUser.name,
           receiverRole: targetUser.role || 'user',
-          receiverRoleTitle: targetUser.roleTitle || targetUser.subject || targetUser.class || ROLE_BADGES[targetUser.role]?.label || targetUser.role
+          receiverRoleTitle: targetUser.roleTitle || targetUser.subject || targetUser.class || ROLE_BADGES[targetUser.role]?.label || targetUser.role,
+          targetSchoolId: targetUser.schoolId || 'ALL',
+          targetSchoolName: targetUser.schoolName || ''
         };
       } else {
         recData = {
@@ -603,7 +722,8 @@ export default function SchoolMessagingHub() {
           receiverNationalId: recipientNid,
           receiverName: 'المستلم المحدد',
           receiverRole: 'user',
-          receiverRoleTitle: 'مستلم'
+          receiverRoleTitle: 'مستلم',
+          targetSchoolId: 'ALL'
         };
       }
     }
@@ -619,8 +739,14 @@ export default function SchoolMessagingHub() {
         readAt: new Date().toISOString()
       };
 
+      const effectiveSchool = (messageType === 'individual' && recData?.targetSchoolId && recData.targetSchoolId !== 'ALL')
+        ? recData.targetSchoolId
+        : (userRole === 'superadmin' ? 'ALL' : (schoolId || 'main_school'));
+
       const payload = {
-        schoolId: schoolId || 'main_school',
+        schoolId: effectiveSchool,
+        targetSchoolId: recData?.targetSchoolId || (userRole === 'superadmin' ? 'ALL' : (schoolId || 'main_school')),
+        targetSchoolName: recData?.targetSchoolName || '',
         senderId: currentUser?.uid || myNid,
         senderNationalId: myNid,
         senderName: myName,

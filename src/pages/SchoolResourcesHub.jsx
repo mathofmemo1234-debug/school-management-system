@@ -1517,6 +1517,47 @@ export default function SchoolResourcesHub({ role }) {
         console.warn('Firestore write warning for transfer request, fallback to local state:', firestoreErr);
       }
 
+      // ✉️ Mirror master transfer decision to school_messages
+      if (isFromMaster) {
+        try {
+          const msgPayload = {
+            schoolId: targetSchool || 'ALL',
+            targetSchoolId: targetSchool || 'ALL',
+            targetSchoolName: schoolDisplayName,
+            senderId: currentUser?.uid || 'master_general_admin',
+            senderNationalId: 'super@admin.com',
+            senderName: userData?.name || 'الماستر العام (الإدارة العامة)',
+            senderRole: 'superadmin',
+            senderRoleTitle: 'الإدارة العامة (الماستر العام)',
+            messageType: 'individual',
+            targetGroup: 'all',
+            receiverRole: 'admin',
+            receiverName: `مدير ${schoolDisplayName}`,
+            receiverRoleTitle: 'مدير المدرسة',
+            subject: `🔄 قرار سد عجز وتكليف كادر: مادة ${requestPayload.subject}`,
+            body: `قرار إداري صادر من الماستر العام لسد العجز وتكليف الكوادر:\nالمادة: ${requestPayload.subject}\nالحصص المطلوبة: ${requestPayload.requiredPeriods}\nالمدرسة: ${schoolDisplayName}\n${requestPayload.teacherName ? `الكادر المكلف: ${requestPayload.teacherName}` : ''}\n\nيرجى اعتماد التسكين في الجدول وتأكيد الاستلام.`,
+            priority: 'urgent',
+            readBy: ['super@admin.com'],
+            readers: [{
+              userId: currentUser?.uid || 'master_general_admin',
+              nationalId: 'super@admin.com',
+              name: userData?.name || 'الماستر العام',
+              role: 'superadmin',
+              roleTitle: 'الماستر العام',
+              readAt: new Date().toISOString()
+            }],
+            createdAt: new Date().toISOString(),
+            timestamp: Date.now(),
+            isDirective: true,
+            transferId: newId
+          };
+          const msgDoc = await addDoc(collection(db, 'school_messages'), msgPayload);
+          broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: msgDoc.id, ...msgPayload } });
+        } catch (msgErr) {
+          console.warn("Could not mirror transfer to school_messages:", msgErr);
+        }
+      }
+
       setTransferRequests(prev => [{ id: newId, isTargetingMySchool: true, ...requestPayload }, ...prev]);
       broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: newId, isTargetingMySchool: true, ...requestPayload } });
 
@@ -1572,6 +1613,45 @@ export default function SchoolResourcesHub({ role }) {
         console.warn('Firestore write warning for directive, fallback to local state:', firestoreErr);
       }
 
+      // ✉️ Mirror directive directly to school_messages
+      try {
+        const msgPayload = {
+          schoolId: targetSchool,
+          targetSchoolId: targetSchool,
+          targetSchoolName: targetSchoolName,
+          senderId: currentUser?.uid || 'master_general_admin',
+          senderNationalId: 'super@admin.com',
+          senderName: userData?.name || 'الماستر العام (الإدارة العامة)',
+          senderRole: 'superadmin',
+          senderRoleTitle: 'الإدارة العامة (الماستر العام)',
+          messageType: targetSchool === 'ALL' ? 'group' : 'individual',
+          targetGroup: 'all',
+          receiverRole: 'admin',
+          receiverName: targetSchoolName ? `مدير ${targetSchoolName}` : 'مدير المدرسة',
+          receiverRoleTitle: 'مدير المدرسة',
+          subject: `👑 توجيه إداري رسمي: ${directivePayload.title}`,
+          body: `توجيه وقرار إداري صادر من الإدارة العامة (الماستر العام):\nالموضوع / المجال: ${directivePayload.subject}\n\nنص التوجيه:\n${directivePayload.content || 'يرجى الاطلاع والتقيد بما ورد فيه وتأكيد الاستلام.'}`,
+          priority: directiveForm.urgency === 'high' ? 'urgent' : 'important',
+          readBy: ['super@admin.com'],
+          readers: [{
+            userId: currentUser?.uid || 'master_general_admin',
+            nationalId: 'super@admin.com',
+            name: userData?.name || 'الماستر العام',
+            role: 'superadmin',
+            roleTitle: 'الماستر العام',
+            readAt: new Date().toISOString()
+          }],
+          createdAt: new Date().toISOString(),
+          timestamp: Date.now(),
+          isDirective: true,
+          directiveId: newId
+        };
+        const msgDoc = await addDoc(collection(db, 'school_messages'), msgPayload);
+        broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: msgDoc.id, ...msgPayload } });
+      } catch (msgErr) {
+        console.warn("Could not mirror directive to school_messages:", msgErr);
+      }
+
       setDirectivesList(prev => [{ id: newId, isTargetingMySchool: true, ...directivePayload }, ...prev]);
       broadcastRealtimeEvent('DIRECTIVE_UPDATE', { directive: { id: newId, isTargetingMySchool: true, ...directivePayload } });
 
@@ -1614,6 +1694,50 @@ export default function SchoolResourcesHub({ role }) {
       try {
         await updateDoc(doc(db, 'resource_transfer_requests', requestId), updateData);
       } catch (e) {}
+    }
+
+    // ✉️ Mirror approval to school_messages
+    if (newStatus === 'approved') {
+      try {
+        const req = transferRequests.find(r => r.id === requestId);
+        if (req) {
+          const msgPayload = {
+            schoolId: req.schoolId || req.targetSchoolId || 'ALL',
+            targetSchoolId: req.schoolId || req.targetSchoolId || 'ALL',
+            targetSchoolName: req.schoolName || '',
+            senderId: currentUser?.uid || 'master_general_admin',
+            senderNationalId: 'super@admin.com',
+            senderName: userData?.name || 'الماستر العام (الإدارة العامة)',
+            senderRole: 'superadmin',
+            senderRoleTitle: 'الإدارة العامة (الماستر العام)',
+            messageType: 'individual',
+            targetGroup: 'all',
+            receiverRole: 'admin',
+            receiverName: req.schoolName ? `مدير ${req.schoolName}` : 'مدير المدرسة',
+            receiverRoleTitle: 'مدير المدرسة',
+            subject: `✅ اعتماد طلب الموارد: مادة ${req.subject || ''}`,
+            body: `تم اعتماد طلب الاستعانة / الندب من قِبل الإدارة العامة (الماستر العام):\nالمادة: ${req.subject || ''}\nالحالة: معتمد وموجه\n${assignedTeacher ? `الكادر المكلف: ${assignedTeacher}` : ''}\n\nيرجى استكمال إجراءات تسكين الجدول وتأكيد الاستلام.`,
+            priority: 'important',
+            readBy: ['super@admin.com'],
+            readers: [{
+              userId: currentUser?.uid || 'master_general_admin',
+              nationalId: 'super@admin.com',
+              name: userData?.name || 'الماستر العام',
+              role: 'superadmin',
+              roleTitle: 'الماستر العام',
+              readAt: new Date().toISOString()
+            }],
+            createdAt: new Date().toISOString(),
+            timestamp: Date.now(),
+            isDirective: true,
+            transferId: requestId
+          };
+          const msgDoc = await addDoc(collection(db, 'school_messages'), msgPayload);
+          broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: msgDoc.id, ...msgPayload } });
+        }
+      } catch (msgErr) {
+        console.warn("Could not mirror approval to school_messages:", msgErr);
+      }
     }
 
     alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : (newStatus === 'acknowledged' ? '✅ تم تأكيد استلام القرار وتوثيقه' : 'تم تحديث حالة المعاملة بنجاح')));

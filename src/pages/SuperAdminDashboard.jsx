@@ -272,6 +272,48 @@ function SuperAdminHome() {
         } catch (e) {}
       }
 
+      // ✉️ Mirror approval to school_messages so Admin is notified instantly
+      if (newStatus === 'approved' && selectedRequestForApproval) {
+        try {
+          const req = selectedRequestForApproval;
+          const msgPayload = {
+            schoolId: req.schoolId || req.targetSchoolId || 'ALL',
+            targetSchoolId: req.schoolId || req.targetSchoolId || 'ALL',
+            targetSchoolName: req.schoolName || '',
+            senderId: currentUser?.uid || 'master_general_admin',
+            senderNationalId: 'super@admin.com',
+            senderName: userData?.name || 'الماستر العام (الإدارة العامة)',
+            senderRole: 'superadmin',
+            senderRoleTitle: 'الإدارة العامة (الماستر العام)',
+            messageType: 'individual',
+            targetGroup: 'all',
+            receiverRole: 'admin',
+            receiverName: req.schoolName ? `مدير ${req.schoolName}` : 'مدير المدرسة',
+            receiverRoleTitle: 'مدير المدرسة',
+            subject: `✅ اعتماد طلب الموارد: مادة ${req.subject || ''}`,
+            body: `تم اعتماد طلب الاستعانة / الندب من قِبل الإدارة العامة (الماستر العام):\nالمادة: ${req.subject || ''}\nالحالة: معتمد وموجه ومحسوم\n${assignedTeacher ? `الكادر المكلف: ${assignedTeacher}` : ''}\n\nيرجى استكمال إجراءات تسكين الجدول وتأكيد الاستلام.`,
+            priority: 'important',
+            readBy: ['super@admin.com'],
+            readers: [{
+              userId: currentUser?.uid || 'master_general_admin',
+              nationalId: 'super@admin.com',
+              name: userData?.name || 'الماستر العام',
+              role: 'superadmin',
+              roleTitle: 'الماستر العام',
+              readAt: new Date().toISOString()
+            }],
+            createdAt: new Date().toISOString(),
+            timestamp: Date.now(),
+            isDirective: true,
+            transferId: requestId
+          };
+          const msgDoc = await addDoc(collection(db, 'school_messages'), msgPayload);
+          broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: msgDoc.id, ...msgPayload } });
+        } catch (msgErr) {
+          console.warn("Could not mirror approval to school_messages:", msgErr);
+        }
+      }
+
       alert(newStatus === 'approved' ? '✅ تم اعتماد الطلب وتوجيه القرار لمدير المدرسة بنجاح' : (newStatus === 'rejected' ? 'تم رفض المعاملة' : 'تم تحديث حالة المعاملة'));
       setShowApprovalModal(false);
       setSelectedRequestForApproval(null);
@@ -316,6 +358,45 @@ function SuperAdminHome() {
         if (docRef?.id) newId = docRef.id;
       } catch (err) {
         console.warn("Firestore directive write fallback:", err);
+      }
+
+      // ✉️ Mirror directive directly to school_messages so it appears in Admin Inbox with zero lag
+      try {
+        const msgPayload = {
+          schoolId: targetSchool,
+          targetSchoolId: targetSchool,
+          targetSchoolName: targetSchoolName,
+          senderId: currentUser?.uid || 'master_general_admin',
+          senderNationalId: 'super@admin.com',
+          senderName: userData?.name || 'الماستر العام (الإدارة العامة)',
+          senderRole: 'superadmin',
+          senderRoleTitle: 'الإدارة العامة (الماستر العام)',
+          messageType: targetSchool === 'ALL' ? 'group' : 'individual',
+          targetGroup: 'all',
+          receiverRole: 'admin',
+          receiverName: targetSchoolName ? `مدير ${targetSchoolName}` : 'مدير المدرسة',
+          receiverRoleTitle: 'مدير المدرسة',
+          subject: `👑 توجيه إداري رسمي: ${directivePayload.title}`,
+          body: `توجيه وقرار إداري صادر من الإدارة العامة (الماستر العام):\n\nالموضوع / المجال: ${directivePayload.subject}\n\nنص التوجيه:\n${directivePayload.content || 'يرجى الاطلاع والتقيد بما ورد فيه وتأكيد الاستلام.'}`,
+          priority: directDirectiveForm.urgency === 'high' ? 'urgent' : 'important',
+          readBy: ['super@admin.com'],
+          readers: [{
+            userId: currentUser?.uid || 'master_general_admin',
+            nationalId: 'super@admin.com',
+            name: userData?.name || 'الماستر العام',
+            role: 'superadmin',
+            roleTitle: 'الماستر العام',
+            readAt: new Date().toISOString()
+          }],
+          createdAt: new Date().toISOString(),
+          timestamp: Date.now(),
+          isDirective: true,
+          directiveId: newId
+        };
+        const msgDoc = await addDoc(collection(db, 'school_messages'), msgPayload);
+        broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: msgDoc.id, ...msgPayload } });
+      } catch (msgErr) {
+        console.warn("Could not mirror directive to school_messages:", msgErr);
       }
 
       broadcastRealtimeEvent('DIRECTIVE_UPDATE', { directive: { id: newId, isTargetingMySchool: true, ...directivePayload } });
@@ -373,6 +454,45 @@ function SuperAdminHome() {
         if (docRef?.id) newId = docRef.id;
       } catch (err) {
         console.warn("Firestore transfer write fallback:", err);
+      }
+
+      // ✉️ Mirror transfer decision to school_messages
+      try {
+        const msgPayload = {
+          schoolId: targetSchool,
+          targetSchoolId: targetSchool,
+          targetSchoolName: targetSchoolName,
+          senderId: currentUser?.uid || 'master_general_admin',
+          senderNationalId: 'super@admin.com',
+          senderName: userData?.name || 'الماستر العام (الإدارة العامة)',
+          senderRole: 'superadmin',
+          senderRoleTitle: 'الإدارة العامة (الماستر العام)',
+          messageType: 'individual',
+          targetGroup: 'all',
+          receiverRole: 'admin',
+          receiverName: targetSchoolName ? `مدير ${targetSchoolName}` : 'مدير المدرسة',
+          receiverRoleTitle: 'مدير المدرسة',
+          subject: `🔄 قرار سد عجز وتكليف كادر: مادة ${requestPayload.subject}`,
+          body: `قرار إداري صادر من الماستر العام لسد العجز وتكليف الكوادر:\n\nالمادة: ${requestPayload.subject}\nالحصص المطلوبة: ${requestPayload.requiredPeriods}\nالمدرسة المستهدفة: ${targetSchoolName}\n${requestPayload.teacherName ? `الكادر المكلف: ${requestPayload.teacherName}` : ''}\n\nيرجى اعتماد التسكين في الجدول المدرسي وتأكيد الاستلام.`,
+          priority: 'urgent',
+          readBy: ['super@admin.com'],
+          readers: [{
+            userId: currentUser?.uid || 'master_general_admin',
+            nationalId: 'super@admin.com',
+            name: userData?.name || 'الماستر العام',
+            role: 'superadmin',
+            roleTitle: 'الماستر العام',
+            readAt: new Date().toISOString()
+          }],
+          createdAt: new Date().toISOString(),
+          timestamp: Date.now(),
+          isDirective: true,
+          transferId: newId
+        };
+        const msgDoc = await addDoc(collection(db, 'school_messages'), msgPayload);
+        broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: msgDoc.id, ...msgPayload } });
+      } catch (msgErr) {
+        console.warn("Could not mirror transfer to school_messages:", msgErr);
       }
 
       setIncomingTransferRequests(prev => [{ id: newId, isTargetingMySchool: true, ...requestPayload }, ...prev]);
@@ -1679,20 +1799,39 @@ function SuperAdminHome() {
                           >
                             <RefreshCw size={12} /> إعادة فتح
                           </button>
-                          {isResolved(req) && (
+                          {showArchived ? (
                             <button
-                              onClick={() => handleArchiveTransfer(req.id)}
+                              onClick={() => handleRestoreTransfer(req.id)}
                               className="btn btn-outline"
                               style={{
                                 padding: '4px 10px',
                                 fontSize: '11px',
-                                color: '#ef4444',
-                                borderColor: '#fca5a5',
-                                borderRadius: '6px'
+                                color: '#059669',
+                                borderColor: '#a7f3d0',
+                                borderRadius: '6px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
                               }}
                             >
-                              <Archive size={12} /> أرشفة
+                              <Undo2 size={12} /> استعادة
                             </button>
+                          ) : (
+                            isResolved(req) && (
+                              <button
+                                onClick={() => handleArchiveTransfer(req.id)}
+                                className="btn btn-outline"
+                                style={{
+                                  padding: '4px 10px',
+                                  fontSize: '11px',
+                                  color: '#ef4444',
+                                  borderColor: '#fca5a5',
+                                  borderRadius: '6px'
+                                }}
+                              >
+                                <Archive size={12} /> أرشفة
+                              </button>
+                            )
                           )}
                         </>
                       )}
