@@ -21,13 +21,15 @@ import {
   ALL_SCHOOL_SUBJECTS,
   ADVANCED_SCHOOLS_CATALOG
 } from '../data/resourceData';
+import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
 
 export default function SchoolResourcesHub({ role }) {
   const { userData, currentUser, userRole } = useAuth();
   const { t, isRTL } = useLanguage();
 
-  // Strict and accurate SuperAdmin detection based on authenticated user context
+  // Strict and accurate SuperAdmin detection based on authenticated user context and URL path
   const isSuperAdmin = Boolean(
+    (typeof window !== 'undefined' && window.location?.pathname?.startsWith('/superadmin')) ||
     userRole === 'superadmin' || 
     userData?.role === 'superadmin' || 
     userData?.email === 'super@admin.com' || 
@@ -340,7 +342,7 @@ export default function SchoolResourcesHub({ role }) {
       console.warn("Classes snapshot notice in resources:", err);
     });
 
-    // Transfer Requests - Listen live and match across all potential school identifiers
+    // Transfer Requests - Listen live and keep all items with precise school targeting tags
     const unsubTrans = onSnapshot(collection(db, 'resource_transfer_requests'), (snap) => {
       const list = [];
       const overrides = (() => {
@@ -365,8 +367,6 @@ export default function SchoolResourcesHub({ role }) {
         localStorage.setItem('msc_transfers_overrides', JSON.stringify(overrides));
       } catch (e) {}
 
-      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      
       const allowedIds = new Set([
         'ALL', 'all',
         targetSchool,
@@ -376,11 +376,12 @@ export default function SchoolResourcesHub({ role }) {
         currentSchoolInfo?.code
       ].filter(Boolean));
 
-      const filtered = isSuperAdmin ? list : list.filter(r => {
-        const isCompanyWide = !r.targetSchoolId || r.targetSchoolId === 'ALL' || r.targetSchoolId === 'all' || r.schoolId === 'ALL' || r.fromSchoolId === 'ALL' || r.toSchoolId === 'ALL';
-        const isAdminUnrestricted = !targetSchool || targetSchool === 'ALL' || targetSchool === 'all' || targetSchool === 'default_school_1' || targetSchool === 'main_school';
-        
-        const isIdMatch = 
+      const taggedList = list.map(r => {
+        const isMaster = Boolean(r.isDirective || r.requesterRole === 'superadmin' || r.source === 'master' || r.fromSchoolId === 'ALL');
+        const isTargetingMySchool = Boolean(
+          isSuperAdmin ||
+          !r.targetSchoolId || r.targetSchoolId === 'ALL' || r.targetSchoolId === 'all' || r.schoolId === 'ALL' || r.fromSchoolId === 'ALL' || r.toSchoolId === 'ALL' ||
+          !targetSchool || targetSchool === 'ALL' || targetSchool === 'all' ||
           allowedIds.has(r.schoolId) || 
           allowedIds.has(r.targetSchoolId) || 
           allowedIds.has(r.fromSchoolId) || 
@@ -388,30 +389,30 @@ export default function SchoolResourcesHub({ role }) {
           allowedIds.has(r.schoolCode) ||
           allowedIds.has(r.targetSchoolCode) ||
           allowedIds.has(r.fromSchoolCode) ||
-          allowedIds.has(r.toSchoolCode);
-
-        const isNameMatch = Boolean(
+          allowedIds.has(r.toSchoolCode) ||
           (currentSchoolInfo?.name && (r.schoolName === currentSchoolInfo.name || r.targetSchoolName === currentSchoolInfo.name || r.fromSchoolName === currentSchoolInfo.name || r.toSchoolName === currentSchoolInfo.name)) ||
-          (userData?.schoolName && (r.schoolName === userData.schoolName || r.targetSchoolName === userData.schoolName || r.fromSchoolName === userData.schoolName || r.toSchoolName === userData.schoolName))
-        );
-
-        const isMyRequest = Boolean(
+          (userData?.schoolName && (r.schoolName === userData.schoolName || r.targetSchoolName === userData.schoolName || r.fromSchoolName === userData.schoolName || r.toSchoolName === userData.schoolName)) ||
           (userData?.nationalId && r.requesterNid === userData.nationalId) ||
           (userData?.name && r.requesterName === userData.name)
         );
-
-        return isCompanyWide || isAdminUnrestricted || isIdMatch || isNameMatch || isMyRequest;
+        return { ...r, isTargetingMySchool, isMaster };
       });
-      setTransferRequests(filtered);
+
+      // Sort: items targeting this school first, then newest
+      taggedList.sort((a, b) => {
+        if (a.isTargetingMySchool && !b.isTargetingMySchool) return -1;
+        if (!a.isTargetingMySchool && b.isTargetingMySchool) return 1;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
+      setTransferRequests(taggedList);
     }, (err) => {
       console.warn("Transfer requests snapshot notice in resources:", err);
     });
 
-    // Directives - Listen live and match across all potential school identifiers
+    // Directives - Listen live and keep all items with precise targeting tags
     const unsubDir = onSnapshot(collection(db, 'resource_directives'), (snap) => {
       const list = [];
       snap.forEach(d => list.push({ id: d.id, ...d.data() }));
-      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       
       const allowedIds = new Set([
         'ALL', 'all',
@@ -422,20 +423,45 @@ export default function SchoolResourcesHub({ role }) {
         currentSchoolInfo?.code
       ].filter(Boolean));
 
-      const filtered = isSuperAdmin ? list : list.filter(d => {
-        const isCompanyWide = !d.targetSchoolId || d.targetSchoolId === 'ALL' || d.targetSchoolId === 'all' || d.schoolId === 'ALL' || d.schoolId === 'all';
-        const isAdminUnrestricted = !targetSchool || targetSchool === 'ALL' || targetSchool === 'all' || targetSchool === 'default_school_1' || targetSchool === 'main_school';
-        const isIdMatch = allowedIds.has(d.targetSchoolId) || allowedIds.has(d.schoolId) || allowedIds.has(d.targetSchoolCode) || allowedIds.has(d.schoolCode);
-        const isNameMatch = Boolean(
+      const taggedList = list.map(d => {
+        const isTargetingMySchool = Boolean(
+          isSuperAdmin ||
+          !d.targetSchoolId || d.targetSchoolId === 'ALL' || d.targetSchoolId === 'all' || d.schoolId === 'ALL' || d.schoolId === 'all' ||
+          !targetSchool || targetSchool === 'ALL' || targetSchool === 'all' ||
+          allowedIds.has(d.targetSchoolId) || allowedIds.has(d.schoolId) || allowedIds.has(d.targetSchoolCode) || allowedIds.has(d.schoolCode) ||
           (currentSchoolInfo?.name && (d.targetSchoolName === currentSchoolInfo.name || d.schoolName === currentSchoolInfo.name)) ||
           (userData?.schoolName && (d.targetSchoolName === userData.schoolName || d.schoolName === userData.schoolName))
         );
-
-        return isCompanyWide || isAdminUnrestricted || isIdMatch || isNameMatch;
+        return { ...d, isTargetingMySchool };
       });
-      setDirectivesList(filtered);
+
+      taggedList.sort((a, b) => {
+        if (a.isTargetingMySchool && !b.isTargetingMySchool) return -1;
+        if (!a.isTargetingMySchool && b.isTargetingMySchool) return 1;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
+      setDirectivesList(taggedList);
     }, (err) => {
       console.warn("Directives snapshot notice in resources:", err);
+    });
+
+    // ⚡ Cross-Tab Instant BroadcastChannel Subscription
+    const unsubBroadcast = subscribeRealtimeEvents((event) => {
+      if (event?.type === 'DIRECTIVE_UPDATE' && event.payload?.directive) {
+        setDirectivesList(prev => {
+          const d = event.payload.directive;
+          const exists = prev.some(item => item.id === d.id);
+          if (exists) return prev.map(item => item.id === d.id ? { ...item, ...d } : item);
+          return [{ isTargetingMySchool: true, ...d }, ...prev];
+        });
+      } else if (event?.type === 'RESOURCE_UPDATE' && event.payload?.transfer) {
+        setTransferRequests(prev => {
+          const t = event.payload.transfer;
+          const exists = prev.some(item => item.id === t.id);
+          if (exists) return prev.map(item => item.id === t.id ? { ...item, ...t } : item);
+          return [{ isTargetingMySchool: true, ...t }, ...prev];
+        });
+      }
     });
 
     return () => {
@@ -445,6 +471,7 @@ export default function SchoolResourcesHub({ role }) {
       unsubCls();
       unsubTrans();
       unsubDir();
+      unsubBroadcast();
     };
   }, [selectedSchoolId, isSuperAdmin, userData]);
 
@@ -1480,12 +1507,16 @@ export default function SchoolResourcesHub({ role }) {
         createdAt: Date.now()
       };
 
+      let newId = `req_${Date.now()}`;
       try {
-        await addDoc(collection(db, 'resource_transfer_requests'), requestPayload);
+        const docRef = await addDoc(collection(db, 'resource_transfer_requests'), requestPayload);
+        if (docRef?.id) newId = docRef.id;
       } catch (firestoreErr) {
         console.warn('Firestore write warning for transfer request, fallback to local state:', firestoreErr);
-        setTransferRequests(prev => [{ id: `req_${Date.now()}`, ...requestPayload }, ...prev]);
       }
+
+      setTransferRequests(prev => [{ id: newId, isTargetingMySchool: true, ...requestPayload }, ...prev]);
+      broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: newId, isTargetingMySchool: true, ...requestPayload } });
 
       setShowTransferModal(false);
       if (isFromMaster) {
@@ -1531,12 +1562,16 @@ export default function SchoolResourcesHub({ role }) {
         status: 'active'
       };
 
+      let newId = `dir_${Date.now()}`;
       try {
-        await addDoc(collection(db, 'resource_directives'), directivePayload);
+        const docRef = await addDoc(collection(db, 'resource_directives'), directivePayload);
+        if (docRef?.id) newId = docRef.id;
       } catch (firestoreErr) {
         console.warn('Firestore write warning for directive, fallback to local state:', firestoreErr);
-        setDirectivesList(prev => [{ id: `dir_${Date.now()}`, ...directivePayload }, ...prev]);
       }
+
+      setDirectivesList(prev => [{ id: newId, isTargetingMySchool: true, ...directivePayload }, ...prev]);
+      broadcastRealtimeEvent('DIRECTIVE_UPDATE', { directive: { id: newId, isTargetingMySchool: true, ...directivePayload } });
 
       setShowDirectiveModal(false);
       alert('تم إرسال التوجيه الإداري المباشر إلى إدارة المدرسة بنجاح!');
@@ -1558,8 +1593,9 @@ export default function SchoolResourcesHub({ role }) {
       updateData.teacherName = assignedTeacher.trim();
     }
 
-    // 1. Optimistic local state update
+    // 1. Optimistic local state update & cross-tab broadcast
     setTransferRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updateData } : r));
+    broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: requestId, ...updateData } });
 
     // 2. Persist in localStorage overrides
     try {
@@ -1998,16 +2034,20 @@ export default function SchoolResourcesHub({ role }) {
         >
           <ArrowLeftRight size={18} />
           <span>تنقلات المعلمين وتوجيهات الماستر</span>
-          {transferRequests.filter(r => r.status === 'pending').length > 0 && (
+          {((isSuperAdmin ? transferRequests.filter(r => r.status === 'pending').length : (directivesList.length + transferRequests.length)) > 0) && (
             <span style={{
-              background: '#ef4444',
+              background: isSuperAdmin ? '#ef4444' : '#4f46e5',
               color: 'white',
               fontSize: '11px',
-              padding: '2px 7px',
+              padding: '2px 8px',
               borderRadius: '10px',
-              fontWeight: 800
+              fontWeight: 800,
+              boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
             }}>
-              {transferRequests.filter(r => r.status === 'pending').length}
+              {isSuperAdmin 
+                ? transferRequests.filter(r => r.status === 'pending').length 
+                : (directivesList.length + transferRequests.length)
+              }
             </span>
           )}
         </button>
@@ -2018,6 +2058,44 @@ export default function SchoolResourcesHub({ role }) {
       {/* TAB 1: ANALYTICS & SMART RECOMMENDATIONS */}
       {activeTab === 'analytics' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Top Alert Banner for Incoming Master Directives & Decisions */}
+          {!isSuperAdmin && (directivesList.length > 0 || transferRequests.length > 0) && (
+            <div 
+              onClick={() => setActiveTab('transfers_directives')}
+              style={{
+                background: 'linear-gradient(135deg, #4338ca 0%, #6366f1 100%)',
+                borderRadius: '16px',
+                padding: '16px 20px',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(67, 56, 202, 0.25)',
+                transition: 'transform 0.2s ease',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Send size={22} color="white" />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>
+                    📢 توجد قرارات وتوجيهات إدارية واردة من الماستر العام ({directivesList.length + transferRequests.length} معاملة)
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '12px', opacity: 0.9 }}>
+                    اضغط هنا لعرض تفاصيل القرارات وحركات سد العجز وتأكيد الاستلام فوراً
+                  </p>
+                </div>
+              </div>
+              <button className="btn" style={{ background: 'white', color: '#4338ca', fontWeight: 800, fontSize: '13px', padding: '6px 16px', borderRadius: '10px', border: 'none' }}>
+                عرض القرارات والتنقلات الآن ←
+              </button>
+            </div>
+          )}
           {/* Top KPI Cards Grid */}
           <div style={{
             display: 'grid',
@@ -4429,12 +4507,34 @@ export default function SchoolResourcesHub({ role }) {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {isSuperAdmin && (
+                <button
+                  onClick={() => {
+                    setDirectiveForm({
+                      targetSchoolId: selectedSchoolId || 'ALL',
+                      subject: 'الرياضيات العامة',
+                      customSubject: '',
+                      actionType: 'transfer_surplus',
+                      title: 'توجيه إداري رسمي',
+                      content: '',
+                      urgency: 'high',
+                      assignedTeacherName: ''
+                    });
+                    setShowDirectiveModal(true);
+                  }}
+                  className="btn btn-primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, #7c3aed, #6366f1)', border: 'none' }}
+                >
+                  <Send size={17} /> إرسال توجيه إداري مباشر
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   setTransferForm({
                     type: 'need',
-                    subject: 'الرياضيات',
+                    subject: 'الرياضيات العامة',
                     customSubject: '',
                     track: 'national',
                     gender: 'boys',
@@ -4459,7 +4559,7 @@ export default function SchoolResourcesHub({ role }) {
                 onClick={() => {
                   setTransferForm({
                     type: 'release',
-                    subject: 'الرياضيات',
+                    subject: 'الرياضيات العامة',
                     customSubject: '',
                     track: 'national',
                     gender: 'boys',
@@ -4487,7 +4587,7 @@ export default function SchoolResourcesHub({ role }) {
             <div className="glass-panel" style={{ padding: '24px', borderRadius: '18px', background: 'linear-gradient(135deg, rgba(245, 243, 255, 0.95), rgba(238, 242, 255, 0.95))', border: '1px solid #c7d2fe' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <Send size={20} color="#6366f1" />
-                <h3 style={{ margin: 0, fontSize: '17px', color: '#3730a3' }}>توجيهات الماستر والإدارة العامة للمدرسة</h3>
+                <h3 style={{ margin: 0, fontSize: '17px', color: '#3730a3' }}>توجيهات الماستر والإدارة العامة للمدرسة ({directivesList.length})</h3>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

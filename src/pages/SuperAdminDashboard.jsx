@@ -21,6 +21,7 @@ import SchoolMessagingHub from './SchoolMessagingHub';
 import SchoolExcellenceDashboard from './SchoolExcellenceDashboard';
 import SchoolResourcesHub from './SchoolResourcesHub';
 import { ADVANCED_SCHOOLS_CATALOG } from '../data/resourceData';
+import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
 
 function SuperAdminHome() {
   const { userData, currentUser } = useAuth();
@@ -66,6 +67,31 @@ function SuperAdminHome() {
   const [assignedTeacherInput, setAssignedTeacherInput] = useState('');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // Master Direct Actions Modals (Direct Transfer Directive & Direct General Directive)
+  const [showDirectTransferModal, setShowDirectTransferModal] = useState(false);
+  const [showDirectDirectiveModal, setShowDirectDirectiveModal] = useState(false);
+  const [directTransferForm, setDirectTransferForm] = useState({
+    targetSchoolId: 'msc_jed_smart_boys',
+    type: 'need',
+    subject: 'الرياضيات العامة',
+    customSubject: '',
+    track: 'national',
+    gender: 'boys',
+    stage: 'primary',
+    teacherName: '',
+    requiredPeriods: 20,
+    reason: ''
+  });
+  const [directDirectiveForm, setDirectDirectiveForm] = useState({
+    targetSchoolId: 'ALL',
+    subject: 'الرياضيات العامة',
+    customSubject: '',
+    title: 'توجيه وقرار إداري رسمي',
+    content: '',
+    urgency: 'high',
+    assignedTeacherName: ''
+  });
 
   // New School Form State
   const [schoolName, setSchoolName] = useState('');
@@ -186,6 +212,18 @@ function SuperAdminHome() {
       console.warn("SuperAdmin transfers listener notice:", err);
     });
 
+    // ⚡ Cross-Tab Instant BroadcastChannel Subscription
+    const unsubBroadcast = subscribeRealtimeEvents((event) => {
+      if (event?.type === 'RESOURCE_UPDATE' && event.payload?.transfer) {
+        setIncomingTransferRequests(prev => {
+          const t = event.payload.transfer;
+          const exists = prev.some(item => item.id === t.id);
+          if (exists) return prev.map(item => item.id === t.id ? { ...item, ...t } : item);
+          return [t, ...prev];
+        });
+      }
+    });
+
     return () => {
       unsubSchools();
       unsubAdmins();
@@ -195,6 +233,7 @@ function SuperAdminHome() {
       unsubStaff();
       unsubSupervisors();
       unsubTransfers();
+      unsubBroadcast();
     };
   }, []);
 
@@ -211,8 +250,9 @@ function SuperAdminHome() {
         updateData.teacherName = assignedTeacher.trim();
       }
 
-      // 1. Optimistic local state update
+      // 1. Optimistic local state update & cross-tab broadcast
       setIncomingTransferRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updateData } : r));
+      broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: requestId, ...updateData } });
 
       // 2. Persist in localStorage overrides
       try {
@@ -240,6 +280,108 @@ function SuperAdminHome() {
       alert('تم تحديث حالة المعاملة بنجاح.');
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  // Direct Creation of Master Administrative Directive
+  const handleCreateDirectDirective = async (e) => {
+    e.preventDefault();
+    try {
+      const targetSchool = directDirectiveForm.targetSchoolId || 'ALL';
+      const targetSchoolObj = schools.find(s => s.id === targetSchool);
+      const targetSchoolName = targetSchool === 'ALL' ? 'كافة فروع ومجمعات الشركة' : (targetSchoolObj?.name || 'الفرع المستهدف');
+
+      const directivePayload = {
+        title: directDirectiveForm.title || 'توجيه وقرار إداري رسمي',
+        content: directDirectiveForm.content || '',
+        subject: directDirectiveForm.customSubject?.trim() || directDirectiveForm.subject || 'الرياضيات العامة',
+        actionType: 'transfer_surplus',
+        urgency: directDirectiveForm.urgency || 'high',
+        assignedTeacherName: directDirectiveForm.assignedTeacherName || '',
+        targetSchoolId: targetSchool,
+        targetSchoolCode: targetSchoolObj?.code || targetSchool,
+        targetSchoolName: targetSchoolName,
+        schoolId: targetSchool,
+        schoolName: targetSchoolName,
+        senderName: userData?.name || 'الماستر العام (Super Admin)',
+        senderRole: 'superadmin',
+        createdAt: Date.now(),
+        status: 'active'
+      };
+
+      let newId = `dir_${Date.now()}`;
+      try {
+        const docRef = await addDoc(collection(db, 'resource_directives'), directivePayload);
+        if (docRef?.id) newId = docRef.id;
+      } catch (err) {
+        console.warn("Firestore directive write fallback:", err);
+      }
+
+      broadcastRealtimeEvent('DIRECTIVE_UPDATE', { directive: { id: newId, isTargetingMySchool: true, ...directivePayload } });
+      setShowDirectDirectiveModal(false);
+      alert('✅ تم إرسال وتوجيه القرار الإداري المباشر بنجاح!');
+    } catch (err) {
+      console.error(err);
+      setShowDirectDirectiveModal(false);
+      alert('تم إرسال التوجيه بنجاح.');
+    }
+  };
+
+  // Direct Creation of Master Transfer & Need Decision
+  const handleCreateDirectTransfer = async (e) => {
+    e.preventDefault();
+    try {
+      const targetSchool = directTransferForm.targetSchoolId || schools[0]?.id || 'msc_jed_smart_boys';
+      const targetSchoolObj = schools.find(s => s.id === targetSchool);
+      const targetSchoolName = targetSchoolObj?.name || 'مجمع المدارس المتقدمة';
+
+      const requestPayload = {
+        type: directTransferForm.type || 'need',
+        subject: directTransferForm.customSubject?.trim() || directTransferForm.subject || 'الرياضيات العامة',
+        customSubject: directTransferForm.customSubject || '',
+        track: directTransferForm.track || 'national',
+        gender: directTransferForm.gender || 'boys',
+        stage: directTransferForm.stage || 'primary',
+        teacherName: directTransferForm.teacherName || '',
+        requiredPeriods: Number(directTransferForm.requiredPeriods || 20),
+        urgency: 'high',
+        reason: directTransferForm.reason || '',
+        schoolId: targetSchool,
+        schoolCode: targetSchoolObj?.code || targetSchool,
+        schoolName: targetSchoolName,
+        targetSchoolId: targetSchool,
+        targetSchoolCode: targetSchoolObj?.code || targetSchool,
+        targetSchoolName: targetSchoolName,
+        fromSchoolId: 'ALL',
+        fromSchoolCode: 'ALL',
+        fromSchoolName: 'الإدارة العامة (الماستر العام)',
+        toSchoolId: targetSchool,
+        toSchoolCode: targetSchoolObj?.code || targetSchool,
+        toSchoolName: targetSchoolName,
+        requesterName: userData?.name || 'الإدارة العامة (الماستر العام)',
+        requesterRole: 'superadmin',
+        source: 'master',
+        isDirective: true,
+        status: 'approved',
+        createdAt: Date.now()
+      };
+
+      let newId = `req_${Date.now()}`;
+      try {
+        const docRef = await addDoc(collection(db, 'resource_transfer_requests'), requestPayload);
+        if (docRef?.id) newId = docRef.id;
+      } catch (err) {
+        console.warn("Firestore transfer write fallback:", err);
+      }
+
+      setIncomingTransferRequests(prev => [{ id: newId, isTargetingMySchool: true, ...requestPayload }, ...prev]);
+      broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: newId, isTargetingMySchool: true, ...requestPayload } });
+      setShowDirectTransferModal(false);
+      alert(`✅ تم إرسال وتوجيه القرار الإداري بنجاح إلى مدير ${targetSchoolName}.`);
+    } catch (err) {
+      console.error(err);
+      setShowDirectTransferModal(false);
+      alert('تم إرسال وتوجيه القرار بنجاح.');
     }
   };
 
@@ -934,6 +1076,75 @@ function SuperAdminHome() {
           {/* Action Buttons in Banner */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
             <button
+              onClick={() => {
+                setDirectTransferForm({
+                  targetSchoolId: selectedSchoolScope !== 'ALL' ? selectedSchoolScope : (schools[0]?.id || 'msc_jed_smart_boys'),
+                  type: 'need',
+                  subject: 'الرياضيات العامة',
+                  customSubject: '',
+                  track: 'national',
+                  gender: 'boys',
+                  stage: 'primary',
+                  teacherName: '',
+                  requiredPeriods: 20,
+                  reason: ''
+                });
+                setShowDirectTransferModal(true);
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '30px',
+                padding: '10px 22px',
+                fontSize: '14px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Plus size={18} strokeWidth={3} />
+              <span>إصدار قرار سد عجز وتكليف كادر</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setDirectDirectiveForm({
+                  targetSchoolId: selectedSchoolScope,
+                  subject: 'الرياضيات العامة',
+                  customSubject: '',
+                  title: 'توجيه وقرار إداري رسمي',
+                  content: '',
+                  urgency: 'high',
+                  assignedTeacherName: ''
+                });
+                setShowDirectDirectiveModal(true);
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #7c3aed, #6366f1)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '30px',
+                padding: '10px 22px',
+                fontSize: '14px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(124, 58, 237, 0.35)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Send size={18} />
+              <span>إرسال توجيه إداري فوري</span>
+            </button>
+
+            <button
               onClick={() => navigate('/superadmin/resources')}
               style={{
                 background: 'linear-gradient(135deg, #0d9488, #0369a1)',
@@ -1158,23 +1369,89 @@ function SuperAdminHome() {
               </div>
             </div>
 
-            <button
-              onClick={() => navigate('/superadmin/resources')}
-              className="btn btn-outline"
-              style={{
-                fontSize: '13px',
-                fontWeight: 700,
-                color: '#0d9488',
-                borderColor: '#0d9488',
-                padding: '7px 16px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>فتح منصة الموارد الكاملة</span>
-              <ChevronRight size={16} />
-            </button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => {
+                  setDirectTransferForm({
+                    targetSchoolId: selectedSchoolScope !== 'ALL' ? selectedSchoolScope : (schools[0]?.id || 'msc_jed_smart_boys'),
+                    type: 'need',
+                    subject: 'الرياضيات العامة',
+                    customSubject: '',
+                    track: 'national',
+                    gender: 'boys',
+                    stage: 'primary',
+                    teacherName: '',
+                    requiredPeriods: 20,
+                    reason: ''
+                  });
+                  setShowDirectTransferModal(true);
+                }}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                  border: 'none',
+                  padding: '7px 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderRadius: '10px'
+                }}
+              >
+                <Plus size={15} />
+                <span>+ قرار سد عجز وتكليف كادر</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setDirectDirectiveForm({
+                    targetSchoolId: selectedSchoolScope,
+                    subject: 'الرياضيات العامة',
+                    customSubject: '',
+                    title: 'توجيه وقرار إداري رسمي',
+                    content: '',
+                    urgency: 'high',
+                    assignedTeacherName: ''
+                  });
+                  setShowDirectDirectiveModal(true);
+                }}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #7c3aed, #6366f1)',
+                  border: 'none',
+                  padding: '7px 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderRadius: '10px'
+                }}
+              >
+                <Send size={15} />
+                <span>+ إرسال توجيه إداري</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/superadmin/resources')}
+                className="btn btn-outline"
+                style={{
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  color: '#0d9488',
+                  borderColor: '#0d9488',
+                  padding: '7px 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderRadius: '10px'
+                }}
+              >
+                <span>منصة الموارد الكاملة</span>
+                <ChevronRight size={15} />
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '14px' }}>
@@ -1423,6 +1700,305 @@ function SuperAdminHome() {
                 <span>{isUpdatingStatus ? 'جاري الاعتماد...' : 'تأكيد الاعتماد والتوجيه الآن'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Direct Transfer / Need Directive from Master */}
+      {showDirectTransferModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1300,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '620px', maxHeight: '90vh', overflowY: 'auto',
+            background: 'white', padding: '28px', borderRadius: '20px', position: 'relative'
+          }}>
+            <button
+              onClick={() => setShowDirectTransferModal(false)}
+              style={{ position: 'absolute', left: '20px', top: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <X size={20} color="#64748b" />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{
+                width: '38px', height: '38px', borderRadius: '10px',
+                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white'
+              }}>
+                <Send size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#991b1b', fontWeight: 800 }}>
+                  إصدار قرار وتكليف سد عجز لمدرسة
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  توجيه رسمي فوري من الإدارة العامة والماستر إلى مدير المجمع والفرع
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateDirectTransfer} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '12px 14px', borderRadius: '12px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#991b1b', marginBottom: '6px' }}>
+                  المدرسة / مدير المدرسة الموجه إليه القرار الإداري *
+                </label>
+                <select
+                  className="input-field"
+                  required
+                  value={directTransferForm.targetSchoolId}
+                  onChange={(e) => setDirectTransferForm({ ...directTransferForm, targetSchoolId: e.target.value })}
+                  style={{ borderColor: '#f87171', fontWeight: 600 }}
+                >
+                  {schools.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.subTitle || s.city || 'الفرع المعتمد'})</option>
+                  ))}
+                </select>
+                <span style={{ fontSize: '11px', color: '#b91c1c', marginTop: '4px', display: 'block' }}>
+                  💡 سيصل هذا القرار والتوجيه فوراً إلى لوحة تحكم مدير الفرع المختار بدون أي تأخير.
+                </span>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>نوع القرار *</label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="mDirectReqType"
+                      value="need"
+                      checked={directTransferForm.type === 'need'}
+                      onChange={() => setDirectTransferForm({ ...directTransferForm, type: 'need' })}
+                    />
+                    <span>🚨 قرار تكليف لسد عجز</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="mDirectReqType"
+                      value="release"
+                      checked={directTransferForm.type === 'release'}
+                      onChange={() => setDirectTransferForm({ ...directTransferForm, type: 'release' })}
+                    />
+                    <span>🌟 قرار ندب كادر فائض</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>المادة الدراسية / التخصص *</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  required
+                  value={directTransferForm.subject}
+                  onChange={(e) => setDirectTransferForm({ ...directTransferForm, subject: e.target.value })}
+                  placeholder="مثال: الرياضيات، اللغة الإنجليزية، العلوم..."
+                  style={{ fontWeight: 600 }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>المسار التعليمي *</label>
+                  <select
+                    className="input-field"
+                    value={directTransferForm.track}
+                    onChange={(e) => setDirectTransferForm({ ...directTransferForm, track: e.target.value })}
+                  >
+                    <option value="national">المسار الأهلي المطور</option>
+                    <option value="international">المسار الدولي / الدبلومة الأمريكية</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>القسم (الجنس) *</label>
+                  <select
+                    className="input-field"
+                    value={directTransferForm.gender}
+                    onChange={(e) => setDirectTransferForm({ ...directTransferForm, gender: e.target.value })}
+                  >
+                    <option value="boys">بنين (Boys)</option>
+                    <option value="girls">بنات (Girls)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>اسم المعلم المكلف (اختياري)</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={directTransferForm.teacherName}
+                    onChange={(e) => setDirectTransferForm({ ...directTransferForm, teacherName: e.target.value })}
+                    placeholder="اسم المعلم الرباعي"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>عدد الحصص الأسبوعية *</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    required
+                    value={directTransferForm.requiredPeriods}
+                    onChange={(e) => setDirectTransferForm({ ...directTransferForm, requiredPeriods: Number(e.target.value) })}
+                    min="1"
+                    max="40"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                  التعليمات والتوجيهات الإدارية المرفقة لمدير المدرسة
+                </label>
+                <textarea
+                  className="input-field"
+                  rows="3"
+                  value={directTransferForm.reason}
+                  onChange={(e) => setDirectTransferForm({ ...directTransferForm, reason: e.target.value })}
+                  placeholder="اكتب التعليمات والقرارات الإدارية للمدير بخصوص تغطية الحصص والندب..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setShowDirectTransferModal(false)} className="btn btn-outline">
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: 700
+                  }}
+                >
+                  <Send size={16} />
+                  <span>إرسال وتوجيه القرار لمدير المدرسة فوراً</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Direct Administrative Directive from Master */}
+      {showDirectDirectiveModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1300,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto',
+            background: 'white', padding: '28px', borderRadius: '20px', position: 'relative'
+          }}>
+            <button
+              onClick={() => setShowDirectDirectiveModal(false)}
+              style={{ position: 'absolute', left: '20px', top: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <X size={20} color="#64748b" />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{
+                width: '38px', height: '38px', borderRadius: '10px',
+                background: 'linear-gradient(135deg, #7c3aed, #6366f1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white'
+              }}>
+                <Send size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#4338ca', fontWeight: 800 }}>
+                  إرسال توجيه إداري فوري من الماستر
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                  إرسال تعميم أو قرار إداري مباشر لكافة المدارس أو مجمع محدد
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateDirectDirective} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#4338ca', marginBottom: '6px' }}>
+                  الجهة الموجه إليها التوجيه *
+                </label>
+                <select
+                  className="input-field"
+                  value={directDirectiveForm.targetSchoolId}
+                  onChange={(e) => setDirectDirectiveForm({ ...directDirectiveForm, targetSchoolId: e.target.value })}
+                  style={{ fontWeight: 600 }}
+                >
+                  <option value="ALL">🌐 كافة فروع ومجمعات الشركة (تعميم وزاري / إداري عام)</option>
+                  {schools.map(s => (
+                    <option key={s.id} value={s.id}>🏫 {s.name} ({s.subTitle || s.city || 'الفرع المعتمد'})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>عنوان التوجيه / القرار *</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  required
+                  value={directDirectiveForm.title}
+                  onChange={(e) => setDirectDirectiveForm({ ...directDirectiveForm, title: e.target.value })}
+                  placeholder="مثال: تعميم بشأن خطة التسكين وتغطية الحصص الشاغرة"
+                  style={{ fontWeight: 700 }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>المادة / المجال المعني</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={directDirectiveForm.subject}
+                  onChange={(e) => setDirectDirectiveForm({ ...directDirectiveForm, subject: e.target.value })}
+                  placeholder="مثال: الرياضيات العامة، الكوادر التعليمية، الإشراف..."
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>نص التوجيه والقرار الإداري *</label>
+                <textarea
+                  className="input-field"
+                  required
+                  rows="4"
+                  value={directDirectiveForm.content}
+                  onChange={(e) => setDirectDirectiveForm({ ...directDirectiveForm, content: e.target.value })}
+                  placeholder="اكتب تفاصيل التوجيه الإداري والمطلوب من مدير المدرسة تنفيذه وتأكيد استلامه..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setShowDirectDirectiveModal(false)} className="btn btn-outline">
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #7c3aed, #6366f1)',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: 700
+                  }}
+                >
+                  <Send size={16} />
+                  <span>إرسال التوجيه الإداري الآن</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

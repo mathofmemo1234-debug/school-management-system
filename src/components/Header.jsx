@@ -5,6 +5,7 @@ import { Bell, Globe, Mail, Award, ShieldCheck, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
 
 export default function Header({ title, role }) {
   const { currentUser, userRole, userData, switchSchoolContext } = useAuth();
@@ -133,32 +134,51 @@ export default function Header({ title, role }) {
       return;
     }
 
+    let dCount = 0;
+    let tCount = 0;
+
+    const recalc = () => {
+      setUnreadDirectivesCount(dCount + tCount);
+    };
+
     const unsubD = onSnapshot(collection(db, 'resource_directives'), (snap) => {
-      let dCount = 0;
+      dCount = 0;
       snap.forEach(d => {
         const data = d.data();
         if (effectiveRole === 'admin' && data.status !== 'acknowledged') {
           dCount++;
         }
       });
-
-      const unsubT = onSnapshot(collection(db, 'resource_transfer_requests'), (tSnap) => {
-        let tCount = 0;
-        tSnap.forEach(td => {
-          const tData = td.data();
-          if (effectiveRole === 'admin' && (tData.status === 'approved' || tData.isDirective)) {
-            if (tData.status !== 'acknowledged') tCount++;
-          } else if (effectiveRole === 'superadmin' && tData.status === 'pending') {
-            tCount++;
-          }
-        });
-        setUnreadDirectivesCount(dCount + tCount);
-      }, () => setUnreadDirectivesCount(dCount));
-
-      return () => unsubT();
+      recalc();
     }, (err) => console.warn(err));
 
-    return () => unsubD();
+    const unsubT = onSnapshot(collection(db, 'resource_transfer_requests'), (tSnap) => {
+      tCount = 0;
+      tSnap.forEach(td => {
+        const tData = td.data();
+        if (effectiveRole === 'admin' && (tData.status === 'approved' || tData.isDirective)) {
+          if (tData.status !== 'acknowledged') tCount++;
+        } else if (effectiveRole === 'superadmin' && tData.status === 'pending') {
+          tCount++;
+        }
+      });
+      recalc();
+    }, (err) => console.warn(err));
+
+    // Instant broadcast subscription
+    const unsubBroadcast = subscribeRealtimeEvents((event) => {
+      if (event?.type === 'DIRECTIVE_UPDATE' || event?.type === 'RESOURCE_UPDATE') {
+        if (effectiveRole === 'admin') {
+          setUnreadDirectivesCount(prev => prev + 1);
+        }
+      }
+    });
+
+    return () => {
+      unsubD();
+      unsubT();
+      unsubBroadcast();
+    };
   }, [effectiveRole]);
 
   const activeSchoolName = schoolMeta?.name || userData?.schoolName || '';

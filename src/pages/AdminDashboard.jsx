@@ -26,6 +26,7 @@ import SchoolResourcesHub from './SchoolResourcesHub';
 import { useLanguage } from '../contexts/LanguageContext';
 import GamificationBadge from '../components/GamificationBadge';
 import { calculateTeacherActivity, calculateStudentActivity } from '../utils/gamificationEngine';
+import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
 
 function AdminHome({ schoolId }) {
   const { t, isRTL } = useLanguage();
@@ -97,20 +98,30 @@ function AdminHome({ schoolId }) {
 
       snap.forEach(d => {
         const data = d.data();
-        const isCompanyWide = !data.targetSchoolId || data.targetSchoolId === 'ALL' || data.targetSchoolId === 'all' || data.schoolId === 'ALL' || data.schoolId === 'all';
-        const isAdminUnrestricted = !effectiveSchoolId || effectiveSchoolId === 'ALL' || effectiveSchoolId === 'all' || effectiveSchoolId === 'default_school_1' || effectiveSchoolId === 'main_school';
-        const isIdMatch = allowedIds.has(data.targetSchoolId) || allowedIds.has(data.schoolId) || allowedIds.has(data.targetSchoolCode) || allowedIds.has(data.schoolCode);
-        const isNameMatch = Boolean(
+        const isTargetingMySchool = Boolean(
+          !data.targetSchoolId || 
+          data.targetSchoolId === 'ALL' || 
+          data.targetSchoolId === 'all' || 
+          data.schoolId === 'ALL' || 
+          data.schoolId === 'all' ||
+          allowedIds.has(data.targetSchoolId) || 
+          allowedIds.has(data.schoolId) || 
+          allowedIds.has(data.targetSchoolCode) || 
+          allowedIds.has(data.schoolCode) ||
           (schoolInfo?.name && (data.targetSchoolName === schoolInfo.name || data.schoolName === schoolInfo.name)) ||
-          (userData?.schoolName && (data.targetSchoolName === userData.schoolName || data.schoolName === userData.schoolName))
+          (userData?.schoolName && (data.targetSchoolName === userData.schoolName || data.schoolName === userData.schoolName)) ||
+          !effectiveSchoolId || effectiveSchoolId === 'ALL'
         );
 
-        const isMatch = isCompanyWide || isAdminUnrestricted || isIdMatch || isNameMatch;
-        if (isMatch) {
-          list.push({ id: d.id, ...data });
-        }
+        list.push({ id: d.id, isTargetingMySchool, ...data });
       });
-      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      // Sort: items targeting this school first, then newest
+      list.sort((a, b) => {
+        if (a.isTargetingMySchool && !b.isTargetingMySchool) return -1;
+        if (!a.isTargetingMySchool && b.isTargetingMySchool) return 1;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
       setIncomingDirectives(list);
     }, (err) => console.warn("Admin directives listener notice:", err));
 
@@ -145,9 +156,13 @@ function AdminHome({ schoolId }) {
         const data = overrides[d.id] ? { ...rawData, ...overrides[d.id] } : rawData;
         const isMaster = Boolean(data.isDirective || data.requesterRole === 'superadmin' || data.source === 'master' || data.fromSchoolId === 'ALL');
         
-        const isCompanyWide = !data.targetSchoolId || data.targetSchoolId === 'ALL' || data.targetSchoolId === 'all' || data.schoolId === 'ALL' || data.fromSchoolId === 'ALL' || data.toSchoolId === 'ALL';
-        const isAdminUnrestricted = !effectiveSchoolId || effectiveSchoolId === 'ALL' || effectiveSchoolId === 'all' || effectiveSchoolId === 'default_school_1' || effectiveSchoolId === 'main_school';
-        const isIdMatch = 
+        const isTargetingMySchool = Boolean(
+          !data.targetSchoolId || 
+          data.targetSchoolId === 'ALL' || 
+          data.targetSchoolId === 'all' || 
+          data.schoolId === 'ALL' || 
+          data.fromSchoolId === 'ALL' || 
+          data.toSchoolId === 'ALL' ||
           allowedIds.has(data.schoolId) || 
           allowedIds.has(data.targetSchoolId) || 
           allowedIds.has(data.fromSchoolId) || 
@@ -155,30 +170,47 @@ function AdminHome({ schoolId }) {
           allowedIds.has(data.schoolCode) ||
           allowedIds.has(data.targetSchoolCode) ||
           allowedIds.has(data.fromSchoolCode) ||
-          allowedIds.has(data.toSchoolCode);
-
-        const isNameMatch = Boolean(
+          allowedIds.has(data.toSchoolCode) ||
           (schoolInfo?.name && (data.schoolName === schoolInfo.name || data.targetSchoolName === schoolInfo.name || data.fromSchoolName === schoolInfo.name || data.toSchoolName === schoolInfo.name)) ||
-          (userData?.schoolName && (data.schoolName === userData.schoolName || data.targetSchoolName === userData.schoolName || data.fromSchoolName === userData.schoolName || data.toSchoolName === userData.schoolName))
-        );
-
-        const isMyRequest = Boolean(
+          (userData?.schoolName && (data.schoolName === userData.schoolName || data.targetSchoolName === userData.schoolName || data.fromSchoolName === userData.schoolName || data.toSchoolName === userData.schoolName)) ||
           (userData?.nationalId && data.requesterNid === userData.nationalId) ||
-          (userData?.name && data.requesterName === userData.name)
+          (userData?.name && data.requesterName === userData.name) ||
+          !effectiveSchoolId || effectiveSchoolId === 'ALL'
         );
 
-        const isMatch = isCompanyWide || isAdminUnrestricted || isIdMatch || isNameMatch || isMyRequest;
-        if (isMatch) {
-          list.push(data);
-        }
+        list.push({ ...data, isTargetingMySchool, isMaster });
       });
       try {
         localStorage.setItem('msc_transfers_overrides', JSON.stringify(overrides));
       } catch (e) {}
 
-      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      // Sort: items targeting this school first, then newest
+      list.sort((a, b) => {
+        if (a.isTargetingMySchool && !b.isTargetingMySchool) return -1;
+        if (!a.isTargetingMySchool && b.isTargetingMySchool) return 1;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
       setIncomingTransfers(list);
     }, (err) => console.warn("Admin transfers listener notice:", err));
+
+    // ⚡ Cross-Tab Instant BroadcastChannel Subscription (0ms Latency)
+    const unsubBroadcast = subscribeRealtimeEvents((event) => {
+      if (event?.type === 'DIRECTIVE_UPDATE' && event.payload?.directive) {
+        setIncomingDirectives(prev => {
+          const d = event.payload.directive;
+          const exists = prev.some(item => item.id === d.id);
+          if (exists) return prev.map(item => item.id === d.id ? { ...item, ...d } : item);
+          return [{ isTargetingMySchool: true, ...d }, ...prev];
+        });
+      } else if (event?.type === 'RESOURCE_UPDATE' && event.payload?.transfer) {
+        setIncomingTransfers(prev => {
+          const t = event.payload.transfer;
+          const exists = prev.some(item => item.id === t.id);
+          if (exists) return prev.map(item => item.id === t.id ? { ...item, ...t } : item);
+          return [{ isTargetingMySchool: true, ...t }, ...prev];
+        });
+      }
+    });
 
     return () => { 
       if (unsubSchool) unsubSchool();
@@ -189,20 +221,22 @@ function AdminHome({ schoolId }) {
       unsubStaff(); 
       unsubDirectives();
       unsubTransfers();
+      unsubBroadcast();
     };
   }, [effectiveSchoolId, schoolId, userData, schoolInfo?.id, schoolInfo?.name, schoolInfo?.code]);
 
   const handleAcknowledgeDirective = async (directiveId) => {
     try {
       setAckLoading(prev => ({ ...prev, [directiveId]: true }));
-      setIncomingDirectives(prev => prev.map(d => d.id === directiveId ? { ...d, status: 'acknowledged' } : d));
-      
       const updateData = {
         status: 'acknowledged',
         acknowledgedAt: Date.now(),
         acknowledgedByName: userData?.name || 'مدير المدرسة',
         acknowledgedByRole: userData?.role || 'admin'
       };
+
+      setIncomingDirectives(prev => prev.map(d => d.id === directiveId ? { ...d, ...updateData } : d));
+      broadcastRealtimeEvent('DIRECTIVE_UPDATE', { directive: { id: directiveId, ...updateData } });
 
       try {
         await setDoc(doc(db, 'resource_directives', directiveId), updateData, { merge: true });
@@ -232,8 +266,9 @@ function AdminHome({ schoolId }) {
         acknowledgedByRole: userData?.role || 'admin'
       };
 
-      // 1. Optimistic state
+      // 1. Optimistic state & broadcast
       setIncomingTransfers(prev => prev.map(t => t.id === transferId ? { ...t, ...updateData } : t));
+      broadcastRealtimeEvent('RESOURCE_UPDATE', { transfer: { id: transferId, ...updateData } });
 
       // 2. Local storage overrides
       try {
