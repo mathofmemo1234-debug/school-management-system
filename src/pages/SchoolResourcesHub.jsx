@@ -325,30 +325,57 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
       console.warn("Classes snapshot notice in resources:", err);
     });
 
-    // Transfer Requests - Listen live and filter in memory for 100% accuracy
+    // Transfer Requests - Listen live and match across all potential school identifiers
     const unsubTrans = onSnapshot(collection(db, 'resource_transfer_requests'), (snap) => {
       const list = [];
       snap.forEach(d => list.push({ id: d.id, ...d.data() }));
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       
+      const allowedIds = new Set([
+        'ALL', 'all',
+        targetSchool,
+        selectedSchoolId,
+        userData?.schoolId,
+        currentSchoolInfo?.id,
+        currentSchoolInfo?.code
+      ].filter(Boolean));
+
       const filtered = isSuperAdmin ? list : list.filter(r => {
         if (!targetSchool || targetSchool === 'ALL') return true;
-        return r.schoolId === targetSchool || r.targetSchoolId === targetSchool || r.targetSchoolId === 'ALL' || r.schoolId === 'ALL';
+        const rFrom = r.schoolId || r.fromSchoolId;
+        const rTo = r.targetSchoolId || r.toSchoolId;
+        if (!rFrom && !rTo) return true;
+        if (allowedIds.has(rFrom) || allowedIds.has(rTo)) return true;
+        if (currentSchoolInfo?.name && (r.schoolName === currentSchoolInfo.name || r.targetSchoolName === currentSchoolInfo.name)) return true;
+        return false;
       });
       setTransferRequests(filtered);
     }, (err) => {
       console.warn("Transfer requests snapshot notice in resources:", err);
     });
 
-    // Directives - Listen live and filter in memory for 100% delivery
+    // Directives - Listen live and match across all potential school identifiers
     const unsubDir = onSnapshot(collection(db, 'resource_directives'), (snap) => {
       const list = [];
       snap.forEach(d => list.push({ id: d.id, ...d.data() }));
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       
+      const allowedIds = new Set([
+        'ALL', 'all',
+        targetSchool,
+        selectedSchoolId,
+        userData?.schoolId,
+        currentSchoolInfo?.id,
+        currentSchoolInfo?.code
+      ].filter(Boolean));
+
       const filtered = isSuperAdmin ? list : list.filter(d => {
         if (!targetSchool || targetSchool === 'ALL') return true;
-        return d.targetSchoolId === targetSchool || d.targetSchoolId === 'ALL' || d.schoolId === targetSchool;
+        const dTarget = d.targetSchoolId || d.schoolId;
+        if (!dTarget) return true;
+        if (allowedIds.has(dTarget)) return true;
+        if (currentSchoolInfo?.name && (d.targetSchoolName === currentSchoolInfo.name || d.schoolName === currentSchoolInfo.name)) return true;
+        return false;
       });
       setDirectivesList(filtered);
     }, (err) => {
@@ -4374,21 +4401,42 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {directivesList.map(dir => (
                   <div key={dir.id} style={{ background: 'white', padding: '16px', borderRadius: '14px', border: '1px solid #e0e7ff', boxShadow: '0 2px 8px rgba(99, 102, 241, 0.08)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                       <div>
-                        <span style={{ fontSize: '12px', fontWeight: 800, color: '#4f46e5', background: '#eef2ff', padding: '2px 8px', borderRadius: '6px' }}>
-                          توجيه إداري رسمي • {dir.subject || 'الموارد'}
-                        </span>
-                        <h4 style={{ margin: '6px 0 2px 0', fontSize: '15px', color: '#1e1b4b' }}>{dir.title}</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 800, color: '#4f46e5', background: '#eef2ff', padding: '2px 8px', borderRadius: '6px' }}>
+                            📜 توجيه إداري رسمي • {dir.subject || dir.customSubject || 'الموارد والكوادر'}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                            {dir.directiveNumber || `#DIR-${(dir.id || '').slice(0, 5).toUpperCase()}`}
+                          </span>
+                        </div>
+                        <h4 style={{ margin: '4px 0 2px 0', fontSize: '15px', color: '#1e1b4b', fontWeight: 800 }}>
+                          {dir.title || dir.subject || 'توجيه إداري عام'}
+                        </h4>
                       </div>
-                      <span style={{ fontSize: '12px', color: '#64748b' }}>
-                        {new Date(dir.createdAt).toLocaleDateString('ar-SA')}
-                      </span>
+                      <div style={{ textAlign: 'left' }}>
+                        <span style={{ fontSize: '12px', color: '#64748b', display: 'block' }}>
+                          {new Date(dir.createdAt).toLocaleDateString('ar-SA')}
+                        </span>
+                        {dir.status === 'acknowledged' && (
+                          <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <CheckCircle2 size={12} /> تم تأكيد الاستلام
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#334155', lineHeight: 1.6 }}>{dir.content}</p>
-                    {dir.assignedTeacherName && (
+                    <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#334155', lineHeight: 1.6 }}>
+                      {dir.content || dir.description || 'لا يوجد نص مرفق'}
+                    </p>
+                    {dir.actionRequired && (
+                      <div style={{ fontSize: '12px', color: '#0369a1', background: '#e0f2fe', padding: '6px 12px', borderRadius: '8px', marginBottom: '8px' }}>
+                        🎯 <strong>المطلوب تنفيذه:</strong> {dir.actionRequired}
+                      </div>
+                    )}
+                    {(dir.assignedTeacherName || dir.teacherName) && (
                       <div style={{ fontSize: '13px', color: '#047857', fontWeight: 700, background: '#ecfdf5', padding: '6px 12px', borderRadius: '8px', display: 'inline-block' }}>
-                        ✓ الكادر الموجه للندب/الاستعانة: {dir.assignedTeacherName}
+                        ✓ الكادر الموجه للندب/الاستعانة: {dir.assignedTeacherName || dir.teacherName}
                       </div>
                     )}
                   </div>
@@ -4412,20 +4460,29 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {transferRequests.map(req => {
                   const isMasterDirective = req.isDirective || req.requesterRole === 'superadmin';
+                  const subjectDisplay = req.subject || req.customSubject || req.subjectName || req.title || 'مادة دراسية';
+                  const periodsDisplay = req.requiredPeriods || req.periodsCount || req.currentLoad || req.periods || null;
+                  const teacherDisplay = req.teacherName || req.assignedTeacherName || (req.type === 'need' ? '🚨 طلب سد عجز (بانتظار ترشيح وتوفير كادر من الإدارة العامة)' : 'كادر معتمد للتوجيه');
+                  const trackDisplay = req.track === 'international' ? 'مسار دولي' : 'مسار أهلي';
+                  const genderDisplay = req.gender === 'girls' ? 'بنات' : 'بنين';
+                  const stageDisplay = req.stage === 'primary' ? 'الابتدائية' : req.stage === 'middle' ? 'المتوسطة' : req.stage === 'high' ? 'الثانوية' : req.stage === 'kindergarten' ? 'رياض الأطفال' : '';
+                  const reqNumber = req.requestNumber || `#TR-${(req.id || '').slice(0, 5).toUpperCase()}`;
+
                   return (
                     <div key={req.id} style={{
                       background: isMasterDirective ? 'linear-gradient(135deg, rgba(245, 243, 255, 0.6), rgba(255, 255, 255, 0.9))' : 'white',
                       borderRadius: '14px',
                       padding: '16px 20px',
-                      border: isMasterDirective ? '1px solid #c7d2fe' : '1px solid #e2e8f0',
+                      border: isMasterDirective ? '1.5px solid #818cf8' : '1px solid #e2e8f0',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       flexWrap: 'wrap',
-                      gap: '14px'
+                      gap: '14px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
                     }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                      <div style={{ flex: 1, minWidth: '280px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
                           <span style={{
                             fontSize: '12px',
                             fontWeight: 800,
@@ -4439,14 +4496,24 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                               : req.type === 'need' ? '🚨 طلب استعانة (سد عجز)' : '🌟 طلب إتاحة / ندب كادر فائض'}
                           </span>
 
-                          <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>
-                            مادة {req.subject} • {req.track === 'international' ? 'مسار دولي' : 'مسار أهلي'} • {req.gender === 'girls' ? 'بنات' : 'بنين'}
+                          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700 }}>
+                            {reqNumber}
+                          </span>
+
+                          <span style={{ fontSize: '15px', fontWeight: 800, color: '#1e293b' }}>
+                            📚 مادة {subjectDisplay} {periodsDisplay ? `• (${periodsDisplay} حصة أسبوعية)` : ''}
                           </span>
                         </div>
 
-                        <div style={{ fontSize: '13px', color: '#64748b' }}>
-                          {req.teacherName ? `المعلم المرشح: ${req.teacherName} (نصاب ${req.currentLoad || 8} حصص)` : `الحصص المطلوبة: ${req.requiredPeriods || 20} حصة أسبوعية`}
-                          {req.reason && ` • البيان: ${req.reason}`}
+                        <div style={{ fontSize: '13px', color: '#0f766e', fontWeight: 700, marginBottom: '4px' }}>
+                          👤 {teacherDisplay}
+                        </div>
+
+                        <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                          <span style={{ background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>{trackDisplay}</span>
+                          <span style={{ background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>{genderDisplay}</span>
+                          {stageDisplay && <span style={{ background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>{stageDisplay}</span>}
+                          {req.reason && <span>• 📝 البيان: <strong>{req.reason}</strong></span>}
                         </div>
 
                         <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
@@ -4465,10 +4532,10 @@ export default function SchoolResourcesHub({ role = 'admin' }) {
                           fontWeight: 800,
                           padding: '5px 12px',
                           borderRadius: '10px',
-                          background: req.status === 'approved' ? '#dcfce7' : req.status === 'rejected' ? '#fee2e2' : '#fef3c7',
-                          color: req.status === 'approved' ? '#15803d' : req.status === 'rejected' ? '#b91c1c' : '#b45309'
+                          background: (req.status === 'approved' || req.status === 'acknowledged') ? '#dcfce7' : req.status === 'rejected' ? '#fee2e2' : '#fef3c7',
+                          color: (req.status === 'approved' || req.status === 'acknowledged') ? '#15803d' : req.status === 'rejected' ? '#b91c1c' : '#b45309'
                         }}>
-                          {req.status === 'approved' ? '✓ تم الاعتماد والتوجيه' : req.status === 'rejected' ? '✕ مرفوض' : '⏳ قيد الدراسة لدى الماستر'}
+                          {req.status === 'acknowledged' ? '✓ تم الاستلام والتوثيق' : (req.status === 'approved' ? '✓ تم الاعتماد والتوجيه' : (req.status === 'rejected' ? '✕ مرفوض' : '⏳ قيد الدراسة لدى الماستر'))}
                         </span>
 
                       {/* SuperAdmin Action Buttons */}

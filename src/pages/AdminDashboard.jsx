@@ -457,8 +457,17 @@ function AdminHome({ schoolId }) {
                 </span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
-                {incomingTransfers.slice(0, 4).map((tr) => {
+                {incomingTransfers.slice(0, 6).map((tr) => {
                   const isAck = tr.status === 'acknowledged' || tr.status === 'completed';
+                  const subjectDisplay = tr.subject || tr.customSubject || tr.subjectName || tr.title || 'مادة دراسية';
+                  const periodsDisplay = tr.requiredPeriods || tr.periodsCount || tr.currentLoad || tr.periods || null;
+                  const teacherDisplay = tr.teacherName || tr.assignedTeacherName || (tr.type === 'need' ? 'طلب سد عجز (بانتظار توفير كادر من الإدارة العامة)' : 'كادر معتمد للتوجيه');
+                  const trackDisplay = tr.track === 'international' ? 'مسار دولي' : 'مسار أهلي';
+                  const genderDisplay = tr.gender === 'girls' ? 'بنات' : 'بنين';
+                  const stageDisplay = tr.stage === 'primary' ? 'الابتدائية' : tr.stage === 'middle' ? 'المتوسطة' : tr.stage === 'high' ? 'الثانوية' : tr.stage === 'kindergarten' ? 'رياض الأطفال' : '';
+                  const schoolDisplay = tr.targetSchoolName || tr.schoolName || '';
+                  const reasonDisplay = tr.reason || tr.notes || tr.content || '';
+
                   return (
                     <div
                       key={tr.id}
@@ -484,21 +493,31 @@ function AdminHome({ schoolId }) {
                             background: tr.type === 'need' ? '#fef3c7' : '#e0e7ff',
                             color: tr.type === 'need' ? '#92400e' : '#3730a3'
                           }}>
-                            {tr.type === 'need' ? 'طلب سد عجز' : (tr.type === 'release' ? 'إتاحة كادر فائض' : 'قرار ندب مباشر')}
+                            {tr.type === 'need' ? '🚨 طلب سد عجز' : (tr.type === 'release' ? '🌟 إتاحة كادر فائض' : '📢 قرار ندب وتوجيه')}
                           </span>
                           <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                            {tr.requestNumber || `#TR-${tr.id.slice(0, 5)}`}
+                            {tr.requestNumber || `#TR-${tr.id.slice(0, 5).toUpperCase()}`}
                           </span>
                         </div>
-                        <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>
-                          {tr.subjectName || 'مادة تخصص'} - {tr.periodsCount ? `${tr.periodsCount} حصة` : ''}
+                        
+                        <h4 style={{ margin: '0 0 6px 0', fontSize: '15px', fontWeight: 800, color: '#1e293b' }}>
+                          📚 مادة {subjectDisplay} {periodsDisplay ? `• (${periodsDisplay} حصة أسبوعية)` : ''}
                         </h4>
-                        <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
-                          👤 <strong>الكادر:</strong> {tr.teacherName || 'محدد من الإدارة العامة'}
+
+                        <div style={{ fontSize: '12px', color: '#0f766e', fontWeight: 700, marginBottom: '4px' }}>
+                          👤 {teacherDisplay}
                         </div>
-                        {tr.reason && (
-                          <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#64748b' }}>
-                            {tr.reason}
+
+                        <div style={{ fontSize: '11.5px', color: '#64748b', marginBottom: '4px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>{trackDisplay}</span>
+                          <span style={{ background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>{genderDisplay}</span>
+                          {stageDisplay && <span style={{ background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>{stageDisplay}</span>}
+                          {schoolDisplay && <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: '4px' }}>🏫 {schoolDisplay}</span>}
+                        </div>
+
+                        {reasonDisplay && (
+                          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#475569', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
+                            📝 <strong>البيان / السبب:</strong> {reasonDisplay}
                           </p>
                         )}
                       </div>
