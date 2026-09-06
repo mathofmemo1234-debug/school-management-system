@@ -86,41 +86,96 @@ export default function MasterMessagingHub() {
   // Search in decrees feed
   const [decreeSearch, setDecreeSearch] = useState('');
 
-  // 1. Build List of Principals from ADVANCED_SCHOOLS_CATALOG
+  // Firestore Schools and Admins list for live dynamic detection of unassigned schools
+  const [firestoreSchools, setFirestoreSchools] = useState([]);
+  const [adminsList, setAdminsList] = useState([]);
+
+  useEffect(() => {
+    const unsubSchools = onSnapshot(collection(db, 'schools'), (snap) => {
+      const list = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      setFirestoreSchools(list);
+    }, () => {});
+
+    const qAdmins = query(collection(db, 'users'), where('role', '==', 'admin'));
+    const unsubAdmins = onSnapshot(qAdmins, (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      try {
+        const localAdmins = JSON.parse(localStorage.getItem('msc_custom_admins') || '[]');
+        for (const la of localAdmins) {
+          if (!list.some(a => a.nationalId === la.nationalId || a.id === la.id)) {
+            list.push(la);
+          }
+        }
+      } catch (e) {}
+      setAdminsList(list);
+    }, () => {});
+
+    return () => {
+      unsubSchools();
+      unsubAdmins();
+    };
+  }, []);
+
+  // 1. Build List of Principals dynamically from ADVANCED_SCHOOLS_CATALOG + Firestore
   const principalsDirectory = useMemo(() => {
-    return ADVANCED_SCHOOLS_CATALOG.map(school => {
-      // Determine Track category
+    const combinedSchools = [...ADVANCED_SCHOOLS_CATALOG];
+    for (const fs of firestoreSchools) {
+      if (!combinedSchools.some(s => s.code === fs.id || s.code === fs.code || s.id === fs.id)) {
+        combinedSchools.push({
+          code: fs.id,
+          id: fs.id,
+          name: fs.name,
+          city: fs.city || 'جدة',
+          track: fs.track || 'المسار الأهلي المطور',
+          gender: fs.gender || 'boys',
+          subTitle: fs.subTitle || ''
+        });
+      }
+    }
+
+    return combinedSchools.map(school => {
       const isDiploma = school.trackCategory === 'diploma' || school.track?.toLowerCase().includes('دبلوم') || school.track?.toLowerCase().includes('دولي') || school.track?.toLowerCase().includes('عالمي');
       const trackCat = isDiploma ? 'diploma' : 'national';
-      const isBoys = school.gender === 'boys' || school.name.includes('بنين');
+      const isBoys = school.gender === 'boys' || school.name?.includes('بنين');
       
-      // Designated principal details
-      let pName = `مدير ${school.name}`;
-      let pNid = `admin_${school.code}`;
-      let pEmail = `admin_${school.code}@school.local`;
+      const codes = [school.code, school.id, school.legacyCode].filter(Boolean);
+      const assignedAdmin = adminsList.find(a => codes.includes(a.schoolId) || codes.includes(a.schoolCode));
 
-      // Specific known principals for Jeddah
-      if (school.code === 'msc_jed_smart_boys_national') {
-        pName = 'أ. محمد بن خالد الغامدي (مدير المسار الأهلي)';
-        pNid = '1098765431';
-        pEmail = 'admin_jed_national_boys@school.local';
-      } else if (school.code === 'msc_jed_smart_boys_diploma') {
-        pName = 'د. طارق بن عبد العزيز السالم (مدير الدبلومة الأمريكية)';
-        pNid = '1098765432';
-        pEmail = 'admin_jed_diploma_boys@school.local';
-      } else if (school.code === 'msc_jed_smart_girls_national') {
-        pName = 'أ. نورة بنت عبد الله الشهري (مديرة المسار الأهلي)';
-        pNid = '1098765433';
-        pEmail = 'admin_jed_national_girls@school.local';
-      } else if (school.code === 'msc_jed_smart_girls_diploma') {
-        pName = 'د. ريم بنت إبراهيم المنصور (مديرة الدبلومة الأمريكية)';
-        pNid = '1098765434';
-        pEmail = 'admin_jed_diploma_girls@school.local';
+      let pName = assignedAdmin ? (assignedAdmin.name || `مدير ${school.name}`) : `⚠️ لم يعين مدير بعد (الكادر المكلف)`;
+      let pNid = assignedAdmin ? (assignedAdmin.nationalId || `admin_${school.code}`) : `mgmt_${school.code}`;
+      let pEmail = assignedAdmin ? (assignedAdmin.email || `admin_${school.code}@school.local`) : `mgmt_${school.code}@school.local`;
+      let pTitle = assignedAdmin ? `مدير مدرسة • ${school.name}` : `الكادر الإداري المكلف • ${school.name}`;
+
+      if (!assignedAdmin) {
+        if (school.code === 'msc_jed_smart_boys_national') {
+          pName = 'أ. محمد بن خالد الغامدي (مدير المسار الأهلي)';
+          pNid = '1098765431';
+          pEmail = 'admin_jed_national_boys@school.local';
+          pTitle = `مدير مدرسة • ${school.name}`;
+        } else if (school.code === 'msc_jed_smart_boys_diploma') {
+          pName = 'د. طارق بن عبد العزيز السالم (مدير الدبلومة الأمريكية)';
+          pNid = '1098765432';
+          pEmail = 'admin_jed_diploma_boys@school.local';
+          pTitle = `مدير مدرسة • ${school.name}`;
+        } else if (school.code === 'msc_jed_smart_girls_national') {
+          pName = 'أ. نورة بنت عبد الله الشهري (مديرة المسار الأهلي)';
+          pNid = '1098765433';
+          pEmail = 'admin_jed_national_girls@school.local';
+          pTitle = `مدير مدرسة • ${school.name}`;
+        } else if (school.code === 'msc_jed_smart_girls_diploma') {
+          pName = 'د. ريم بنت إبراهيم المنصور (مديرة الدبلومة الأمريكية)';
+          pNid = '1098765434';
+          pEmail = 'admin_jed_diploma_girls@school.local';
+          pTitle = `مدير مدرسة • ${school.name}`;
+        }
       }
 
+      const hasPrincipal = Boolean(assignedAdmin) || (school.code?.startsWith('msc_jed_smart_'));
+
       return {
-        id: school.code,
-        schoolCode: school.code,
+        id: school.code || school.id,
+        schoolCode: school.code || school.id,
         legacyCode: school.legacyCode || null,
         schoolName: school.name,
         schoolSubTitle: school.subTitle,
@@ -128,13 +183,14 @@ export default function MasterMessagingHub() {
         track: school.track,
         trackCategory: trackCat,
         gender: school.gender || (isBoys ? 'boys' : 'girls'),
+        hasPrincipal,
         principalName: pName,
         principalNid: pNid,
         principalEmail: pEmail,
-        principalTitle: `مدير مدرسة • ${school.name}`
+        principalTitle: pTitle
       };
     });
-  }, []);
+  }, [firestoreSchools, adminsList]);
 
   // Unique Cities List
   const citiesList = useMemo(() => {
@@ -194,7 +250,7 @@ export default function MasterMessagingHub() {
     });
   }, [allMessages]);
 
-  // Incoming Replies & Reports from Principals to Master
+  // Incoming Replies & Reports from Principals & Acting Management to Master
   const incomingReplies = useMemo(() => {
     return allMessages.filter(m => {
       if (m.archived) return false;
@@ -202,9 +258,9 @@ export default function MasterMessagingHub() {
                                   m.receiverNationalId === 'super@admin.com' || 
                                   (m.receiverName && m.receiverName.includes('الماستر')) ||
                                   Boolean(m.replyToDecreeNumber) ||
-                                  (m.senderRole === 'admin' && m.messageType === 'individual' && m.targetSchoolId === 'ALL');
-      const isFromPrincipal = m.senderRole === 'admin';
-      return isAddressedToMaster && isFromPrincipal;
+                                  ((m.senderRole === 'admin' || m.senderRole === 'staff' || m.senderRole === 'supervisor' || m.senderRole === 'school_management') && m.messageType === 'individual' && m.targetSchoolId === 'ALL');
+      const isFromSchool = m.senderRole === 'admin' || m.senderRole === 'staff' || m.senderRole === 'supervisor' || m.senderRole === 'school_management' || m.isSchoolManagement;
+      return isAddressedToMaster && isFromSchool;
     });
   }, [allMessages]);
 
@@ -333,16 +389,16 @@ export default function MasterMessagingHub() {
       const sSch = String(m.schoolId || '').toLowerCase();
       const tSch = String(m.targetSchoolId || '').toLowerCase();
 
-      // Sent by Master to this principal
+      // Sent by Master to this school/principal
       const masterToPrincipal = (sRole === 'superadmin') && (
         rNid === pNid || 
         tSch === pId || 
         (pLegacy && tSch === pLegacy) ||
-        (m.receiverId && m.receiverId === `admin_${pId}`)
+        (m.receiverId && (m.receiverId === `admin_${pId}` || m.receiverId === `school_mgmt_${pId}` || m.receiverId === `mgmt_${pId}`))
       );
 
-      // Sent by this principal to Master
-      const principalToMaster = (sRole === 'admin') && (
+      // Sent by this school (principal or acting staff/supervisor) to Master
+      const principalToMaster = (sRole === 'admin' || sRole === 'staff' || sRole === 'supervisor' || sRole === 'school_management') && (
         rRole === 'superadmin' || 
         rNid === 'super@admin.com' ||
         sNid === pNid || 
@@ -362,6 +418,7 @@ export default function MasterMessagingHub() {
 
     setSendingHotline(true);
     try {
+      const isUnassigned = !selectedPrincipal.hasPrincipal;
       const payload = {
         messageType: 'individual',
         senderId: currentUser?.uid || 'superadmin',
@@ -369,14 +426,15 @@ export default function MasterMessagingHub() {
         senderName: 'الإدارة العامة (الماستر العام)',
         senderRole: 'superadmin',
         senderRoleTitle: 'الرئاسة العامة والإشراف المركزي',
-        receiverId: `admin_${selectedPrincipal.schoolCode}`,
+        receiverId: isUnassigned ? `school_mgmt_${selectedPrincipal.schoolCode}` : `admin_${selectedPrincipal.schoolCode}`,
         receiverNationalId: selectedPrincipal.principalNid,
         receiverName: selectedPrincipal.principalName,
-        receiverRole: 'admin',
+        receiverRole: isUnassigned ? 'school_management' : 'admin',
         receiverRoleTitle: selectedPrincipal.principalTitle,
         targetSchoolId: selectedPrincipal.schoolCode,
         targetSchoolName: selectedPrincipal.schoolName,
         schoolId: selectedPrincipal.schoolCode,
+        allowStaffAndSupervisors: isUnassigned,
         subject: `توجيه خاص ومباشر: ${selectedPrincipal.schoolName}`,
         body: hotlineChatInput.trim(),
         priority: 'urgent',

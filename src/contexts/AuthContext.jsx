@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { auth, db } from '../firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
@@ -129,6 +129,48 @@ export function AuthProvider({ children }) {
           );
           if (match) {
             data = { ...match, role: 'admin' };
+          }
+        } catch (e) {}
+      }
+
+      if (!data) {
+        try {
+          const localStudents = JSON.parse(localStorage.getItem('msc_custom_students') || '[]');
+          const match = localStudents.find(s => 
+            String(s.nationalId).trim().toLowerCase() === nid.toLowerCase() ||
+            String(s.email).trim().toLowerCase() === email ||
+            (user.uid && (s.uid === user.uid || s.id === user.uid))
+          );
+          if (match) {
+            data = { ...match, role: 'student' };
+          }
+        } catch (e) {}
+      }
+
+      if (!data) {
+        try {
+          const localTeachers = JSON.parse(localStorage.getItem('msc_custom_teachers') || '[]');
+          const match = localTeachers.find(t => 
+            String(t.nationalId).trim().toLowerCase() === nid.toLowerCase() ||
+            String(t.email).trim().toLowerCase() === email ||
+            (user.uid && (t.uid === user.uid || t.id === user.uid))
+          );
+          if (match) {
+            data = { ...match, role: 'teacher' };
+          }
+        } catch (e) {}
+      }
+
+      if (!data) {
+        try {
+          const localStaff = JSON.parse(localStorage.getItem('msc_custom_staff') || '[]');
+          const match = localStaff.find(s => 
+            String(s.nationalId).trim().toLowerCase() === nid.toLowerCase() ||
+            String(s.email).trim().toLowerCase() === email ||
+            (user.uid && (s.uid === user.uid || s.id === user.uid))
+          );
+          if (match) {
+            data = { ...match, role: 'staff' };
           }
         } catch (e) {}
       }

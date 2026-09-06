@@ -119,6 +119,12 @@ export default function Header({ title, role }) {
               recNid === 'all_admins' ||
               recId === 'all_schools_principals' ||
               (msg.senderRole === 'superadmin' && isGlobal)
+            )) ||
+            // 🏫 Acting School Management / Staff / Supervisors in schools without an assigned principal
+            ((effectiveRole === 'staff' || effectiveRole === 'supervisor' || userData?.role === 'staff' || userData?.role === 'supervisor') && (
+              msg.receiverRole === 'school_management' ||
+              msg.allowStaffAndSupervisors === true ||
+              (msg.senderRole === 'superadmin' && (recName.includes('إدارة') || recName.includes('الادارة') || recName.includes('الكادر المكلف') || msg.isDirective || msg.isResourceChat))
             ))
           );
 

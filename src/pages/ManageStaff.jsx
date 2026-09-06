@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
+import { db, createSecondaryAuthUser } from '../firebase';
 import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 import { Users, UserPlus, X, Edit, Trash2, Shield, ShieldCheck, CheckSquare, Square, Phone, Award, Star, BookOpen, Calendar, CheckCircle, FileText } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -87,17 +87,32 @@ export default function ManageStaff({ schoolId }) {
     const q = query(collection(db, 'staff'), where('schoolId', '==', schoolId));
     const unsub = onSnapshot(q, async (snap) => {
       const raw = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Merge with custom staff from localStorage for offline/immediate resilience
+      let localCustom = [];
+      try {
+        localCustom = JSON.parse(localStorage.getItem('msc_custom_staff') || '[]');
+      } catch (e) {}
+
+      const combined = [...raw];
+      for (const loc of localCustom) {
+        if (!loc.schoolId || loc.schoolId === schoolId) {
+          const exists = combined.some(item => (item.nationalId && String(item.nationalId).trim() === String(loc.nationalId).trim()));
+          if (!exists) combined.push({ id: `local_${loc.nationalId}`, ...loc });
+        }
+      }
+
       const unique = [];
       const seen = new Map();
       const duplicatesToDelete = [];
 
-      for (const s of raw) {
+      for (const s of combined) {
         const nid = (s.nationalId || s.id || '').trim();
         if (!seen.has(nid)) {
           seen.set(nid, s);
           unique.push(s);
         } else {
-          duplicatesToDelete.push(s.id);
+          if (s.id && !s.id.startsWith('local_')) duplicatesToDelete.push(s.id);
         }
       }
 
@@ -188,9 +203,19 @@ export default function ManageStaff({ schoolId }) {
         nationality: sNat,
         role: 'staff',
         schoolId,
+        password: nid,
         createdAt: new Date()
       };
 
+      // 1. Create or ensure Firebase Auth user in secondary app
+      try {
+        const passToSet = nid.length >= 6 ? nid : `${nid}00`;
+        await createSecondaryAuthUser(fakeEmail, passToSet, staffData);
+      } catch (authErr) {
+        console.warn('Staff secondary auth notice:', authErr);
+      }
+
+      // 2. Save to Firestore staff and users
       await addDoc(collection(db, 'staff'), staffData);
       await addDoc(collection(db, 'users'), {
         nationalId: nid,
@@ -200,8 +225,18 @@ export default function ManageStaff({ schoolId }) {
         roleTitle: finalRoleTitle,
         permissions: selectedPermissions,
         nationality: sNat,
+        password: nid,
         schoolId
       });
+
+      // 3. Save to localStorage backup for immediate resilient login
+      try {
+        const saved = JSON.parse(localStorage.getItem('msc_custom_staff') || '[]');
+        const updated = [staffData, ...saved.filter(s => String(s.nationalId).trim() !== nid)];
+        localStorage.setItem('msc_custom_staff', JSON.stringify(updated));
+      } catch (lsErr) {
+        console.warn('Could not save staff to localStorage:', lsErr);
+      }
 
       setIsAdding(false);
       setName('');
@@ -289,12 +324,20 @@ export default function ManageStaff({ schoolId }) {
   const handleDeleteStaff = async (id, nationalId, staffName) => {
     if (!window.confirm(`هل أنت متأكد من حذف (${staffName}) من الكادر الإداري؟`)) return;
     try {
-      await deleteDoc(doc(db, 'staff', id));
+      if (id && !id.startsWith('local_')) {
+        await deleteDoc(doc(db, 'staff', id));
+      }
       if (nationalId) {
         const staffSnap = await getDocs(query(collection(db, 'staff'), where('nationalId', '==', nationalId)));
         staffSnap.forEach(async (d) => await deleteDoc(doc(db, 'staff', d.id)));
         const uSnap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nationalId)));
         uSnap.forEach(async (d) => await deleteDoc(doc(db, 'users', d.id)));
+
+        try {
+          const saved = JSON.parse(localStorage.getItem('msc_custom_staff') || '[]');
+          const updated = saved.filter(s => String(s.nationalId).trim() !== String(nationalId).trim());
+          localStorage.setItem('msc_custom_staff', JSON.stringify(updated));
+        } catch (e) {}
       }
       alert('تم حذف العضو بنجاح');
     } catch (err) {
@@ -312,6 +355,7 @@ export default function ManageStaff({ schoolId }) {
       const lines = bulkData.trim().split('\n');
       let addedCount = 0;
       let skippedIds = [];
+      const newStaffList = [];
 
       for (let line of lines) {
         const parts = line.split(/[\t,]/).map(s => s.trim());
@@ -337,7 +381,7 @@ export default function ManageStaff({ schoolId }) {
             // Default full basic permissions for bulk added staff
             const defPerms = ['preparations', 'weekly_plans', 'schedules', 'students', 'attendance'];
 
-            await addDoc(collection(db, 'staff'), {
+            const staffData = {
               name: sName,
               nationalId: sId,
               email: fakeEmail,
@@ -346,8 +390,18 @@ export default function ManageStaff({ schoolId }) {
               permissions: defPerms,
               role: 'staff',
               schoolId,
+              password: sId,
               createdAt: new Date()
-            });
+            };
+
+            try {
+              const passToSet = sId.length >= 6 ? sId : `${sId}00`;
+              await createSecondaryAuthUser(fakeEmail, passToSet, staffData);
+            } catch (authErr) {
+              console.warn('Bulk staff secondary auth notice:', authErr);
+            }
+
+            await addDoc(collection(db, 'staff'), staffData);
 
             await addDoc(collection(db, 'users'), {
               nationalId: sId,
@@ -356,12 +410,22 @@ export default function ManageStaff({ schoolId }) {
               name: sName,
               roleTitle: sRoleTitle,
               permissions: defPerms,
+              password: sId,
               schoolId
             });
 
+            newStaffList.push(staffData);
             addedCount++;
           }
         }
+      }
+
+      if (newStaffList.length > 0) {
+        try {
+          const saved = JSON.parse(localStorage.getItem('msc_custom_staff') || '[]');
+          const updated = [...newStaffList, ...saved];
+          localStorage.setItem('msc_custom_staff', JSON.stringify(updated));
+        } catch (lsErr) {}
       }
 
       setIsBulkAdding(false);

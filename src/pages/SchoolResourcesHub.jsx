@@ -288,6 +288,122 @@ export default function SchoolResourcesHub({ role }) {
     return () => unsub();
   }, []);
 
+  // 1.2 Fetch School Admins to detect schools without assigned managers
+  const [adminsList, setAdminsList] = useState([]);
+  useEffect(() => {
+    const qAdmins = query(collection(db, 'users'), where('role', '==', 'admin'));
+    const unsubAdmins = onSnapshot(qAdmins, (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      try {
+        const localAdmins = JSON.parse(localStorage.getItem('msc_custom_admins') || '[]');
+        for (const la of localAdmins) {
+          if (!list.some(a => a.nationalId === la.nationalId || a.id === la.id)) {
+            list.push(la);
+          }
+        }
+      } catch (e) {}
+      setAdminsList(list);
+    }, (err) => {
+      console.warn("Admins snapshot notice in resources:", err);
+    });
+    return () => unsubAdmins();
+  }, []);
+
+  const isSchoolWithManager = (schId) => {
+    if (!schId || schId === 'ALL') return true;
+    const schObj = schoolsList.find(s => s.id === schId || s.code === schId);
+    const codes = [schId, schObj?.code, schObj?.legacyCode].filter(Boolean);
+    if (schObj?.code?.startsWith('msc_jed_smart_')) return true;
+    return adminsList.some(a => codes.includes(a.schoolId) || codes.includes(a.schoolCode));
+  };
+
+  // 1.3 Realtime 2-way messaging for Human Resources & Staff Transfers Hub
+  const [resourceMessages, setResourceMessages] = useState([]);
+  const [resourceChatInput, setResourceChatInput] = useState('');
+  const [sendingResourceMsg, setSendingResourceMsg] = useState(false);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'school_messages'),
+      where('isResourceChat', '==', true)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      setResourceMessages(list);
+    }, (err) => {
+      console.warn("Resource chat snapshot notice:", err);
+    });
+    return () => unsub();
+  }, []);
+
+  const currentSchoolResourceMessages = useMemo(() => {
+    const targetSch = selectedSchoolId || userData?.schoolId;
+    const schObj = schoolsList.find(s => s.id === targetSch || s.code === targetSch);
+    const codes = [targetSch, schObj?.code, schObj?.legacyCode].filter(Boolean);
+    return resourceMessages.filter(m => {
+      return codes.includes(m.targetSchoolId) || codes.includes(m.schoolId);
+    });
+  }, [resourceMessages, selectedSchoolId, userData?.schoolId, schoolsList]);
+
+  const handleSendResourceMessage = async (e) => {
+    e?.preventDefault();
+    if (!resourceChatInput.trim()) return;
+    const targetSch = (selectedSchoolId && selectedSchoolId !== 'ALL') ? selectedSchoolId : (userData?.schoolId || schoolsList[0]?.id);
+    const schObj = schoolsList.find(s => s.id === targetSch || s.code === targetSch);
+    const schName = schObj?.name || 'المدرسة المستهدفة';
+    const hasMgr = isSchoolWithManager(targetSch);
+
+    setSendingResourceMsg(true);
+    try {
+      const isFromMaster = Boolean(isSuperAdmin);
+      const msgPayload = {
+        messageType: 'individual',
+        isResourceChat: true,
+        schoolId: targetSch,
+        targetSchoolId: targetSch,
+        targetSchoolName: schName,
+        senderId: currentUser?.uid || (isFromMaster ? 'superadmin' : 'staff_user'),
+        senderNationalId: isFromMaster ? 'super@admin.com' : (userData?.nationalId || 'staff_member'),
+        senderName: isFromMaster 
+          ? (userData?.name || 'الماستر العام (الإدارة العامة)')
+          : (userData?.name || (hasMgr ? 'مدير المدرسة' : 'الكادر الإداري المكلف')),
+        senderRole: isFromMaster ? 'superadmin' : (effectiveRole || 'staff'),
+        senderRoleTitle: isFromMaster ? 'الماستر العام' : (hasMgr ? 'مدير المدرسة' : 'الكادر المكلف'),
+        receiverId: isFromMaster ? (hasMgr ? `admin_${targetSch}` : `mgmt_${targetSch}`) : 'superadmin',
+        receiverNationalId: isFromMaster ? (hasMgr ? 'admin' : 'staff') : 'super@admin.com',
+        receiverName: isFromMaster 
+          ? (hasMgr ? `مدير ${schName}` : `إدارة ${schName} (الكادر المكلف)`)
+          : 'الماستر العام (الإدارة العامة)',
+        receiverRole: isFromMaster ? (hasMgr ? 'admin' : 'school_management') : 'superadmin',
+        receiverRoleTitle: isFromMaster ? (hasMgr ? 'مدير المدرسة' : 'الكادر الإداري المكلف') : 'الماستر العام',
+        allowStaffAndSupervisors: isFromMaster ? !hasMgr : false,
+        subject: `💬 تواصل مباشر للموارد والكوادر: ${schName}`,
+        body: resourceChatInput.trim(),
+        priority: 'urgent',
+        readBy: isFromMaster ? ['super@admin.com'] : [userData?.nationalId || 'sender'],
+        readers: [{
+          userId: currentUser?.uid || 'user',
+          nationalId: isFromMaster ? 'super@admin.com' : (userData?.nationalId || 'sender'),
+          name: userData?.name || (isFromMaster ? 'الماستر العام' : 'المدرسة'),
+          role: isFromMaster ? 'superadmin' : effectiveRole,
+          readAt: new Date().toISOString()
+        }],
+        createdAt: new Date().toISOString(),
+        timestamp: Date.now()
+      };
+
+      const docRef = await addDoc(collection(db, 'school_messages'), msgPayload);
+      broadcastRealtimeEvent('MESSAGE_UPDATE', { message: { id: docRef.id, ...msgPayload } });
+      setResourceChatInput('');
+    } catch (err) {
+      console.error('Error sending resource message:', err);
+      alert('حدث خطأ أثناء إرسال الرسالة: ' + err.message);
+    } finally {
+      setSendingResourceMsg(false);
+    }
+  };
+
   // 2. Fetch School Specific Data
   useEffect(() => {
     const targetSchool = (selectedSchoolId && selectedSchoolId !== 'ALL') 
@@ -1473,6 +1589,9 @@ export default function SchoolResourcesHub({ role }) {
       const targetSchoolObj = schoolsList.find(s => s.id === currentTargetSchool);
       const schoolDisplayName = targetSchoolObj?.name || currentSchoolInfo?.name || 'مجمع مدارس المتقدمة للتعلم الذكي';
 
+      const targetHasAdmin = isSchoolWithManager(currentTargetSchool);
+      const isFromSchoolAdmin = (effectiveRole === 'admin' || userData?.role === 'admin') && targetHasAdmin;
+
       const requestPayload = {
         type: transferForm.type || 'need',
         subject: finalSubject,
@@ -1500,8 +1619,8 @@ export default function SchoolResourcesHub({ role }) {
         toSchoolName: schoolDisplayName,
         requesterName: isFromMaster 
           ? (userData?.name || currentUser?.displayName || 'الإدارة العامة (الماستر العام)') 
-          : (userData?.name || 'مدير المدرسة'),
-        requesterRole: isFromMaster ? 'superadmin' : 'admin',
+          : (userData?.name || (isFromSchoolAdmin ? 'مدير المدرسة' : 'الكادر الإداري المكلف')),
+        requesterRole: isFromMaster ? 'superadmin' : (isFromSchoolAdmin ? 'admin' : (effectiveRole || 'staff')),
         source: isFromMaster ? 'master' : 'school',
         requesterNid: String(userData?.nationalId || ''),
         isDirective: isFromMaster,
@@ -1521,8 +1640,8 @@ export default function SchoolResourcesHub({ role }) {
       if (isFromMaster) {
         try {
           const msgPayload = {
-            schoolId: targetSchool || 'ALL',
-            targetSchoolId: targetSchool || 'ALL',
+            schoolId: currentTargetSchool || 'ALL',
+            targetSchoolId: currentTargetSchool || 'ALL',
             targetSchoolName: schoolDisplayName,
             senderId: currentUser?.uid || 'master_general_admin',
             senderNationalId: 'super@admin.com',
@@ -1531,9 +1650,10 @@ export default function SchoolResourcesHub({ role }) {
             senderRoleTitle: 'الإدارة العامة (الماستر العام)',
             messageType: 'individual',
             targetGroup: 'all',
-            receiverRole: 'admin',
-            receiverName: `مدير ${schoolDisplayName}`,
-            receiverRoleTitle: 'مدير المدرسة',
+            receiverRole: targetHasAdmin ? 'admin' : 'school_management',
+            receiverName: targetHasAdmin ? `مدير ${schoolDisplayName}` : `إدارة ${schoolDisplayName} (الكادر المكلف)`,
+            receiverRoleTitle: targetHasAdmin ? 'مدير المدرسة' : 'الكادر الإداري المكلف',
+            allowStaffAndSupervisors: !targetHasAdmin,
             subject: `🔄 قرار سد عجز وتكليف كادر: مادة ${requestPayload.subject}`,
             body: `قرار إداري صادر من الماستر العام لسد العجز وتكليف الكوادر:\nالمادة: ${requestPayload.subject}\nالحصص المطلوبة: ${requestPayload.requiredPeriods}\nالمدرسة: ${schoolDisplayName}\n${requestPayload.teacherName ? `الكادر المكلف: ${requestPayload.teacherName}` : ''}\n\nيرجى اعتماد التسكين في الجدول وتأكيد الاستلام.`,
             priority: 'urgent',
@@ -1563,14 +1683,14 @@ export default function SchoolResourcesHub({ role }) {
 
       setShowTransferModal(false);
       if (isFromMaster) {
-        alert(`تم إرسال وتوجيه القرار الإداري بنجاح إلى مدير ${schoolDisplayName}.`);
+        alert(`تم إرسال وتوجيه القرار الإداري بنجاح إلى إدارة ${schoolDisplayName}.`);
       } else {
         alert('تم إرسال الطلب بنجاح إلى الإدارة العامة والماستر للنظر والاعتماد.');
       }
     } catch (err) {
       console.error('Error submitting transfer request:', err);
       setShowTransferModal(false);
-      alert('تم اعتماد وتسجيل المعاملة بنجاح.');
+      alert('تم تسجيل طلب المناقلة بنجاح.');
     }
   };
 
@@ -1585,6 +1705,7 @@ export default function SchoolResourcesHub({ role }) {
       const targetSchool = directiveForm.targetSchoolId || selectedSchoolId || 'ALL';
       const targetSchoolObj = schoolsList.find(s => s.id === targetSchool);
       const targetSchoolName = targetSchool === 'ALL' ? 'كافة فروع ومجمعات الشركة' : (targetSchoolObj?.name || 'الفرع المستهدف');
+      const targetHasAdmin = isSchoolWithManager(targetSchool);
 
       const directivePayload = {
         title: directiveForm.title || 'توجيه إداري',
@@ -1626,9 +1747,10 @@ export default function SchoolResourcesHub({ role }) {
           senderRoleTitle: 'الإدارة العامة (الماستر العام)',
           messageType: targetSchool === 'ALL' ? 'group' : 'individual',
           targetGroup: 'all',
-          receiverRole: 'admin',
-          receiverName: targetSchoolName ? `مدير ${targetSchoolName}` : 'مدير المدرسة',
-          receiverRoleTitle: 'مدير المدرسة',
+          receiverRole: targetHasAdmin ? 'admin' : 'school_management',
+          receiverName: targetSchoolName ? (targetHasAdmin ? `مدير ${targetSchoolName}` : `إدارة ${targetSchoolName} (الكادر المكلف / الوكلاء)`) : 'إدارة المدرسة',
+          receiverRoleTitle: targetHasAdmin ? 'مدير المدرسة' : 'الكادر الإداري المكلف',
+          allowStaffAndSupervisors: !targetHasAdmin,
           subject: `👑 توجيه إداري رسمي: ${directivePayload.title}`,
           body: `توجيه وقرار إداري صادر من الإدارة العامة (الماستر العام):\nالموضوع / المجال: ${directivePayload.subject}\n\nنص التوجيه:\n${directivePayload.content || 'يرجى الاطلاع والتقيد بما ورد فيه وتأكيد الاستلام.'}`,
           priority: directiveForm.urgency === 'high' ? 'urgent' : 'important',
@@ -2005,9 +2127,14 @@ export default function SchoolResourcesHub({ role }) {
               className="input-field"
               style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '13px', width: '260px' }}
             >
-              {schoolsList.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
+              {schoolsList.map(s => {
+                const hasMgr = isSchoolWithManager(s.id);
+                return (
+                  <option key={s.id} value={s.id}>
+                    {s.name} {!hasMgr ? '⚠️ (لم يعين لها مدير بعد)' : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
         )}
@@ -4771,6 +4898,32 @@ export default function SchoolResourcesHub({ role }) {
             </div>
           </div>
 
+          {/* Unassigned Manager Notice Banner */}
+          {!isSchoolWithManager(selectedSchoolId) && (
+            <div style={{
+              background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
+              border: '1.5px solid #f59e0b',
+              borderRadius: '16px',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: '0 4px 15px rgba(245, 158, 11, 0.15)'
+            }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AlertTriangle size={24} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#92400e', fontWeight: 800 }}>
+                  ⚠️ تنبيه الموارد والكوادر: هذه المدرسة لم يُعيّن لها مدير مدرسة بعد
+                </h4>
+                <p style={{ margin: 0, fontSize: '13px', color: '#b45309', lineHeight: 1.5 }}>
+                  جميع التوجيهات والقرارات الصادرة ستوجّه وتصل تلقائياً إلى <strong>الإدارة المدرسية المكلفة والوكلاء والكادر الإداري</strong>. كما يمكن للكادر المكلف في هذه المدرسة التفاعل واستلام القرارات والرد والتواصل معك مباشرة من خلال نافذة المراسلات الفورية بالأسفل.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Super Admin Directives Section */}
           {visibleDirectives.length > 0 && (
             <div className="glass-panel" style={{ padding: '24px', borderRadius: '18px', background: 'linear-gradient(135deg, rgba(245, 243, 255, 0.95), rgba(238, 242, 255, 0.95))', border: '1px solid #c7d2fe' }}>
@@ -5066,6 +5219,164 @@ export default function SchoolResourcesHub({ role }) {
               })}
               </div>
             )}
+          </div>
+
+          {/* Two-Way Direct Messaging & Communication Center for Resources & Staff */}
+          <div className="glass-panel" style={{
+            padding: '24px',
+            borderRadius: '18px',
+            background: 'white',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '38px', height: '38px', borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #0d9488, #0284c7)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white'
+                }}>
+                  <Mail size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', color: 'var(--color-primary-dark)', fontWeight: 800 }}>
+                    مركز المراسلات والتواصل الفوري للموارد والكوادر
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--color-text-muted)' }}>
+                    قناة المراسلة المباشرة بين الماستر العام وإدارة المدرسة (
+                    {isSchoolWithManager(selectedSchoolId)
+                      ? 'مدير المدرسة المعتمد'
+                      : '⚠️ الكادر الإداري والوكلاء المكلفون لعدم تعيين مدير بعد'}
+                    )
+                  </p>
+                </div>
+              </div>
+              <span style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                padding: '4px 10px',
+                borderRadius: '8px',
+                background: isSchoolWithManager(selectedSchoolId) ? '#ecfdf5' : '#fef3c7',
+                color: isSchoolWithManager(selectedSchoolId) ? '#059669' : '#b45309',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                {isSchoolWithManager(selectedSchoolId) ? '✓ إدارة معينة' : '⚠️ إدارة مكلفة (لا يوجد مدير)'}
+              </span>
+            </div>
+
+            {/* Chat Messages Feed */}
+            <div style={{
+              background: '#f8fafc',
+              borderRadius: '14px',
+              border: '1px solid #e2e8f0',
+              padding: '16px',
+              minHeight: '180px',
+              maxHeight: '320px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              marginBottom: '14px'
+            }}>
+              {currentSchoolResourceMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px 20px', color: '#94a3b8' }}>
+                  <Mail size={32} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
+                  <p style={{ margin: 0, fontSize: '13.5px', fontWeight: 600 }}>
+                    لا توجد رسائل سابقة في هذا القسم لهذه المدرسة.
+                  </p>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px' }}>
+                    يمكنك إرسال رسالة أو استفسار مباشر وسيرد عليك الطرف الآخر فوراً.
+                  </p>
+                </div>
+              ) : (
+                currentSchoolResourceMessages.map((msg) => {
+                  const isFromMe = (isSuperAdmin && msg.senderRole === 'superadmin') ||
+                                   (!isSuperAdmin && msg.senderRole !== 'superadmin');
+                  return (
+                    <div
+                      key={msg.id}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: isFromMe ? 'flex-start' : 'flex-end',
+                        maxWidth: '85%',
+                        alignSelf: isFromMe ? 'flex-start' : 'flex-end'
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        marginBottom: '4px',
+                        fontSize: '11px',
+                        color: '#64748b'
+                      }}>
+                        <span style={{
+                          fontWeight: 700,
+                          color: msg.senderRole === 'superadmin' ? '#7c3aed' : '#0369a1'
+                        }}>
+                          {msg.senderRole === 'superadmin' ? '👑 ' + (msg.senderName || 'الماستر العام') : '🏫 ' + (msg.senderName || 'إدارة المدرسة')}
+                        </span>
+                        <span>•</span>
+                        <span>{new Date(msg.createdAt || msg.timestamp || Date.now()).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <div style={{
+                        background: isFromMe
+                          ? (isSuperAdmin ? 'linear-gradient(135deg, #7c3aed, #6366f1)' : 'linear-gradient(135deg, #0d9488, #0284c7)')
+                          : 'white',
+                        color: isFromMe ? 'white' : '#1e293b',
+                        padding: '10px 16px',
+                        borderRadius: '14px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        border: isFromMe ? 'none' : '1px solid #e2e8f0',
+                        fontSize: '13.5px',
+                        lineHeight: 1.5,
+                        wordBreak: 'break-word'
+                      }}>
+                        {msg.body}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Input Form */}
+            <form onSubmit={handleSendResourceMessage} style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                className="input-field"
+                value={resourceChatInput}
+                onChange={(e) => setResourceChatInput(e.target.value)}
+                placeholder={
+                  isSuperAdmin
+                    ? `اكتب رسالة أو توجيهاً لإدارة ${currentSchoolInfo?.name || 'المدرسة'} بخصوص الموارد البشرية والكوادر...`
+                    : `اكتب رسالة أو طلباً للإدارة العامة والماستر بخصوص الكوادر والأنصبة...`
+                }
+                style={{ flex: 1, fontSize: '13px', padding: '10px 14px' }}
+                disabled={sendingResourceMsg}
+              />
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={sendingResourceMsg || !resourceChatInput.trim()}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: isSuperAdmin ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' : 'linear-gradient(135deg, #0d9488, #0284c7)',
+                  border: 'none',
+                  padding: '10px 20px',
+                  fontWeight: 700,
+                  fontSize: '13.5px'
+                }}
+              >
+                <Send size={16} />
+                <span>{sendingResourceMsg ? 'جاري الإرسال...' : 'إرسال'}</span>
+              </button>
+            </form>
           </div>
         </div>
       )}
@@ -5376,9 +5687,14 @@ export default function SchoolResourcesHub({ role }) {
                     onChange={(e) => setTransferForm({ ...transferForm, targetSchoolId: e.target.value })}
                     style={{ borderColor: '#818cf8', fontWeight: 600 }}
                   >
-                    {schoolsList.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
+                    {schoolsList.map(s => {
+                      const hasMgr = isSchoolWithManager(s.id);
+                      return (
+                        <option key={s.id} value={s.id}>
+                          {s.name} {!hasMgr ? '⚠️ (لم يعين لها مدير بعد - توجيه للإدارة المكلفة)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                   <span style={{ fontSize: '11px', color: '#6366f1', marginTop: '4px', display: 'block' }}>
                     💡 سيصل هذا القرار والتوجيه فوراً إلى لوحة تحكم مدير الفرع المختار.
@@ -5586,10 +5902,15 @@ export default function SchoolResourcesHub({ role }) {
                   value={directiveForm.targetSchoolId}
                   onChange={(e) => setDirectiveForm({ ...directiveForm, targetSchoolId: e.target.value })}
                 >
-                  <option value="ALL">📢 تعميم لكافة مدراء فروع ومجمعات الشركة</option>
-                  {schoolsList.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
+                  <option value="ALL">📢 تعميم لكافة فروع ومجمعات الشركة (مدراء وكوادر مكلفة)</option>
+                  {schoolsList.map(s => {
+                    const hasMgr = isSchoolWithManager(s.id);
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {!hasMgr ? '⚠️ (لم يعين لها مدير - توجيه للإدارة المكلفة)' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

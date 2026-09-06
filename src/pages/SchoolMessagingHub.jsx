@@ -312,11 +312,12 @@ export default function SchoolMessagingHub() {
 
     const isAdminUser = userRole === 'admin' || userData?.role === 'admin' || myRole === 'admin';
     const isSuperAdminUser = userRole === 'superadmin' || userData?.role === 'superadmin' || myRole === 'superadmin';
+    const isStaffOrSupervisorUser = myRole === 'staff' || myRole === 'supervisor' || userData?.role === 'staff' || userData?.role === 'supervisor';
 
     // 👑 A. MASTER EXECUTIVE DIRECTIVES & CIRCULARS (قرارات وتوجيهات الإدارة العامة المركزية)
     if (msg.isDirective || msg.senderRole === 'superadmin' || (msg.senderName && msg.senderName.includes('الماستر'))) {
       if (isSuperAdminUser) return true;
-      if (isAdminUser) {
+      if (isAdminUser || (isStaffOrSupervisorUser && (msg.allowStaffAndSupervisors || msg.receiverRole === 'school_management' || msg.targetGroup === 'all' || msg.isResourceChat))) {
         const scope = msg.targetScope || 'ALL';
         if (scope === 'ALL') return true;
         if (scope === 'diploma') {
@@ -349,7 +350,7 @@ export default function SchoolMessagingHub() {
     // 📞 B. HOTLINE 1-ON-1 DIRECT PRINCIPAL HOTLINE WITH MASTER
     if (msg.isHotline) {
       if (isSuperAdminUser) return true;
-      if (isAdminUser) {
+      if (isAdminUser || (isStaffOrSupervisorUser && (msg.allowStaffAndSupervisors || msg.receiverRole === 'school_management'))) {
         const recNid = String(msg.receiverNationalId || '').trim().toLowerCase();
         const targetSch = String(msg.targetSchoolId || '').trim().toLowerCase();
         const mySch = String(schoolId || '').trim().toLowerCase();
@@ -362,7 +363,9 @@ export default function SchoolMessagingHub() {
           (codeSch && targetSch === codeSch) ||
           (legacySch && targetSch === legacySch) ||
           msg.receiverId === `admin_${mySch}` ||
-          (codeSch && msg.receiverId === `admin_${codeSch}`)
+          msg.receiverId === `mgmt_${mySch}` ||
+          msg.receiverId === `school_mgmt_${mySch}` ||
+          (codeSch && (msg.receiverId === `admin_${codeSch}` || msg.receiverId === `school_mgmt_${codeSch}`))
         );
       }
     }
@@ -379,7 +382,7 @@ export default function SchoolMessagingHub() {
       msg.targetSchoolId === schoolId || 
       msg.schoolId === schoolId ||
       isSuperAdminUser ||
-      (msg.senderRole === 'superadmin' && isAdminUser)
+      (msg.senderRole === 'superadmin' && (isAdminUser || isStaffOrSupervisorUser))
     );
 
     // C. Direct / Individual Message: Delivered if addressed to my identity or my role
@@ -406,6 +409,13 @@ export default function SchoolMessagingHub() {
           recNid === String(schoolId).toLowerCase() ||
           (currentSchoolCatalog && recNid === String(currentSchoolCatalog.code).toLowerCase()) ||
           (currentSchoolCatalog?.legacyCode && recNid === String(currentSchoolCatalog.legacyCode).toLowerCase())
+        )) ||
+        (isStaffOrSupervisorUser && (
+          msg.receiverRole === 'school_management' ||
+          msg.allowStaffAndSupervisors === true ||
+          recId === `mgmt_${schoolId}` ||
+          recId === `school_mgmt_${schoolId}` ||
+          (msg.senderRole === 'superadmin' && (recName.includes('إدارة') || recName.includes('الادارة') || recName.includes('الكادر المكلف') || msg.isResourceChat))
         ))
       );
 

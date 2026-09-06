@@ -4,7 +4,7 @@ import { Routes, Route, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers, Send, ArrowLeftRight, CheckCircle2, AlertCircle, Sparkles, Check, Archive, Undo2, Eye, EyeOff } from 'lucide-react';
 import ManageSchedules from './ManageSchedules';
-import { db } from '../firebase';
+import { db, createSecondaryAuthUser } from '../firebase';
 import { collection, addDoc, setDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 import AdminPreparations from './AdminPreparations';
 import WeeklyPlanView from '../components/WeeklyPlanView';
@@ -1198,18 +1198,33 @@ function ManageTeachers({ schoolId }) {
     const q = query(collection(db, 'teachers'), where('schoolId', '==', schoolId));
     const unsub = onSnapshot(q, async (snap) => {
       const raw = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Merge with custom teachers from localStorage for offline/immediate resilience
+      let localCustom = [];
+      try {
+        localCustom = JSON.parse(localStorage.getItem('msc_custom_teachers') || '[]');
+      } catch (e) {}
+
+      const combined = [...raw];
+      for (const loc of localCustom) {
+        if (!loc.schoolId || loc.schoolId === schoolId) {
+          const exists = combined.some(item => (item.nationalId && String(item.nationalId).trim() === String(loc.nationalId).trim()));
+          if (!exists) combined.push({ id: `local_${loc.nationalId}`, ...loc });
+        }
+      }
+
       const unique = [];
       const seen = new Map();
       const duplicatesToDelete = [];
 
-      for (const t of raw) {
+      for (const t of combined) {
         const nid = (t.nationalId || t.id || '').trim();
         if (!seen.has(nid)) {
           seen.set(nid, t);
           unique.push(t);
         } else {
           // Found a duplicate document in database for the same national ID
-          duplicatesToDelete.push(t.id);
+          if (t.id && !t.id.startsWith('local_')) duplicatesToDelete.push(t.id);
         }
       }
 
@@ -1294,12 +1309,48 @@ function ManageTeachers({ schoolId }) {
 
       const fakeEmail = `${nid}@school.local`;
       const tNat = nationality.trim() || 'سعودي';
-      await addDoc(collection(db, 'teachers'), {
-        name: tName, nationalId: nid, email: fakeEmail, subject: tSubj, nationality: tNat, role: 'teacher', schoolId, createdAt: new Date()
-      });
+      const teacherData = {
+        name: tName,
+        nationalId: nid,
+        email: fakeEmail,
+        subject: tSubj,
+        nationality: tNat,
+        role: 'teacher',
+        schoolId,
+        password: nid,
+        createdAt: new Date()
+      };
+
+      // 1. Create or ensure Firebase Auth user in secondary app
+      try {
+        const passToSet = nid.length >= 6 ? nid : `${nid}00`;
+        await createSecondaryAuthUser(fakeEmail, passToSet, teacherData);
+      } catch (authErr) {
+        console.warn('Teacher secondary auth notice:', authErr);
+      }
+
+      // 2. Save to Firestore teachers and users
+      await addDoc(collection(db, 'teachers'), teacherData);
       await addDoc(collection(db, 'users'), {
-        nationalId: nid, email: fakeEmail, role: 'teacher', name: tName, nationality: tNat, schoolId
+        nationalId: nid,
+        email: fakeEmail,
+        role: 'teacher',
+        name: tName,
+        subject: tSubj,
+        nationality: tNat,
+        password: nid,
+        schoolId
       });
+
+      // 3. Save to localStorage backup for immediate resilient login
+      try {
+        const saved = JSON.parse(localStorage.getItem('msc_custom_teachers') || '[]');
+        const updated = [teacherData, ...saved.filter(t => String(t.nationalId).trim() !== nid)];
+        localStorage.setItem('msc_custom_teachers', JSON.stringify(updated));
+      } catch (lsErr) {
+        console.warn('Could not save teacher to localStorage:', lsErr);
+      }
+
       setIsAdding(false);
       setName(''); setNationalId(''); setSubject(''); setNationality('سعودي');
     } catch (err) {
@@ -1319,6 +1370,7 @@ function ManageTeachers({ schoolId }) {
       const lines = bulkData.trim().split('\n');
       let addedCount = 0;
       let skippedIds = [];
+      const newTeachers = [];
 
       for (let line of lines) {
         const parts = line.split(/[\t,]/).map(s => s.trim());
@@ -1339,16 +1391,49 @@ function ManageTeachers({ schoolId }) {
             }
 
             const fakeEmail = `${tId}@school.local`;
-            await addDoc(collection(db, 'teachers'), {
-              name: tName, nationalId: tId, email: fakeEmail, subject: tSubj, role: 'teacher', schoolId, createdAt: new Date()
-            });
+            const teacherData = {
+              name: tName,
+              nationalId: tId,
+              email: fakeEmail,
+              subject: tSubj,
+              role: 'teacher',
+              schoolId,
+              password: tId,
+              createdAt: new Date()
+            };
+
+            try {
+              const passToSet = tId.length >= 6 ? tId : `${tId}00`;
+              await createSecondaryAuthUser(fakeEmail, passToSet, teacherData);
+            } catch (authErr) {
+              console.warn('Bulk teacher secondary auth notice:', authErr);
+            }
+
+            await addDoc(collection(db, 'teachers'), teacherData);
             await addDoc(collection(db, 'users'), {
-              nationalId: tId, email: fakeEmail, role: 'teacher', name: tName, schoolId
+              nationalId: tId,
+              email: fakeEmail,
+              role: 'teacher',
+              name: tName,
+              subject: tSubj,
+              password: tId,
+              schoolId
             });
+
+            newTeachers.push(teacherData);
             addedCount++;
           }
         }
       }
+
+      if (newTeachers.length > 0) {
+        try {
+          const saved = JSON.parse(localStorage.getItem('msc_custom_teachers') || '[]');
+          const updated = [...newTeachers, ...saved];
+          localStorage.setItem('msc_custom_teachers', JSON.stringify(updated));
+        } catch (lsErr) {}
+      }
+
       setIsBulkAdding(false);
       setBulkData('');
       
@@ -2181,11 +2266,26 @@ function ManageStudents({ schoolId }) {
 
     const unsubStudents = onSnapshot(qStudents, async (snap) => {
       const raw = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Merge with custom students from localStorage for offline/immediate resilience
+      let localCustom = [];
+      try {
+        localCustom = JSON.parse(localStorage.getItem('msc_custom_students') || '[]');
+      } catch (e) {}
+
+      const combined = [...raw];
+      for (const loc of localCustom) {
+        if (!loc.schoolId || loc.schoolId === schoolId) {
+          const exists = combined.some(item => (item.nationalId && String(item.nationalId).trim() === String(loc.nationalId).trim()));
+          if (!exists) combined.push({ id: `local_${loc.nationalId}`, ...loc });
+        }
+      }
+
       const unique = [];
       const seen = new Map();
       const duplicatesToDelete = [];
 
-      for (const s of raw) {
+      for (const s of combined) {
         const nid = (s.nationalId || s.id || '').trim();
         if (!seen.has(nid)) {
           seen.set(nid, s);
@@ -2195,7 +2295,7 @@ function ManageStudents({ schoolId }) {
           });
         } else {
           // Found duplicate document in database for the same national ID
-          duplicatesToDelete.push(s.id);
+          if (s.id && !s.id.startsWith('local_')) duplicatesToDelete.push(s.id);
         }
       }
 
@@ -2269,12 +2369,50 @@ function ManageStudents({ schoolId }) {
       }
 
       const fakeEmail = `${nid}@school.local`;
-      await addDoc(collection(db, 'students'), {
-        name: sName, nationalId: nid, email: fakeEmail, class: sClass, className: sClass, nationality: sNat, role: 'student', schoolId, createdAt: new Date()
-      });
+      const studentData = {
+        name: sName,
+        nationalId: nid,
+        email: fakeEmail,
+        class: sClass,
+        className: sClass,
+        nationality: sNat,
+        role: 'student',
+        schoolId,
+        password: nid,
+        createdAt: new Date()
+      };
+
+      // 1. Create or ensure Firebase Auth user in secondary app
+      try {
+        const passToSet = nid.length >= 6 ? nid : `${nid}00`;
+        await createSecondaryAuthUser(fakeEmail, passToSet, studentData);
+      } catch (authErr) {
+        console.warn('Student secondary auth notice:', authErr);
+      }
+
+      // 2. Save to Firestore students and users
+      await addDoc(collection(db, 'students'), studentData);
       await addDoc(collection(db, 'users'), {
-        nationalId: nid, email: fakeEmail, role: 'student', name: sName, class: sClass, className: sClass, nationality: sNat, schoolId
+        nationalId: nid,
+        email: fakeEmail,
+        role: 'student',
+        name: sName,
+        class: sClass,
+        className: sClass,
+        nationality: sNat,
+        password: nid,
+        schoolId
       });
+
+      // 3. Save to localStorage backup for immediate resilient login
+      try {
+        const saved = JSON.parse(localStorage.getItem('msc_custom_students') || '[]');
+        const updated = [studentData, ...saved.filter(s => String(s.nationalId).trim() !== nid)];
+        localStorage.setItem('msc_custom_students', JSON.stringify(updated));
+      } catch (lsErr) {
+        console.warn('Could not save student to localStorage:', lsErr);
+      }
+
       setIsAdding(false);
       setName(''); setNationalId(''); setStudentClass(''); setNationality('سعودي');
     } catch (err) {
@@ -2294,6 +2432,7 @@ function ManageStudents({ schoolId }) {
       const lines = bulkData.trim().split('\n');
       let addedCount = 0;
       let skippedIds = [];
+      const newStudents = [];
 
       for (let line of lines) {
         const parts = line.split(/[\t,]/).map(s => s.trim());
@@ -2314,16 +2453,51 @@ function ManageStudents({ schoolId }) {
             }
 
             const fakeEmail = `${sId}@school.local`;
-            await addDoc(collection(db, 'students'), {
-              name: sName, nationalId: sId, email: fakeEmail, class: sClass, className: sClass, role: 'student', schoolId, createdAt: new Date()
-            });
+            const studentData = {
+              name: sName,
+              nationalId: sId,
+              email: fakeEmail,
+              class: sClass,
+              className: sClass,
+              role: 'student',
+              schoolId,
+              password: sId,
+              createdAt: new Date()
+            };
+
+            try {
+              const passToSet = sId.length >= 6 ? sId : `${sId}00`;
+              await createSecondaryAuthUser(fakeEmail, passToSet, studentData);
+            } catch (authErr) {
+              console.warn('Bulk student secondary auth notice:', authErr);
+            }
+
+            await addDoc(collection(db, 'students'), studentData);
             await addDoc(collection(db, 'users'), {
-              nationalId: sId, email: fakeEmail, role: 'student', name: sName, class: sClass, className: sClass, schoolId
+              nationalId: sId,
+              email: fakeEmail,
+              role: 'student',
+              name: sName,
+              class: sClass,
+              className: sClass,
+              password: sId,
+              schoolId
             });
+
+            newStudents.push(studentData);
             addedCount++;
           }
         }
       }
+
+      if (newStudents.length > 0) {
+        try {
+          const saved = JSON.parse(localStorage.getItem('msc_custom_students') || '[]');
+          const updated = [...newStudents, ...saved];
+          localStorage.setItem('msc_custom_students', JSON.stringify(updated));
+        } catch (lsErr) {}
+      }
+
       setIsBulkAdding(false);
       setBulkData('');
       

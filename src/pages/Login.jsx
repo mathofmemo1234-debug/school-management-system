@@ -130,6 +130,43 @@ export default function Login() {
           return { ...localMatch, role: 'admin' };
         }
       } catch (e) {}
+
+      try {
+        const localStudents = JSON.parse(localStorage.getItem('msc_custom_students') || '[]');
+        const localMatch = localStudents.find(s => 
+          String(s.nationalId).trim().toLowerCase() === lowerNid ||
+          String(s.email).trim().toLowerCase() === lowerNid ||
+          String(s.email).trim().toLowerCase() === fakeEmail
+        );
+        if (localMatch) {
+          return { ...localMatch, role: 'student' };
+        }
+      } catch (e) {}
+
+      try {
+        const localTeachers = JSON.parse(localStorage.getItem('msc_custom_teachers') || '[]');
+        const localMatch = localTeachers.find(t => 
+          String(t.nationalId).trim().toLowerCase() === lowerNid ||
+          String(t.email).trim().toLowerCase() === lowerNid ||
+          String(t.email).trim().toLowerCase() === fakeEmail
+        );
+        if (localMatch) {
+          return { ...localMatch, role: 'teacher' };
+        }
+      } catch (e) {}
+
+      try {
+        const localStaff = JSON.parse(localStorage.getItem('msc_custom_staff') || '[]');
+        const localMatch = localStaff.find(s => 
+          String(s.nationalId).trim().toLowerCase() === lowerNid ||
+          String(s.email).trim().toLowerCase() === lowerNid ||
+          String(s.email).trim().toLowerCase() === fakeEmail
+        );
+        if (localMatch) {
+          return { ...localMatch, role: 'staff' };
+        }
+      } catch (e) {}
+
       return null;
     }
 
@@ -221,7 +258,50 @@ export default function Login() {
 
     try {
       const loginEmail = getFakeEmail(trimmedId);
-      const record = await findAnyRecord(trimmedId, role);
+      let record = await findAnyRecord(trimmedId, role);
+
+      // Resilient Fallback: If initial unauthenticated Firestore query failed or record was not yet in local storage,
+      // attempt Firebase Auth sign-in / provisioning first so request.auth != null, then re-query Firestore.
+      if (!record) {
+        const passToUse = trimmedPassword.length >= 6 ? trimmedPassword : `${trimmedPassword}00`;
+        let authSuccess = false;
+
+        try {
+          await signInWithEmailAndPassword(auth, loginEmail, trimmedPassword);
+          authSuccess = true;
+        } catch (authErr) {
+          try {
+            await signInWithEmailAndPassword(auth, loginEmail, passToUse);
+            authSuccess = true;
+          } catch (authErr2) {
+            if (trimmedPassword === trimmedId || trimmedPassword === trimmedId.slice(0, 6)) {
+              try {
+                await createUserWithEmailAndPassword(auth, loginEmail, passToUse);
+                authSuccess = true;
+              } catch (createErr) {}
+            }
+          }
+        }
+
+        if (authSuccess) {
+          // Re-query Firestore now that request.auth != null
+          record = await findAnyRecord(trimmedId, role);
+          if (record) {
+            try {
+              const cacheKey = record.role === 'student' ? 'msc_custom_students' :
+                               record.role === 'teacher' ? 'msc_custom_teachers' :
+                               record.role === 'staff' ? 'msc_custom_staff' : 'msc_custom_admins';
+              const saved = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+              const exists = saved.some(item => String(item.nationalId).trim() === trimmedId);
+              if (!exists) {
+                localStorage.setItem(cacheKey, JSON.stringify([record, ...saved]));
+              }
+            } catch (e) {}
+          } else {
+            await auth.signOut().catch(() => {});
+          }
+        }
+      }
 
       // STRICT CHECK: If account is NOT registered in the school database, BLOCK LOGIN IMMEDIATELY!
       if (!record) {
