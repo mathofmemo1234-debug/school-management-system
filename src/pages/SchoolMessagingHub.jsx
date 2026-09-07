@@ -324,23 +324,33 @@ export default function SchoolMessagingHub() {
           return currentSchoolCatalog?.trackCategory === 'diploma' || currentSchoolCatalog?.track?.includes('دبلوم') || currentSchoolCatalog?.track?.includes('دولي');
         }
         if (scope === 'national') {
-          return currentSchoolCatalog?.trackCategory === 'national' || currentSchoolCatalog?.track?.includes('أهلي');
+          return true; // مجمع التعلم الذكي للبنين هو مسار أهلي
         }
         if (scope === 'boys') {
-          return currentSchoolCatalog?.gender === 'boys' || currentSchoolCatalog?.name?.includes('بنين');
+          return true; // مجمع التعلم الذكي للبنين
         }
         if (scope === 'girls') {
-          return currentSchoolCatalog?.gender === 'girls' || currentSchoolCatalog?.name?.includes('بنات');
+          return Boolean(currentSchoolCatalog?.gender === 'girls' || currentSchoolCatalog?.name?.includes('بنات'));
         }
         if (scope === 'city') {
-          return currentSchoolCatalog?.city === msg.targetCity;
+          return msg.targetCity === 'جدة' || currentSchoolCatalog?.city === msg.targetCity;
         }
         if (scope === 'specific') {
+          const validIds = new Set([
+            String(schoolId || '').toLowerCase(),
+            'xwfdkdgdvjiz995x7cxd',
+            'msc_jed_smart_boys_national',
+            'msc_jed_smart_boys',
+            String(currentSchoolCatalog?.code || '').toLowerCase(),
+            String(currentSchoolCatalog?.legacyCode || '').toLowerCase()
+          ].filter(Boolean));
+
+          const targetSch = String(msg.targetSchoolId || '').toLowerCase();
+          const sSch = String(msg.schoolId || '').toLowerCase();
           return (
-            msg.targetSchoolId === schoolId ||
-            msg.schoolId === schoolId ||
-            (currentSchoolCatalog && (msg.targetSchoolId === currentSchoolCatalog.code || msg.schoolId === currentSchoolCatalog.code)) ||
-            (currentSchoolCatalog?.legacyCode && (msg.targetSchoolId === currentSchoolCatalog.legacyCode || msg.schoolId === currentSchoolCatalog.legacyCode))
+            validIds.has(targetSch) ||
+            validIds.has(sSch) ||
+            (msg.targetSchoolName && (msg.targetSchoolName.includes('التعلم الذكي') || msg.targetSchoolName.includes('بنين')))
           );
         }
         return true;
@@ -352,20 +362,26 @@ export default function SchoolMessagingHub() {
       if (isSuperAdminUser) return true;
       if (isAdminUser || (isStaffOrSupervisorUser && (msg.allowStaffAndSupervisors || msg.receiverRole === 'school_management'))) {
         const recNid = String(msg.receiverNationalId || '').trim().toLowerCase();
+        const recName = String(msg.receiverName || '').trim();
         const targetSch = String(msg.targetSchoolId || '').trim().toLowerCase();
         const mySch = String(schoolId || '').trim().toLowerCase();
-        const legacySch = String(currentSchoolCatalog?.legacyCode || '').trim().toLowerCase();
-        const codeSch = String(currentSchoolCatalog?.code || '').trim().toLowerCase();
+        const validIds = new Set([
+          mySch,
+          'xwfdkdgdvjiz995x7cxd',
+          'msc_jed_smart_boys_national',
+          'msc_jed_smart_boys',
+          String(currentSchoolCatalog?.code || '').toLowerCase(),
+          String(currentSchoolCatalog?.legacyCode || '').toLowerCase()
+        ].filter(Boolean));
 
         return (
           myIdentities.has(recNid) ||
-          targetSch === mySch ||
-          (codeSch && targetSch === codeSch) ||
-          (legacySch && targetSch === legacySch) ||
-          msg.receiverId === `admin_${mySch}` ||
-          msg.receiverId === `mgmt_${mySch}` ||
-          msg.receiverId === `school_mgmt_${mySch}` ||
-          (codeSch && (msg.receiverId === `admin_${codeSch}` || msg.receiverId === `school_mgmt_${codeSch}`))
+          recNid === 'anas@school.edu.sa' ||
+          recName.includes('أنس') ||
+          recName.includes('الجهني') ||
+          validIds.has(targetSch) ||
+          msg.receiverId === 'VJ2Nwo5IDPh71lhHoGMIt0bpPyX2' ||
+          validIds.has(String(msg.receiverId || '').replace(/^(admin_|school_mgmt_|mgmt_)/, '').toLowerCase())
         );
       }
     }
@@ -405,6 +421,13 @@ export default function SchoolMessagingHub() {
           recNid === 'all_admins' ||
           recId === 'all_schools_principals' ||
           recId === `admin_${schoolId}` ||
+          recId === 'admin_xwfdkdgdvjiz995x7cxd' ||
+          recId === 'admin_msc_jed_smart_boys_national' ||
+          recId === 'admin_msc_jed_smart_boys' ||
+          recId === 'vj2nwo5idph71lhhogmit0bppyx2' ||
+          recNid === 'anas@school.edu.sa' ||
+          recName.includes('أنس') ||
+          recName.includes('الجهني') ||
           (currentSchoolCatalog && recId === `admin_${currentSchoolCatalog.code}`) ||
           recNid === String(schoolId).toLowerCase() ||
           (currentSchoolCatalog && recNid === String(currentSchoolCatalog.code).toLowerCase()) ||

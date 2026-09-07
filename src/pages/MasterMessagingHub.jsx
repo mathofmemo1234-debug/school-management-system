@@ -139,39 +139,28 @@ export default function MasterMessagingHub() {
       const trackCat = isDiploma ? 'diploma' : 'national';
       const isBoys = school.gender === 'boys' || school.name?.includes('بنين');
       
-      const codes = [school.code, school.id, school.legacyCode].filter(Boolean);
-      const assignedAdmin = adminsList.find(a => codes.includes(a.schoolId) || codes.includes(a.schoolCode));
+      const codes = [school.code, school.id, school.legacyCode, 'xwfDKDgDvjIZ995X7Cxd', 'msc_jed_smart_boys_national', 'msc_jed_smart_boys'].filter(Boolean);
+      const isJeddahBoys = school.code === 'msc_jed_smart_boys_national' || school.code === 'msc_jed_smart_boys' || school.id === 'xwfDKDgDvjIZ995X7Cxd' || (school.name && school.name.includes('التعلم الذكي') && school.name.includes('بنين'));
+      
+      const assignedAdmin = adminsList.find(a => 
+        codes.includes(a.schoolId) || 
+        codes.includes(a.schoolCode) ||
+        (isJeddahBoys && (a.name?.includes('أنس') || a.nationalId === 'anas@school.edu.sa'))
+      );
 
       let pName = assignedAdmin ? (assignedAdmin.name || `مدير ${school.name}`) : `⚠️ لم يعين مدير بعد (الكادر المكلف)`;
       let pNid = assignedAdmin ? (assignedAdmin.nationalId || `admin_${school.code}`) : `mgmt_${school.code}`;
       let pEmail = assignedAdmin ? (assignedAdmin.email || `admin_${school.code}@school.local`) : `mgmt_${school.code}@school.local`;
       let pTitle = assignedAdmin ? `مدير مدرسة • ${school.name}` : `الكادر الإداري المكلف • ${school.name}`;
 
-      if (!assignedAdmin) {
-        if (school.code === 'msc_jed_smart_boys_national') {
-          pName = 'أ. محمد بن خالد الغامدي (مدير المسار الأهلي)';
-          pNid = '1098765431';
-          pEmail = 'admin_jed_national_boys@school.local';
-          pTitle = `مدير مدرسة • ${school.name}`;
-        } else if (school.code === 'msc_jed_smart_boys_diploma') {
-          pName = 'د. طارق بن عبد العزيز السالم (مدير الدبلومة الأمريكية)';
-          pNid = '1098765432';
-          pEmail = 'admin_jed_diploma_boys@school.local';
-          pTitle = `مدير مدرسة • ${school.name}`;
-        } else if (school.code === 'msc_jed_smart_girls_national') {
-          pName = 'أ. نورة بنت عبد الله الشهري (مديرة المسار الأهلي)';
-          pNid = '1098765433';
-          pEmail = 'admin_jed_national_girls@school.local';
-          pTitle = `مدير مدرسة • ${school.name}`;
-        } else if (school.code === 'msc_jed_smart_girls_diploma') {
-          pName = 'د. ريم بنت إبراهيم المنصور (مديرة الدبلومة الأمريكية)';
-          pNid = '1098765434';
-          pEmail = 'admin_jed_diploma_girls@school.local';
-          pTitle = `مدير مدرسة • ${school.name}`;
-        }
+      if (isJeddahBoys) {
+        pName = assignedAdmin?.name || 'أنس الجهني';
+        pNid = assignedAdmin?.nationalId || 'anas@school.edu.sa';
+        pEmail = assignedAdmin?.email || 'anas@school.edu.sa';
+        pTitle = 'مدير مجمع التعلم الذكي للبنين - المسار الأهلي';
       }
 
-      const hasPrincipal = Boolean(assignedAdmin) || (school.code?.startsWith('msc_jed_smart_'));
+      const hasPrincipal = Boolean(assignedAdmin) || isJeddahBoys;
 
       return {
         id: school.code || school.id,
@@ -379,6 +368,16 @@ export default function MasterMessagingHub() {
     const pNid = String(selectedPrincipal.principalNid || '').toLowerCase();
     const pId = String(selectedPrincipal.schoolCode || '').toLowerCase();
     const pLegacy = String(selectedPrincipal.legacyCode || '').toLowerCase();
+    const validSchoolIds = new Set([
+      pId, 
+      pLegacy, 
+      String(selectedPrincipal.id || '').toLowerCase(),
+      'xwfdkdgdvjiz995x7cxd',
+      'msc_jed_smart_boys_national',
+      'msc_jed_smart_boys'
+    ].filter(Boolean));
+
+    const isTargetingAnas = (selectedPrincipal.principalNid === 'anas@school.edu.sa' || validSchoolIds.has('xwfdkdgdvjiz995x7cxd') || validSchoolIds.has('msc_jed_smart_boys_national'));
 
     return allMessages.filter(m => {
       if (m.archived) return false;
@@ -388,13 +387,14 @@ export default function MasterMessagingHub() {
       const rRole = m.receiverRole;
       const sSch = String(m.schoolId || '').toLowerCase();
       const tSch = String(m.targetSchoolId || '').toLowerCase();
+      const rName = String(m.receiverName || '');
 
       // Sent by Master to this school/principal
       const masterToPrincipal = (sRole === 'superadmin') && (
         rNid === pNid || 
-        tSch === pId || 
-        (pLegacy && tSch === pLegacy) ||
-        (m.receiverId && (m.receiverId === `admin_${pId}` || m.receiverId === `school_mgmt_${pId}` || m.receiverId === `mgmt_${pId}`))
+        (isTargetingAnas && (rNid === 'anas@school.edu.sa' || rName.includes('أنس') || rName.includes('الجهني'))) ||
+        validSchoolIds.has(tSch) ||
+        (m.receiverId && (validSchoolIds.has(m.receiverId.replace(/^(admin_|school_mgmt_|mgmt_)/, '')) || (isTargetingAnas && m.receiverId === 'VJ2Nwo5IDPh71lhHoGMIt0bpPyX2')))
       );
 
       // Sent by this school (principal or acting staff/supervisor) to Master
@@ -402,8 +402,8 @@ export default function MasterMessagingHub() {
         rRole === 'superadmin' || 
         rNid === 'super@admin.com' ||
         sNid === pNid || 
-        sSch === pId || 
-        (pLegacy && sSch === pLegacy)
+        (isTargetingAnas && (sNid === 'anas@school.edu.sa' || sNid.includes('anas'))) ||
+        validSchoolIds.has(sSch)
       );
 
       return masterToPrincipal || principalToMaster;
@@ -531,9 +531,9 @@ export default function MasterMessagingHub() {
           trackCategory: 'national',
           gender: 'boys',
           address: 'حي الزهراء، جدة',
-          principalName: 'أ. محمد بن خالد الغامدي',
+          principalName: 'أنس الجهني',
           principalTitle: 'مدير مجمع التعلم الذكي للبنين - المسار الأهلي',
-          phone: '0126543210'
+          phone: '0500000000'
         },
         {
           id: 'msc_jed_smart_boys_diploma',
@@ -584,19 +584,27 @@ export default function MasterMessagingHub() {
         await setDoc(doc(db, 'schools', s.id), s, { merge: true });
       }
 
+      // Also set xwfDKDgDvjIZ995X7Cxd alias to ensure 100% compatibility
+      await setDoc(doc(db, 'schools', 'xwfDKDgDvjIZ995X7Cxd'), {
+        ...jeddahSchools[0],
+        id: 'xwfDKDgDvjIZ995X7Cxd'
+      }, { merge: true });
+
       // B. Write/Update 4 distinct Principal accounts in Firestore 'users' collection
       const principalsUsers = [
         {
-          id: 'user_admin_jed_national_boys',
-          nationalId: '1098765431',
-          email: 'admin_jed_national_boys@school.local',
-          name: 'أ. محمد بن خالد الغامدي',
+          id: 'VJ2Nwo5IDPh71lhHoGMIt0bpPyX2',
+          nationalId: 'anas@school.edu.sa',
+          email: 'anas@school.edu.sa',
+          name: 'أنس الجهني',
           role: 'admin',
           roleTitle: 'مدير مجمع التعلم الذكي للبنين (المسار الأهلي)',
-          schoolId: 'msc_jed_smart_boys_national',
+          schoolId: 'xwfDKDgDvjIZ995X7Cxd',
+          schoolCode: 'msc_jed_smart_boys_national',
           schoolName: 'مجمع مدارس المتقدمة للتعلم الذكي للبنين - جدة (المسار الأهلي)',
           trackCategory: 'national',
-          gender: 'boys'
+          gender: 'boys',
+          status: 'active'
         },
         {
           id: 'user_admin_jed_diploma_boys',

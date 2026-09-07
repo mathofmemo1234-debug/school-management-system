@@ -209,6 +209,12 @@ export const ADVANCED_SCHOOLS_CATALOG = [
     gender: "boys",
     code: "msc_jed_smart_boys_national",
     legacyCode: "msc_jed_smart_boys",
+    firestoreId: "xwfDKDgDvjIZ995X7Cxd",
+    id: "xwfDKDgDvjIZ995X7Cxd",
+    principalName: "أنس الجهني",
+    principalNationalId: "anas@school.edu.sa",
+    principalEmail: "anas@school.edu.sa",
+    aliases: ["xwfDKDgDvjIZ995X7Cxd", "msc_jed_smart_boys_national", "msc_jed_smart_boys", "مجمع مدارس المتقدمة للتعلم الذكي للبنين - جدة"],
     address: "حي الزهراء، جدة"
   },
   {

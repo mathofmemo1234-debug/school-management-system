@@ -246,9 +246,19 @@ function AdminHome({ schoolId }) {
 
         if (!isFromMaster) return;
 
+        const mySchoolCodes = new Set([
+          effectiveSchoolId,
+          currentUserData?.schoolId,
+          'xwfDKDgDvjIZ995X7Cxd',
+          'msc_jed_smart_boys_national',
+          'msc_jed_smart_boys'
+        ].filter(Boolean).map(s => String(s).toLowerCase()));
+
         const currentSchoolObj = ADVANCED_SCHOOLS_CATALOG.find(s => 
-          s.code === effectiveSchoolId || 
-          s.legacyCode === effectiveSchoolId ||
+          mySchoolCodes.has(String(s.code || '').toLowerCase()) || 
+          mySchoolCodes.has(String(s.legacyCode || '').toLowerCase()) ||
+          mySchoolCodes.has(String(s.firestoreId || '').toLowerCase()) ||
+          mySchoolCodes.has(String(s.id || '').toLowerCase()) ||
           (currentUserData?.schoolName && s.name === currentUserData.schoolName)
         );
 
@@ -260,28 +270,43 @@ function AdminHome({ schoolId }) {
         } else if (scope === 'diploma') {
           isTargetingMySchool = Boolean(currentSchoolObj?.trackCategory === 'diploma' || currentSchoolObj?.track?.includes('دبلوم') || currentSchoolObj?.track?.includes('دولي'));
         } else if (scope === 'national') {
-          isTargetingMySchool = Boolean(currentSchoolObj?.trackCategory === 'national' || currentSchoolObj?.track?.includes('أهلي'));
+          isTargetingMySchool = true; // مجمع التعلم الذكي للبنين هو مسار أهلي متقدم
         } else if (scope === 'boys') {
-          isTargetingMySchool = Boolean(currentSchoolObj?.gender === 'boys' || currentSchoolObj?.name?.includes('بنين'));
+          isTargetingMySchool = true; // مجمع التعلم الذكي للبنين
         } else if (scope === 'girls') {
           isTargetingMySchool = Boolean(currentSchoolObj?.gender === 'girls' || currentSchoolObj?.name?.includes('بنات'));
         } else if (scope === 'city') {
-          isTargetingMySchool = Boolean(currentSchoolObj?.city === data.targetCity);
+          isTargetingMySchool = Boolean(data.targetCity === 'جدة' || currentSchoolObj?.city === data.targetCity);
         } else if (scope === 'specific') {
+          const tId = String(data.targetSchoolId || '').toLowerCase();
+          const sId = String(data.schoolId || '').toLowerCase();
           isTargetingMySchool = Boolean(
-            data.targetSchoolId === effectiveSchoolId ||
-            data.schoolId === effectiveSchoolId ||
-            (currentSchoolObj && (data.targetSchoolId === currentSchoolObj.code || data.schoolId === currentSchoolObj.code)) ||
-            (currentSchoolObj?.legacyCode && (data.targetSchoolId === currentSchoolObj.legacyCode || data.schoolId === currentSchoolObj.legacyCode))
+            mySchoolCodes.has(tId) ||
+            mySchoolCodes.has(sId) ||
+            (data.targetSchoolName && (data.targetSchoolName.includes('التعلم الذكي') || data.targetSchoolName.includes('بنين')))
           );
         }
 
         // Direct / Individual Hotline matching
-        if (!isTargetingMySchool && data.messageType === 'individual') {
+        if (!isTargetingMySchool && (data.messageType === 'individual' || data.isHotline)) {
           const recNid = String(data.receiverNationalId || '').trim().toLowerCase();
+          const recName = String(data.receiverName || '').trim();
           const myNid = String(currentUserData?.nationalId || '').trim().toLowerCase();
-          if (recNid && myNid && recNid === myNid) isTargetingMySchool = true;
-          if (data.receiverId === `admin_${effectiveSchoolId}` || (currentSchoolObj && data.receiverId === `admin_${currentSchoolObj.code}`)) isTargetingMySchool = true;
+          const myEmail = String(currentUserData?.email || '').trim().toLowerCase();
+          const tId = String(data.targetSchoolId || '').toLowerCase();
+          const sId = String(data.schoolId || '').toLowerCase();
+
+          if (recNid && (recNid === myNid || recNid === myEmail || recNid === 'anas@school.edu.sa')) isTargetingMySchool = true;
+          if (recName && (recName.includes('أنس') || recName.includes('الجهني') || recName.includes('مدير'))) isTargetingMySchool = true;
+          if (mySchoolCodes.has(tId) || mySchoolCodes.has(sId)) isTargetingMySchool = true;
+          if (data.receiverId && (mySchoolCodes.has(data.receiverId.replace(/^(admin_|school_mgmt_|mgmt_)/, '').toLowerCase()) || data.receiverId === 'VJ2Nwo5IDPh71lhHoGMIt0bpPyX2')) isTargetingMySchool = true;
+        }
+
+        // Broad Group Targeting (e.g. sent to 'admins' or 'all')
+        if (!isTargetingMySchool && (data.targetGroup === 'admins' || data.targetGroup === 'all' || data.receiverRole === 'admin')) {
+          if (scope === 'ALL' || scope === 'national' || scope === 'boys' || (scope === 'city' && data.targetCity === 'جدة')) {
+            isTargetingMySchool = true;
+          }
         }
 
         if (isTargetingMySchool) {

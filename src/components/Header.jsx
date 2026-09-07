@@ -116,9 +116,12 @@ export default function Header({ title, role }) {
               recName.includes('مدير') ||
               recName.includes('إدارة') ||
               recName.includes('الادارة') ||
+              recName.includes('أنس') ||
+              recName.includes('الجهني') ||
               recNid === 'all_admins' ||
+              recNid === 'anas@school.edu.sa' ||
               recId === 'all_schools_principals' ||
-              (msg.senderRole === 'superadmin' && isGlobal)
+              (msg.senderRole === 'superadmin')
             )) ||
             // 🏫 Acting School Management / Staff / Supervisors in schools without an assigned principal
             ((effectiveRole === 'staff' || effectiveRole === 'supervisor' || userData?.role === 'staff' || userData?.role === 'supervisor') && (

@@ -211,9 +211,16 @@ export default function Login() {
       trimmedId.toLowerCase() === 'super@admin' ||
       trimmedId.toLowerCase() === 'master'
     ) {
+      // Strict password protection for SuperAdmin without changing the password
+      if (!trimmedPassword || trimmedPassword !== 'super@admin') {
+        setError('❌ كلمة المرور غير صحيحة لحساب الماستر العام.');
+        setLoading(false);
+        return;
+      }
+
       try {
         const superEmail = trimmedId.includes('@') ? (trimmedId === 'super@admin' ? 'super@admin.com' : trimmedId.toLowerCase()) : 'super@admin.com';
-        const superPass = trimmedPassword || 'super@admin';
+        const superPass = trimmedPassword;
         
         const superData = {
           name: 'حساب الماستر العام',
@@ -633,7 +640,7 @@ export default function Login() {
                 setError(''); 
                 setRoleMismatch(null);
                 setNationalId('super@admin.com');
-                setPassword('super@admin');
+                setPassword('');
               }}
               style={{ padding: '8px 2px', fontSize: '11px', fontWeight: 'bold' }}
             >ماستر</button>
@@ -858,7 +865,7 @@ export default function Login() {
                   </label>
                   <input 
                     type="password" 
-                    placeholder={role === 'superadmin' ? 'super@admin' : t('login.passwordPlaceholder')} 
+                    placeholder={role === 'superadmin' ? '••••••••' : t('login.passwordPlaceholder')} 
                     required 
                     dir="ltr"
                     value={password}
