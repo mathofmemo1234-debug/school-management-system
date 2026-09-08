@@ -18,12 +18,15 @@ import Migration from './pages/Migration';
 import ParentDashboard from './pages/ParentDashboard';
 import SchoolExcellenceDashboard from './pages/SchoolExcellenceDashboard';
 
+import InstallPwaBanner from './components/InstallPwaBanner';
+
 function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <LanguageProvider>
           <Router>
+            <InstallPwaBanner />
             <Routes>
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<Login />} />
