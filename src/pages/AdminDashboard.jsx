@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Routes, Route, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers, Send, ArrowLeftRight, CheckCircle2, AlertCircle, Sparkles, Check, Archive, Undo2, Eye, EyeOff, FileSpreadsheet } from 'lucide-react';
+import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers, Send, ArrowLeftRight, CheckCircle2, AlertCircle, Sparkles, Check, Archive, Undo2, Eye, EyeOff, FileSpreadsheet, Search } from 'lucide-react';
 import ManageSchedules from './ManageSchedules';
 import { db, createSecondaryAuthUser } from '../firebase';
 import { collection, addDoc, setDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
@@ -1493,14 +1493,40 @@ function ManageTeachers({ schoolId }) {
 
   const handleDelete = async (id, nationalId) => {
     if (!window.confirm(t('adminDashboard.confirmDeleteTeacher'))) return;
+    const cleanNid = nationalId ? String(nationalId).trim() : '';
+    setTeachers(prev => prev.filter(t => t.id !== id && (!cleanNid || String(t.nationalId).trim() !== cleanNid)));
     try {
-      await deleteDoc(doc(db, 'teachers', id));
-      if (nationalId) {
-        const tSnap = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', nationalId)));
-        tSnap.forEach(async (d) => await deleteDoc(doc(db, 'teachers', d.id)));
-        const snap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nationalId)));
-        snap.forEach(async (d) => await deleteDoc(doc(db, 'users', d.id)));
+      if (id && !id.startsWith('local_')) {
+        await deleteDoc(doc(db, 'teachers', id)).catch(err => console.warn(err));
       }
+      if (cleanNid) {
+        const queries = [
+          query(collection(db, 'teachers'), where('nationalId', '==', cleanNid))
+        ];
+        if (!isNaN(cleanNid)) queries.push(query(collection(db, 'teachers'), where('nationalId', '==', Number(cleanNid))));
+        for (const q of queries) {
+          try {
+            const tSnap = await getDocs(q);
+            await Promise.all(tSnap.docs.map(d => deleteDoc(doc(db, 'teachers', d.id))));
+          } catch (e) {}
+        }
+        const uQueries = [
+          query(collection(db, 'users'), where('nationalId', '==', cleanNid))
+        ];
+        if (!isNaN(cleanNid)) uQueries.push(query(collection(db, 'users'), where('nationalId', '==', Number(cleanNid))));
+        for (const q of uQueries) {
+          try {
+            const uSnap = await getDocs(q);
+            await Promise.all(uSnap.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
+          } catch (e) {}
+        }
+        try {
+          const saved = JSON.parse(localStorage.getItem('msc_custom_teachers') || '[]');
+          const updated = saved.filter(t => String(t.nationalId).trim() !== cleanNid);
+          localStorage.setItem('msc_custom_teachers', JSON.stringify(updated));
+        } catch (lsErr) {}
+      }
+      alert('✅ تم حذف المعلم بنجاح');
     } catch (err) {
       console.error(err);
       alert(t('adminDashboard.deleteError'));
@@ -1942,14 +1968,40 @@ function ManageSupervisors({ schoolId }) {
 
   const handleDelete = async (id, nationalId) => {
     if (!window.confirm('هل أنت متأكد من حذف هذا المشرف التعليمي؟')) return;
+    const cleanNid = nationalId ? String(nationalId).trim() : '';
+    setSupervisors(prev => prev.filter(s => s.id !== id && (!cleanNid || String(s.nationalId).trim() !== cleanNid)));
     try {
-      await deleteDoc(doc(db, 'supervisors', id));
-      if (nationalId) {
-        const supSnap = await getDocs(query(collection(db, 'supervisors'), where('nationalId', '==', nationalId)));
-        supSnap.forEach(async (d) => await deleteDoc(doc(db, 'supervisors', d.id)));
-        const snap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nationalId)));
-        snap.forEach(async (d) => await deleteDoc(doc(db, 'users', d.id)));
+      if (id && !id.startsWith('local_')) {
+        await deleteDoc(doc(db, 'supervisors', id)).catch(err => console.warn(err));
       }
+      if (cleanNid) {
+        const queries = [
+          query(collection(db, 'supervisors'), where('nationalId', '==', cleanNid))
+        ];
+        if (!isNaN(cleanNid)) queries.push(query(collection(db, 'supervisors'), where('nationalId', '==', Number(cleanNid))));
+        for (const q of queries) {
+          try {
+            const supSnap = await getDocs(q);
+            await Promise.all(supSnap.docs.map(d => deleteDoc(doc(db, 'supervisors', d.id))));
+          } catch (e) {}
+        }
+        const uQueries = [
+          query(collection(db, 'users'), where('nationalId', '==', cleanNid))
+        ];
+        if (!isNaN(cleanNid)) uQueries.push(query(collection(db, 'users'), where('nationalId', '==', Number(cleanNid))));
+        for (const q of uQueries) {
+          try {
+            const uSnap = await getDocs(q);
+            await Promise.all(uSnap.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
+          } catch (e) {}
+        }
+        try {
+          const saved = JSON.parse(localStorage.getItem('msc_custom_supervisors') || '[]');
+          const updated = saved.filter(s => String(s.nationalId).trim() !== cleanNid);
+          localStorage.setItem('msc_custom_supervisors', JSON.stringify(updated));
+        } catch (lsErr) {}
+      }
+      alert('✅ تم حذف المشرف بنجاح');
     } catch (err) {
       console.error(err);
       alert(t('adminDashboard.deleteError'));
@@ -2288,6 +2340,8 @@ function ManageStudents({ schoolId }) {
   const [printingLetterStudent, setPrintingLetterStudent] = useState(null);
   const [printingPortfolioStudent, setPrintingPortfolioStudent] = useState(null);
   const [isPrintingStudentRecords, setIsPrintingStudentRecords] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterClass, setFilterClass] = useState('');
   
   // Single Add
   const [name, setName] = useState('');
@@ -2302,11 +2356,22 @@ function ManageStudents({ schoolId }) {
 
   useEffect(() => {
     if (!schoolId) return;
-    const qStudents = query(collection(db, 'students'), where('schoolId', '==', schoolId));
-    const qClasses = query(collection(db, 'classes'), where('schoolId', '==', schoolId));
+    const qStudents = (!schoolId || schoolId === 'ALL') 
+      ? collection(db, 'students') 
+      : query(collection(db, 'students'), where('schoolId', '==', schoolId));
+    const qClasses = (!schoolId || schoolId === 'ALL') 
+      ? collection(db, 'classes') 
+      : query(collection(db, 'classes'), where('schoolId', '==', schoolId));
 
     const unsubStudents = onSnapshot(qStudents, async (snap) => {
       const raw = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Load deleted blacklist
+      let deletedList = [];
+      try {
+        deletedList = JSON.parse(localStorage.getItem('msc_deleted_students') || '[]');
+      } catch (e) {}
+      const deletedSet = new Set(deletedList.map(x => String(x).trim()));
 
       // Merge with custom students from localStorage for offline/immediate resilience
       let localCustom = [];
@@ -2316,9 +2381,12 @@ function ManageStudents({ schoolId }) {
 
       const combined = [...raw];
       for (const loc of localCustom) {
-        if (!loc.schoolId || loc.schoolId === schoolId) {
-          const exists = combined.some(item => (item.nationalId && String(item.nationalId).trim() === String(loc.nationalId).trim()));
-          if (!exists) combined.push({ id: `local_${loc.nationalId}`, ...loc });
+        if (!loc.schoolId || loc.schoolId === schoolId || schoolId === 'ALL') {
+          const locNid = loc.nationalId ? String(loc.nationalId).trim() : '';
+          const exists = combined.some(item => (item.nationalId && String(item.nationalId).trim() === locNid));
+          if (!exists && !deletedSet.has(locNid)) {
+            combined.push({ id: `local_${loc.nationalId}`, ...loc });
+          }
         }
       }
 
@@ -2328,6 +2396,14 @@ function ManageStudents({ schoolId }) {
 
       for (const s of combined) {
         const nid = (s.nationalId || s.id || '').trim();
+        const sId = (s.id || '').trim();
+
+        // If in deleted set, clean up from Firestore and skip
+        if (deletedSet.has(nid) || deletedSet.has(sId)) {
+          if (s.id && !s.id.startsWith('local_')) duplicatesToDelete.push(s.id);
+          continue;
+        }
+
         if (!seen.has(nid)) {
           seen.set(nid, s);
           unique.push({
@@ -2340,13 +2416,13 @@ function ManageStudents({ schoolId }) {
         }
       }
 
-      // Automatically clean up duplicate documents from Firestore
+      // Automatically clean up duplicate or deleted documents from Firestore
       if (duplicatesToDelete.length > 0) {
         for (const dupId of duplicatesToDelete) {
           try {
             await deleteDoc(doc(db, 'students', dupId));
           } catch (e) {
-            console.warn("Auto cleanup duplicate student error:", e);
+            console.warn("Auto cleanup duplicate/deleted student error:", e);
           }
         }
       }
@@ -2450,6 +2526,11 @@ function ManageStudents({ schoolId }) {
         const saved = JSON.parse(localStorage.getItem('msc_custom_students') || '[]');
         const updated = [studentData, ...saved.filter(s => String(s.nationalId).trim() !== nid)];
         localStorage.setItem('msc_custom_students', JSON.stringify(updated));
+
+        // Un-blacklist if previously deleted
+        const deletedList = JSON.parse(localStorage.getItem('msc_deleted_students') || '[]');
+        const updatedDeleted = deletedList.filter(x => String(x).trim() !== nid);
+        localStorage.setItem('msc_deleted_students', JSON.stringify(updatedDeleted));
       } catch (lsErr) {
         console.warn('Could not save student to localStorage:', lsErr);
       }
@@ -2536,6 +2617,11 @@ function ManageStudents({ schoolId }) {
           const saved = JSON.parse(localStorage.getItem('msc_custom_students') || '[]');
           const updated = [...newStudents, ...saved];
           localStorage.setItem('msc_custom_students', JSON.stringify(updated));
+
+          const deletedList = JSON.parse(localStorage.getItem('msc_deleted_students') || '[]');
+          const newNids = new Set(newStudents.map(s => String(s.nationalId).trim()));
+          const updatedDeleted = deletedList.filter(x => !newNids.has(String(x).trim()));
+          localStorage.setItem('msc_deleted_students', JSON.stringify(updatedDeleted));
         } catch (lsErr) {}
       }
 
@@ -2555,19 +2641,95 @@ function ManageStudents({ schoolId }) {
     }
   };
 
-  const handleDelete = async (id, nationalId) => {
-    if (!window.confirm(t('adminDashboard.confirmDeleteStudent'))) return;
+  const handleDelete = async (id, nationalId, studentName) => {
+    const confirmMsg = `هل أنت متأكد من حذف الطالب (${studentName || 'المحدد'}) ورقم الهوية (${nationalId || ''}) نهائياً من النظام؟\nلن يتمكن الطالب من تسجيل الدخول وستُحذف كافة سجلاته.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    const cleanNid = nationalId ? String(nationalId).trim() : '';
+
+    // 1. Optimistic UI update immediately
+    setStudents(prev => prev.filter(s => {
+      if (id && s.id === id) return false;
+      if (cleanNid && s.nationalId && String(s.nationalId).trim() === cleanNid) return false;
+      return true;
+    }));
+
+    // 2. Clear from localStorage msc_custom_students & blacklist in msc_deleted_students
     try {
-      await deleteDoc(doc(db, 'students', id));
-      if (nationalId) {
-        const sSnap = await getDocs(query(collection(db, 'students'), where('nationalId', '==', nationalId)));
-        sSnap.forEach(async (d) => await deleteDoc(doc(db, 'students', d.id)));
-        const snap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nationalId)));
-        snap.forEach(async (d) => await deleteDoc(doc(db, 'users', d.id)));
+      const saved = JSON.parse(localStorage.getItem('msc_custom_students') || '[]');
+      const updated = saved.filter(s => {
+        const sNid = s.nationalId ? String(s.nationalId).trim() : '';
+        return s.id !== id && (!cleanNid || sNid !== cleanNid);
+      });
+      localStorage.setItem('msc_custom_students', JSON.stringify(updated));
+
+      const deletedList = JSON.parse(localStorage.getItem('msc_deleted_students') || '[]');
+      if (cleanNid && !deletedList.includes(cleanNid)) deletedList.push(cleanNid);
+      if (id && !deletedList.includes(id)) deletedList.push(id);
+      localStorage.setItem('msc_deleted_students', JSON.stringify(deletedList));
+    } catch (lsErr) {
+      console.warn('LocalStorage student delete notice:', lsErr);
+    }
+
+    // 3. Delete from Firestore students collection
+    try {
+      if (id && !id.startsWith('local_')) {
+        await deleteDoc(doc(db, 'students', id)).catch(err => console.warn('Direct student delete notice:', err));
       }
+
+      if (cleanNid) {
+        const sQueries = [
+          query(collection(db, 'students'), where('nationalId', '==', cleanNid))
+        ];
+        if (!isNaN(cleanNid)) {
+          sQueries.push(query(collection(db, 'students'), where('nationalId', '==', Number(cleanNid))));
+        }
+        for (const q of sQueries) {
+          try {
+            const sSnap = await getDocs(q);
+            await Promise.all(sSnap.docs.map(d => deleteDoc(doc(db, 'students', d.id))));
+          } catch (e) {
+            console.warn('Query student delete notice:', e);
+          }
+        }
+      }
+
+      // 4. Delete from Firestore users collection
+      if (cleanNid) {
+        const uQueries = [
+          query(collection(db, 'users'), where('nationalId', '==', cleanNid))
+        ];
+        if (!isNaN(cleanNid)) {
+          uQueries.push(query(collection(db, 'users'), where('nationalId', '==', Number(cleanNid))));
+        }
+        for (const q of uQueries) {
+          try {
+            const uSnap = await getDocs(q);
+            await Promise.all(uSnap.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
+          } catch (e) {
+            console.warn('User account delete notice:', e);
+          }
+        }
+      }
+
+      // 5. Clean up associated student records (attendance, exam results, assignment results, student evaluations)
+      const targetIds = [id, cleanNid].filter(Boolean);
+      const collectionsToClean = ['attendance', 'assignment_results', 'exam_results', 'student_evaluations'];
+      collectionsToClean.forEach(async (colName) => {
+        try {
+          for (const tId of targetIds) {
+            const snap1 = await getDocs(query(collection(db, colName), where('studentId', '==', tId)));
+            snap1.docs.forEach(d => deleteDoc(doc(db, colName, d.id)).catch(() => {}));
+            const snap2 = await getDocs(query(collection(db, colName), where('nationalId', '==', tId)));
+            snap2.docs.forEach(d => deleteDoc(doc(db, colName, d.id)).catch(() => {}));
+          }
+        } catch (e) {}
+      });
+
+      alert('✅ تم حذف الطالب وكافة سجلاته بنجاح');
     } catch (err) {
-      console.error(err);
-      alert(t('adminDashboard.deleteError'));
+      console.error('Delete student error:', err);
+      alert(t('adminDashboard.deleteError') || 'حدث خطأ أثناء محاولة حذف الطالب');
     }
   };
 
@@ -2579,36 +2741,75 @@ function ManageStudents({ schoolId }) {
       const updatedClass = editingStudent.class?.trim() || '';
       const updatedNat = editingStudent.nationality?.trim() || 'سعودي';
 
-      await updateDoc(doc(db, 'students', editingStudent.id), {
-        name: updatedName,
-        class: updatedClass,
-        className: updatedClass,
-        nationality: updatedNat
-      });
-
-      if (editingStudent.nationalId) {
-        const sSnap = await getDocs(query(collection(db, 'students'), where('nationalId', '==', editingStudent.nationalId)));
-        sSnap.forEach(async (d) => {
-          if (d.id !== editingStudent.id) {
-            await updateDoc(doc(db, 'students', d.id), {
-              name: updatedName,
-              class: updatedClass,
-              className: updatedClass,
-              nationality: updatedNat
-            });
-          }
-        });
-
-        const snap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', editingStudent.nationalId)));
-        snap.forEach(async (d) => await updateDoc(doc(db, 'users', d.id), {
+      if (editingStudent.id && !editingStudent.id.startsWith('local_')) {
+        await updateDoc(doc(db, 'students', editingStudent.id), {
           name: updatedName,
           class: updatedClass,
           className: updatedClass,
           nationality: updatedNat
-        }));
+        }).catch(err => console.warn(err));
       }
 
+      const cleanNid = editingStudent.nationalId ? String(editingStudent.nationalId).trim() : '';
+
+      if (cleanNid) {
+        const sQueries = [
+          query(collection(db, 'students'), where('nationalId', '==', cleanNid))
+        ];
+        if (!isNaN(cleanNid)) sQueries.push(query(collection(db, 'students'), where('nationalId', '==', Number(cleanNid))));
+
+        for (const q of sQueries) {
+          try {
+            const sSnap = await getDocs(q);
+            await Promise.all(sSnap.docs.map(d => updateDoc(doc(db, 'students', d.id), {
+              name: updatedName,
+              class: updatedClass,
+              className: updatedClass,
+              nationality: updatedNat
+            })));
+          } catch (e) {}
+        }
+
+        const uQueries = [
+          query(collection(db, 'users'), where('nationalId', '==', cleanNid))
+        ];
+        if (!isNaN(cleanNid)) uQueries.push(query(collection(db, 'users'), where('nationalId', '==', Number(cleanNid))));
+
+        for (const q of uQueries) {
+          try {
+            const uSnap = await getDocs(q);
+            await Promise.all(uSnap.docs.map(d => updateDoc(doc(db, 'users', d.id), {
+              name: updatedName,
+              class: updatedClass,
+              className: updatedClass,
+              nationality: updatedNat
+            })));
+          } catch (e) {}
+        }
+
+        // Also update in localStorage
+        try {
+          const saved = JSON.parse(localStorage.getItem('msc_custom_students') || '[]');
+          const updated = saved.map(s => {
+            if (String(s.nationalId).trim() === cleanNid || s.id === editingStudent.id) {
+              return { ...s, name: updatedName, class: updatedClass, className: updatedClass, nationality: updatedNat };
+            }
+            return s;
+          });
+          localStorage.setItem('msc_custom_students', JSON.stringify(updated));
+        } catch (e) {}
+      }
+
+      // Optimistic update
+      setStudents(prev => prev.map(s => {
+        if (s.id === editingStudent.id || (cleanNid && String(s.nationalId).trim() === cleanNid)) {
+          return { ...s, name: updatedName, class: updatedClass, className: updatedClass, nationality: updatedNat };
+        }
+        return s;
+      }));
+
       setEditingStudent(null);
+      alert('✅ تم تحديث بيانات الطالب بنجاح');
     } catch (err) {
       console.error(err);
       alert(t('adminDashboard.updateError'));
@@ -2616,6 +2817,18 @@ function ManageStudents({ schoolId }) {
       setIsSaving(false);
     }
   };
+
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => {
+      const term = searchTerm.trim().toLowerCase();
+      const matchSearch = !term || 
+        (s.name && s.name.toLowerCase().includes(term)) ||
+        (s.nationalId && String(s.nationalId).includes(term));
+      const sClass = s.class || s.className || '';
+      const matchClass = !filterClass || sClass === filterClass;
+      return matchSearch && matchClass;
+    });
+  }, [students, searchTerm, filterClass]);
 
   return (
     <div className="glass-panel" style={{ padding: '24px' }}>
@@ -2638,11 +2851,46 @@ function ManageStudents({ schoolId }) {
         </div>
       </div>
 
+      {/* 🔍 Search & Filter Bar */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ flex: '1 1 240px', position: 'relative' }}>
+          <input
+            type="text"
+            className="input-field"
+            style={{ margin: 0, paddingRight: '36px' }}
+            placeholder="بحث بالاسم أو برقم الهوية..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Search size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+        </div>
+
+        <div style={{ width: '180px' }}>
+          <select
+            className="input-field"
+            style={{ margin: 0 }}
+            value={filterClass}
+            onChange={(e) => setFilterClass(e.target.value)}
+          >
+            <option value="">جميع الفصول ({students.length})</option>
+            {classesList.map(c => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', background: '#f1f5f9', padding: '8px 14px', borderRadius: '8px' }}>
+          الطلاب: {filteredStudents.length} من {students.length}
+        </div>
+      </div>
+
       <div style={{ display: 'grid', gap: '12px' }}>
-        {students.length === 0 ? (
-          <p style={{ color: 'var(--color-text-muted)' }}>{t('adminDashboard.noStudentsAdded')}</p>
+        {filteredStudents.length === 0 ? (
+          <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '24px 0' }}>
+            {students.length === 0 ? t('adminDashboard.noStudentsAdded') : 'لا توجد نتائج مطابقة لمعايير البحث.'}
+          </p>
         ) : (
-          students.map(s => (
+          filteredStudents.map(s => (
             <div key={s.id} style={{ padding: '16px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 style={{ margin: '0 0 8px 0', color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -2720,8 +2968,8 @@ function ManageStudents({ schoolId }) {
                 >
                   <Award size={15} /> ملف الإنجاز
                 </button>
-                <button onClick={() => setEditingStudent(s)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', color: 'var(--color-primary)', padding: '6px', display: 'flex', alignItems: 'center' }}><Edit size={16} /></button>
-                <button onClick={() => handleDelete(s.id, s.nationalId)} style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', cursor: 'pointer', color: '#ff4d4f', padding: '6px', display: 'flex', alignItems: 'center' }}><Trash2 size={16} /></button>
+                <button onClick={() => setEditingStudent(s)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', color: 'var(--color-primary)', padding: '6px', display: 'flex', alignItems: 'center' }} title="تعديل"><Edit size={16} /></button>
+                <button onClick={() => handleDelete(s.id, s.nationalId, s.name)} style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', cursor: 'pointer', color: '#ff4d4f', padding: '6px', display: 'flex', alignItems: 'center' }} title="حذف الطالب نهائياً"><Trash2 size={16} /></button>
               </div>
             </div>
           ))

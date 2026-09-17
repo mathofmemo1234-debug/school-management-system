@@ -216,7 +216,21 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
       : query(collection(db, 'student_evaluations'), where('schoolId', '==', schoolId));
 
     const unsubStudents = onSnapshot(qStudents, snap => {
-      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      let deletedList = [];
+      try {
+        deletedList = JSON.parse(localStorage.getItem('msc_deleted_students') || '[]');
+      } catch (e) {}
+      const deletedSet = new Set(deletedList.map(x => String(x).trim()));
+
+      const list = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(s => {
+          const sId = (s.id || '').trim();
+          const sNid = s.nationalId ? String(s.nationalId).trim() : '';
+          return !deletedSet.has(sId) && (!sNid || !deletedSet.has(sNid));
+        });
+
+      setStudents(list);
       setLoading(false);
     });
 
@@ -344,6 +358,97 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
     const updated = customCriteria.filter(c => c.id !== critId);
     setCustomCriteria(updated);
     await saveCriteriaToFirestore(updated);
+  };
+
+  const handleDeleteStudent = async (id, nationalId, studentName) => {
+    if (effectiveRole !== 'admin') return;
+    const confirmMsg = `هل أنت متأكد من حذف الطالب (${studentName || 'المحدد'}) ورقم الهوية (${nationalId || ''}) نهائياً من النظام؟\nلن يتمكن الطالب من تسجيل الدخول وستُحذف كافة سجلاته.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    const cleanNid = nationalId ? String(nationalId).trim() : '';
+
+    // 1. Optimistic removal from students in ComprehensiveStudentRecord
+    setStudents(prev => prev.filter(s => {
+      if (id && s.id === id) return false;
+      if (cleanNid && s.nationalId && String(s.nationalId).trim() === cleanNid) return false;
+      return true;
+    }));
+
+    if (selectedStudentForDossier?.id === id || (cleanNid && String(selectedStudentForDossier?.nationalId).trim() === cleanNid)) {
+      setSelectedStudentForDossier(null);
+      setActiveView('matrix');
+    }
+
+    // 2. Remove from localStorage (msc_custom_students) and blacklist in (msc_deleted_students)
+    try {
+      const saved = JSON.parse(localStorage.getItem('msc_custom_students') || '[]');
+      const updated = saved.filter(s => {
+        const sNid = s.nationalId ? String(s.nationalId).trim() : '';
+        return (s.id !== id) && (!cleanNid || sNid !== cleanNid);
+      });
+      localStorage.setItem('msc_custom_students', JSON.stringify(updated));
+
+      const deletedList = JSON.parse(localStorage.getItem('msc_deleted_students') || '[]');
+      if (cleanNid && !deletedList.includes(cleanNid)) deletedList.push(cleanNid);
+      if (id && !deletedList.includes(id)) deletedList.push(id);
+      localStorage.setItem('msc_deleted_students', JSON.stringify(deletedList));
+    } catch (lsErr) {
+      console.warn('LocalStorage student delete notice:', lsErr);
+    }
+
+    // 3. Delete from Firestore
+    try {
+      if (id && !id.startsWith('local_')) {
+        await deleteDoc(doc(db, 'students', id)).catch(err => console.warn('Direct doc delete error:', err));
+      }
+
+      if (cleanNid) {
+        const sQueries = [
+          query(collection(db, 'students'), where('nationalId', '==', cleanNid))
+        ];
+        if (!isNaN(cleanNid)) {
+          sQueries.push(query(collection(db, 'students'), where('nationalId', '==', Number(cleanNid))));
+        }
+        for (const q of sQueries) {
+          try {
+            const sSnap = await getDocs(q);
+            await Promise.all(sSnap.docs.map(d => deleteDoc(doc(db, 'students', d.id))));
+          } catch (e) {}
+        }
+
+        const uQueries = [
+          query(collection(db, 'users'), where('nationalId', '==', cleanNid))
+        ];
+        if (!isNaN(cleanNid)) {
+          uQueries.push(query(collection(db, 'users'), where('nationalId', '==', Number(cleanNid))));
+        }
+        for (const q of uQueries) {
+          try {
+            const uSnap = await getDocs(q);
+            await Promise.all(uSnap.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
+          } catch (e) {}
+        }
+      }
+
+      // Clean associated activity
+      const targetIds = [id, cleanNid].filter(Boolean);
+      const collectionsToClean = ['attendance', 'assignment_results', 'exam_results', 'student_evaluations'];
+      collectionsToClean.forEach(async (colName) => {
+        try {
+          for (const tId of targetIds) {
+            const snap1 = await getDocs(query(collection(db, colName), where('studentId', '==', tId)));
+            snap1.docs.forEach(d => deleteDoc(doc(db, colName, d.id)).catch(() => {}));
+            const snap2 = await getDocs(query(collection(db, colName), where('nationalId', '==', tId)));
+            snap2.docs.forEach(d => deleteDoc(doc(db, colName, d.id)).catch(() => {}));
+          }
+        } catch (e) {}
+      });
+
+      alert('✅ تم حذف الطالب وسجلاته بنجاح');
+    } catch (err) {
+      console.error('Delete student error:', err);
+      alert('حدث خطأ أثناء محاولة حذف الطالب');
+    }
   };
 
   // 5. Build Comprehensive Data Record per Student
@@ -1417,6 +1522,27 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
                             >
                               <Eye size={12} /> الملف
                             </button>
+                            {effectiveRole === 'admin' && (
+                              <button
+                                onClick={() => handleDeleteStudent(record.id, record.nationalId, record.name)}
+                                className="btn"
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '11px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  borderRadius: '8px',
+                                  background: '#fef2f2',
+                                  color: '#dc2626',
+                                  border: '1px solid #fecaca',
+                                  cursor: 'pointer'
+                                }}
+                                title="حذف الطالب نهائياً من النظام"
+                              >
+                                <Trash2 size={12} /> حذف
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1538,22 +1664,47 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
                   </div>
                 </div>
 
-                {/* Overall Score Badge */}
-                <div style={{
-                  background: selectedStudentForDossier.overall.bg,
-                  border: `2px solid ${selectedStudentForDossier.overall.color}`,
-                  padding: '12px 24px',
-                  borderRadius: '16px',
-                  textAlign: 'center',
-                  minWidth: '160px'
-                }}>
-                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '2px' }}>التحصيل التراكمي الشامل</div>
-                  <div style={{ fontSize: '26px', fontWeight: 900, color: selectedStudentForDossier.overall.color }}>
-                    {selectedStudentForDossier.overall.percentage}%
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  {/* Overall Score Badge */}
+                  <div style={{
+                    background: selectedStudentForDossier.overall.bg,
+                    border: `2px solid ${selectedStudentForDossier.overall.color}`,
+                    padding: '12px 24px',
+                    borderRadius: '16px',
+                    textAlign: 'center',
+                    minWidth: '160px'
+                  }}>
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '2px' }}>التحصيل التراكمي الشامل</div>
+                    <div style={{ fontSize: '26px', fontWeight: 900, color: selectedStudentForDossier.overall.color }}>
+                      {selectedStudentForDossier.overall.percentage}%
+                    </div>
+                    <div style={{ fontSize: '12px', fontWeight: 800, color: selectedStudentForDossier.overall.color }}>
+                      {selectedStudentForDossier.overall.label}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: selectedStudentForDossier.overall.color }}>
-                    {selectedStudentForDossier.overall.label}
-                  </div>
+
+                  {effectiveRole === 'admin' && (
+                    <button
+                      onClick={() => handleDeleteStudent(selectedStudentForDossier.id, selectedStudentForDossier.nationalId, selectedStudentForDossier.name)}
+                      className="btn"
+                      style={{
+                        padding: '10px 16px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        borderRadius: '10px',
+                        background: '#fef2f2',
+                        color: '#dc2626',
+                        border: '1px solid #fecaca',
+                        cursor: 'pointer'
+                      }}
+                      title="حذف هذا الطالب نهائياً من المدرسة وقاعدة البيانات"
+                    >
+                      <Trash2 size={15} /> حذف الطالب
+                    </button>
+                  )}
                 </div>
               </div>
 
