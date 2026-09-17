@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import StudentSchedule from './StudentSchedule';
 import StudentExams from './StudentExams';
+import ParentExamReports from './ParentExamReports';
 import SchoolMessagingHub from './SchoolMessagingHub';
 import WeeklyPlanView from '../components/WeeklyPlanView';
 import Settings from './Settings';
@@ -17,6 +18,7 @@ function ParentHome() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('schedule'); // 'schedule' | 'weekly-plan' | 'exams' | 'messages'
+  const [examSubView, setExamSubView] = useState('official_report'); // 'official_report' | 'online_quizzes'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -202,10 +204,53 @@ function ParentHome() {
 
         {activeTab === 'exams' && (
           <div>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--color-text)' }}>
-              سجل الاختبارات والنتائج ({userData?.studentName || 'الطالب'})
-            </h3>
-            <StudentExams />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: 'var(--color-text)' }}>
+                سجل الاختبارات والنتائج ({userData?.studentName || 'الطالب'})
+              </h3>
+
+              {/* Sub-view switcher */}
+              <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
+                <button
+                  onClick={() => setExamSubView('official_report')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    background: examSubView === 'official_report' ? 'white' : 'transparent',
+                    color: examSubView === 'official_report' ? '#4338ca' : '#64748b',
+                    boxShadow: examSubView === 'official_report' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none'
+                  }}
+                >
+                  كشف الدرجات والبرنامج العلاجي
+                </button>
+                <button
+                  onClick={() => setExamSubView('online_quizzes')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    background: examSubView === 'online_quizzes' ? 'white' : 'transparent',
+                    color: examSubView === 'online_quizzes' ? '#4338ca' : '#64748b',
+                    boxShadow: examSubView === 'online_quizzes' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none'
+                  }}
+                >
+                  الاختبارات الإلكترونية
+                </button>
+              </div>
+            </div>
+
+            {examSubView === 'official_report' ? (
+              <ParentExamReports />
+            ) : (
+              <StudentExams />
+            )}
           </div>
         )}
 
@@ -243,10 +288,11 @@ export default function ParentDashboard() {
     <Layout role="parent">
       <Routes>
         <Route path="/" element={<ParentHome />} />
+        <Route path="/exam-reports" element={<ParentExamReports />} />
         <Route path="/student-records" element={<ComprehensiveStudentRecord role="parent" />} />
         <Route path="/weekly-plan" element={<ParentWeeklyPlan />} />
         <Route path="/schedule" element={<StudentSchedule />} />
-        <Route path="/exams" element={<StudentExams />} />
+        <Route path="/exams" element={<ParentExamReports />} />
         <Route path="/assignments" element={<StudentExams />} />
         <Route path="/portfolio" element={<ParentStudentPortfolio />} />
         <Route path="/preparations" element={<ParentWeeklyPlan />} />

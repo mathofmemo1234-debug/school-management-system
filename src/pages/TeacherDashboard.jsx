@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import LessonPreparation from './LessonPreparation';
 import MaterialsUpload from './MaterialsUpload';
 import TeacherExams from './TeacherExams';
+import TeacherGradeEntry from './TeacherGradeEntry';
 import SchoolExcellenceDashboard from './SchoolExcellenceDashboard';
 import AttendanceSummaryExport from '../components/AttendanceSummaryExport';
 import SchoolMessagingHub from './SchoolMessagingHub';
@@ -2297,6 +2298,7 @@ export default function TeacherDashboard() {
         <Route path="/preparation" element={<LessonPreparation />} />
         <Route path="/materials" element={<MaterialsUpload />} />
         <Route path="/assignments" element={<Assignments />} />
+        <Route path="/grade-entry/*" element={<TeacherGradeEntry />} />
         <Route path="/exams" element={<TeacherExams />} />
         <Route path="/attendance" element={<Attendance />} />
         <Route path="/student-records" element={<ComprehensiveStudentRecord role="teacher" />} />

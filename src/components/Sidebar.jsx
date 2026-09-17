@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, Users, BookOpen, Calendar, Home, Settings, FileText, Star, UserCheck, ShieldCheck, CheckSquare, Globe, Mail, Award, ClipboardList, Layers } from 'lucide-react';
+import { LogOut, Users, BookOpen, Calendar, Home, Settings, FileText, Star, UserCheck, ShieldCheck, CheckSquare, Globe, Mail, Award, ClipboardList, Layers, FileSpreadsheet } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +31,7 @@ export default function Sidebar({ role }) {
 
   const adminLinks = [
     { path: '/admin', icon: Home, label: t('sidebar.overview') },
+    { path: '/admin/exams-management', icon: FileSpreadsheet, label: 'إدارة الاختبارات ورصد الدرجات' },
     { path: '/admin/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
     { path: '/admin/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/admin/portfolio', icon: Award, label: 'ملف الإنجاز القيادي' },
@@ -109,6 +110,7 @@ export default function Sidebar({ role }) {
     { path: '/teacher/weekly-plan', icon: Calendar, label: t('sidebar.weeklyPlan') },
     { path: '/teacher/schedule', icon: Calendar, label: t('sidebar.schedule') },
     { path: '/teacher/assignments', icon: BookOpen, label: t('sidebar.assignments') },
+    { path: '/teacher/grade-entry', icon: FileSpreadsheet, label: 'رصد درجات الاختبارات والبرامج العلاجية' },
     { path: '/teacher/exams', icon: FileText, label: t('sidebar.exams') },
     { path: '/teacher/materials', icon: BookOpen, label: t('sidebar.materials') },
     { path: '/teacher/attendance', icon: Users, label: t('sidebar.attendance') },
@@ -131,6 +133,7 @@ export default function Sidebar({ role }) {
 
   const parentLinks = [
     { path: '/parent', icon: Home, label: t('sidebar.overview') },
+    { path: '/parent/exam-reports', icon: Award, label: 'كشف الدرجات والبرنامج العلاجي' },
     { path: '/parent/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/parent/portfolio', icon: Award, label: 'ملف إنجاز الطالب' },
     { path: '/parent/student-records', icon: ClipboardList, label: 'سجل متابعة الطالب الشامل' },

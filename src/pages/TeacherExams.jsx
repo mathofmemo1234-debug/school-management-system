@@ -55,8 +55,10 @@ import SharedQuestionBankModal from '../components/SharedQuestionBankModal';
 import GamificationBadge from '../components/GamificationBadge';
 import { calculateStudentActivity } from '../utils/gamificationEngine';
 import { formatArabicTime } from '../utils/dateTimeUtils';
+import { useNavigate } from 'react-router-dom';
 
 export default function TeacherExams() {
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const { userData } = useAuth();
   const [exams, setExams] = useState([]);
@@ -2286,6 +2288,25 @@ export default function TeacherExams() {
           </div>
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {/* Button: Official School Exams Grade Entry */}
+            <button 
+              className="btn" 
+              onClick={() => navigate('/teacher/grade-entry')}
+              style={{
+                background: 'linear-gradient(135deg, #1e3a8a, #2563eb)',
+                color: 'white',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 18px',
+                fontWeight: 'bold',
+                boxShadow: '0 3px 10px rgba(37, 99, 235, 0.3)'
+              }}
+            >
+              <FileSpreadsheet size={18} color="#38bdf8" /> رصد درجات الاختبارات والبرامج العلاجية المعتمدة
+            </button>
+
             {/* Button 1: Create Electronic Exam */}
             <button className="btn btn-primary" onClick={handleCreateElectronic} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Plus size={18} /> {t('teacherExams.createNewExam')}

@@ -23,6 +23,7 @@ import SchoolMessagingHub from './SchoolMessagingHub';
 import SchoolExcellenceDashboard from './SchoolExcellenceDashboard';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
 import SchoolResourcesHub from './SchoolResourcesHub';
+import AdminExamsManagement from './AdminExamsManagement';
 import { useLanguage } from '../contexts/LanguageContext';
 import GamificationBadge from '../components/GamificationBadge';
 import { calculateTeacherActivity, calculateStudentActivity } from '../utils/gamificationEngine';
@@ -2984,6 +2985,7 @@ export default function AdminDashboard() {
     <Layout role="admin" title={t('adminDashboard.adminDashboardTitle')}>
       <Routes>
         <Route path="/" element={<AdminHome schoolId={userData?.schoolId} />} />
+        <Route path="/exams-management/*" element={<AdminExamsManagement />} />
         <Route path="/resources" element={<SchoolResourcesHub role="admin" />} />
         <Route path="/messages" element={<SchoolMessagingHub />} />
         <Route path="/portfolio" element={<AchievementPortfolioPage />} />
