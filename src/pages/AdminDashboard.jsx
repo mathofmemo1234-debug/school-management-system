@@ -1113,6 +1113,21 @@ function AdminHome({ schoolId }) {
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <Link 
+          to="/admin/exams-management" 
+          className="btn btn-primary"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            textDecoration: 'none',
+            background: 'linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%)',
+            boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)',
+            fontWeight: 'bold'
+          }}
+        >
+          <FileSpreadsheet size={18} /> إدارة الاختبارات ورصد الدرجات والبرامج العلاجية
+        </Link>
+        <Link 
           to="/admin/resources" 
           className="btn btn-primary"
           style={{
