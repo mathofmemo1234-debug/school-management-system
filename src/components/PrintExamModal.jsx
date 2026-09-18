@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Printer, Download, X, FileText, CheckCircle, FileSpreadsheet, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import FormsExportModal from './FormsExportModal';
 
 export default function PrintExamModal({
   exam,
@@ -13,6 +14,7 @@ export default function PrintExamModal({
 }) {
   const { userData } = useAuth();
   const [showAnswerKey, setShowAnswerKey] = useState(false);
+  const [formsExportPlatform, setFormsExportPlatform] = useState(null);
   const [examTypeTitle, setExamTypeTitle] = useState('اختبار تقويمي / نهائي');
   const [semesterTitle, setSemesterTitle] = useState('الفصل الدراسي الثاني');
   const [academicYear, setAcademicYear] = useState('1447 - 1448 هـ');
@@ -322,6 +324,50 @@ export default function PrintExamModal({
               >
                 <FileSpreadsheet size={16} /> Excel
               </button>
+            )}
+
+            {mode === 'exam' && (
+              <>
+                <button
+                  onClick={() => setFormsExportPlatform('google')}
+                  className="btn"
+                  style={{
+                    background: '#673ab7',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 12px',
+                    fontSize: '13px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontWeight: 'bold'
+                  }}
+                  title="تصدير إلى Google Forms"
+                >
+                  <span>🟣</span> Google Forms
+                </button>
+
+                <button
+                  onClick={() => setFormsExportPlatform('microsoft')}
+                  className="btn"
+                  style={{
+                    background: '#008272',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 12px',
+                    fontSize: '13px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontWeight: 'bold'
+                  }}
+                  title="تصدير إلى Microsoft Forms"
+                >
+                  <span>🔷</span> MS Forms
+                </button>
+              </>
             )}
 
             <button
@@ -856,8 +902,16 @@ export default function PrintExamModal({
 
           </div>
         </div>
-
       </div>
+
+      {formsExportPlatform && (
+        <FormsExportModal
+          isOpen={!!formsExportPlatform}
+          exam={exam}
+          initialPlatform={formsExportPlatform}
+          onClose={() => setFormsExportPlatform(null)}
+        />
+      )}
     </div>
   );
 

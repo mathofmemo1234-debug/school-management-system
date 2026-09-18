@@ -51,6 +51,7 @@ import MarkdownInput from '../components/MarkdownInput';
 import MarkdownViewer from '../components/MarkdownViewer';
 import { useLanguage } from '../contexts/LanguageContext';
 import PrintExamModal from '../components/PrintExamModal';
+import FormsExportModal from '../components/FormsExportModal';
 import SharedQuestionBankModal from '../components/SharedQuestionBankModal';
 import GamificationBadge from '../components/GamificationBadge';
 import { calculateStudentActivity } from '../utils/gamificationEngine';
@@ -107,6 +108,8 @@ export default function TeacherExams() {
   const [isSaving, setIsSaving] = useState(false);
   const [printingExamData, setPrintingExamData] = useState(null);
   const [printingResultsData, setPrintingResultsData] = useState(null);
+  const [formsExportExam, setFormsExportExam] = useState(null);
+  const [formsExportPlatform, setFormsExportPlatform] = useState('google');
   
   // Results Analytics sub-tab: 'class' | 'student'
   const [analyticsTab, setAnalyticsTab] = useState('class');
@@ -2442,6 +2445,71 @@ export default function TeacherExams() {
                       </button>
                     </div>
 
+                    {/* Programmatic Forms Export: Google Forms & Microsoft Forms */}
+                    {!exam.isExternal && (
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '6px',
+                        background: '#f8fafc',
+                        padding: '6px',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0'
+                      }}>
+                        <button 
+                          className="btn" 
+                          style={{
+                            background: '#f3e8ff',
+                            color: '#6b21a8',
+                            border: '1px solid #d8b4fe',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '5px',
+                            fontSize: '12px',
+                            padding: '6px 8px',
+                            fontWeight: 'bold',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            setFormsExportExam(exam);
+                            setFormsExportPlatform('google');
+                          }}
+                          title="تصدير الأسئلة برمجياً إلى Google Forms"
+                        >
+                          <span style={{ fontSize: '14px' }}>🟣</span> Google Forms
+                        </button>
+
+                        <button 
+                          className="btn" 
+                          style={{
+                            background: '#f0fdfa',
+                            color: '#0f766e',
+                            border: '1px solid #99f6e4',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '5px',
+                            fontSize: '12px',
+                            padding: '6px 8px',
+                            fontWeight: 'bold',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            setFormsExportExam(exam);
+                            setFormsExportPlatform('microsoft');
+                          }}
+                          title="تصدير الأسئلة برمجياً إلى Microsoft Forms"
+                        >
+                          <span style={{ fontSize: '14px' }}>🔷</span> MS Forms
+                        </button>
+                      </div>
+                    )}
+
                     <div style={{ display: 'flex', gap: '6px' }}>
                       {!exam.isExternal && (
                         <button 
@@ -2481,6 +2549,15 @@ export default function TeacherExams() {
 
         {printingExamData && (
           <PrintExamModal exam={printingExamData} mode="exam" onClose={() => setPrintingExamData(null)} />
+        )}
+
+        {formsExportExam && (
+          <FormsExportModal
+            isOpen={!!formsExportExam}
+            exam={formsExportExam}
+            initialPlatform={formsExportPlatform}
+            onClose={() => setFormsExportExam(null)}
+          />
         )}
       </div>
     );
@@ -2672,10 +2749,76 @@ export default function TeacherExams() {
           ))}
         </div>
 
-        <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'center' }}>
-          <button type="submit" className="btn btn-primary" style={{ padding: '12px 32px', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }} disabled={isSaving}>
+        <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          <button type="submit" className="btn btn-primary" style={{ padding: '12px 28px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }} disabled={isSaving}>
             <Save size={20} />
             {isSaving ? t('teacherExams.saving') : t('teacherExams.saveExam')}
+          </button>
+
+          <button
+            type="button"
+            className="btn"
+            style={{
+              background: '#f3e8ff',
+              color: '#6b21a8',
+              border: '1.5px solid #d8b4fe',
+              padding: '12px 20px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderRadius: '8px',
+              cursor: questions.length === 0 ? 'not-allowed' : 'pointer'
+            }}
+            onClick={() => {
+              setFormsExportExam({
+                id: currentExam?.id || 'draft',
+                title: title || 'اختبار إلكتروني',
+                targetClass,
+                subject,
+                duration,
+                questions
+              });
+              setFormsExportPlatform('google');
+            }}
+            disabled={questions.length === 0}
+            title="تصدير هذه الأسئلة إلى Google Forms"
+          >
+            <span style={{ fontSize: '16px' }}>🟣</span> تصدير إلى Google Forms
+          </button>
+
+          <button
+            type="button"
+            className="btn"
+            style={{
+              background: '#f0fdfa',
+              color: '#0f766e',
+              border: '1.5px solid #99f6e4',
+              padding: '12px 20px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderRadius: '8px',
+              cursor: questions.length === 0 ? 'not-allowed' : 'pointer'
+            }}
+            onClick={() => {
+              setFormsExportExam({
+                id: currentExam?.id || 'draft',
+                title: title || 'اختبار إلكتروني',
+                targetClass,
+                subject,
+                duration,
+                questions
+              });
+              setFormsExportPlatform('microsoft');
+            }}
+            disabled={questions.length === 0}
+            title="تصدير هذه الأسئلة إلى Microsoft Forms"
+          >
+            <span style={{ fontSize: '16px' }}>🔷</span> تصدير إلى Microsoft Forms
           </button>
         </div>
       </form>
@@ -2688,6 +2831,15 @@ export default function TeacherExams() {
         currentSubject={subject}
         currentClass={targetClass}
       />
+
+      {formsExportExam && (
+        <FormsExportModal
+          isOpen={!!formsExportExam}
+          exam={formsExportExam}
+          initialPlatform={formsExportPlatform}
+          onClose={() => setFormsExportExam(null)}
+        />
+      )}
     </div>
   );
 }
