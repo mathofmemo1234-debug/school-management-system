@@ -387,24 +387,44 @@ export default function FormsExportModal({
               borderRadius: '12px',
               padding: '14px 16px',
               display: 'flex',
-              alignItems: 'flex-start',
-              gap: '12px',
+              flexDirection: 'column',
+              gap: '10px',
               color: '#991b1b',
               fontSize: '13.5px',
               lineHeight: '1.5'
             }}>
-              <AlertCircle size={20} style={{ flexShrink: 0, marginTop: '2px' }} />
-              <div style={{ flex: 1 }}>
-                <strong style={{ display: 'block', marginBottom: '3px' }}>تعذر إتمام العملية:</strong>
-                {errorMessage}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <AlertCircle size={20} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ flex: 1 }}>
+                  <strong style={{ display: 'block', marginBottom: '3px' }}>تعذر إتمام العملية:</strong>
+                  {errorMessage}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorMessage('')}
+                  style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', padding: 0 }}
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setErrorMessage('')}
-                style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', padding: 0 }}
-              >
-                <X size={16} />
-              </button>
+              {platform === 'google' && googleMethod === 'api' && (
+                <div style={{ borderTop: '1px dashed #fca5a5', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: '#7f1d1d' }}>
+                    💡 لتفادي قيود Google Cloud OAuth، يمكنك التبديل إلى طريقة Google Apps Script الفورية:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGoogleMethod('script');
+                      setErrorMessage('');
+                    }}
+                    className="btn btn-primary"
+                    style={{ padding: '5px 12px', fontSize: '12px', background: '#673ab7', borderColor: '#673ab7' }}
+                  >
+                    التبديل إلى Google Apps Script
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -617,62 +637,6 @@ export default function FormsExportModal({
               {/* PLATFORM 1: GOOGLE FORMS VIEW */}
               {platform === 'google' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                  {/* Account Selection Banner */}
-                  <div style={{
-                    background: '#f8fafc',
-                    padding: '16px',
-                    borderRadius: '12px',
-                    border: '1.5px solid #e2e8f0',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '12px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{
-                        background: '#673ab7',
-                        color: 'white',
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 'bold'
-                      }}>
-                        G
-                      </div>
-                      <div>
-                        <strong style={{ fontSize: '14px', color: '#1e293b', display: 'block' }}>
-                          الحساب المستهدف للتصدير:
-                        </strong>
-                        <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-                          {googleUserEmail || 'يمكنك تحديد الحساب الشخصي أو حساب المدرسة عند النقر'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={isLoading}
-                      onClick={handleGoogleSignIn}
-                      className="btn btn-outline"
-                      style={{
-                        borderColor: '#673ab7',
-                        color: '#673ab7',
-                        fontSize: '12.5px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '7px 14px'
-                      }}
-                    >
-                      <UserCheck size={15} />
-                      {googleToken ? 'تبديل حساب Google' : 'اختيار حساب Google (Sign-In)'}
-                    </button>
-                  </div>
-
                   {/* Export Method Choice */}
                   <div style={{
                     display: 'grid',
@@ -692,7 +656,7 @@ export default function FormsExportModal({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                         <strong style={{ fontSize: '14px', color: googleMethod === 'script' ? '#673ab7' : '#0f172a' }}>
-                          ⚡ خادم Google Apps Script (موصى به للمدارس)
+                          ⚡ خادم Google Apps Script (موصى به)
                         </strong>
                         <input
                           type="radio"
@@ -702,7 +666,7 @@ export default function FormsExportModal({
                         />
                       </div>
                       <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: '1.5' }}>
-                        طريقة موثوقة وفورية بدون شاشات تحقق معقدة، تنشئ النموذج تلقائياً في حساب المدرسة.
+                        طريقة موثوقة وفورية بدون أي إعدادات GCP أو أخطاء تفويض، تنشئ النموذج تلقائياً.
                       </p>
                     </div>
 
@@ -719,7 +683,7 @@ export default function FormsExportModal({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                         <strong style={{ fontSize: '14px', color: googleMethod === 'api' ? '#673ab7' : '#0f172a' }}>
-                          🔑 Google Forms API v1 المباشر
+                          🔑 Google Forms API v1
                         </strong>
                         <input
                           type="radio"
@@ -729,57 +693,161 @@ export default function FormsExportModal({
                         />
                       </div>
                       <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: '1.5' }}>
-                        تصدير مباشر عبر OAuth 2.0 API مع نافذة اختيار الحساب (يتطلب تفعيل API).
+                        تسجيل دخول واختيار حساب Google مع طلب أذونات Google Forms API.
                       </p>
                     </div>
                   </div>
 
-                  {/* Web App URL Helper if script method selected */}
-                  {googleMethod === 'script' && (
+                  {/* If API Mode: Show Account Selection Banner */}
+                  {googleMethod === 'api' && (
                     <div style={{
                       background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '10px',
-                      padding: '14px'
+                      padding: '16px',
+                      borderRadius: '12px',
+                      border: '1.5px solid #e2e8f0',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '12px'
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b' }}>
-                          رابط Google Apps Script Web App للمدرسة:
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setShowScriptCodeModal(true)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#673ab7',
-                            fontSize: '12px',
-                            fontWeight: 'bold',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer',
-                            padding: 0
-                          }}
-                        >
-                          <Code size={14} />
-                          نسخ كود السكربت الجاهز
-                        </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          background: '#673ab7',
+                          color: 'white',
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 'bold'
+                        }}>
+                          G
+                        </div>
+                        <div>
+                          <strong style={{ fontSize: '14px', color: '#1e293b', display: 'block' }}>
+                            الحساب المستهدف للتصدير:
+                          </strong>
+                          <span style={{ fontSize: '12.5px', color: '#64748b' }}>
+                            {googleUserEmail || 'انقر لتحديد حساب Google الخاص بك'}
+                          </span>
+                        </div>
                       </div>
-                      <input
-                        type="url"
-                        className="input-field"
-                        placeholder="https://script.google.com/macros/s/.../exec"
-                        value={googleScriptUrl}
-                        onChange={(e) => {
-                          setGoogleScriptUrl(e.target.value);
-                          setStoredGoogleScriptUrl(e.target.value);
+
+                      <button
+                        type="button"
+                        disabled={isLoading}
+                        onClick={handleGoogleSignIn}
+                        className="btn btn-outline"
+                        style={{
+                          borderColor: '#673ab7',
+                          color: '#673ab7',
+                          fontSize: '12.5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 14px'
                         }}
-                        style={{ marginBottom: '4px', fontSize: '13px', direction: 'ltr', textAlign: 'left' }}
-                      />
-                      <span style={{ fontSize: '11px', color: '#64748b' }}>
-                        يتم حفظ هذا الرابط تلقائياً في متصفحك ولن تضطر لإدخاله في كل مرة.
-                      </span>
+                      >
+                        <UserCheck size={15} />
+                        {googleToken ? 'تبديل حساب Google' : 'تسجيل دخول واختيار الحساب'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* If Script Mode: Web App URL & Instructions */}
+                  {googleMethod === 'script' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{
+                        background: '#f0fdf4',
+                        border: '1.5px solid #86efac',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        fontSize: '13px',
+                        color: '#166534',
+                        lineHeight: '1.6'
+                      }}>
+                        <strong style={{ display: 'block', marginBottom: '4px' }}>
+                          ⚡ وضع Google Apps Script المباشر (الأكثر موثوقية):
+                        </strong>
+                        يقوم السكربت بإنشاء النموذج وتعيين إعدادات الاختبار وإدراج الأسئلة والخيارات والإجابة النموذجية فورياً داخل حساب Google Drive دون اشتراط إعدادات Google Cloud المعقدة.
+                      </div>
+
+                      <div style={{
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '10px',
+                        padding: '14px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                          <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b' }}>
+                            رابط Google Apps Script Web App للمدرسة:
+                          </label>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setShowScriptCodeModal(true)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#673ab7',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                cursor: 'pointer',
+                                padding: 0
+                              }}
+                            >
+                              <Code size={14} />
+                              نسخ كود السكربت الجاهز
+                            </button>
+                            <span style={{ color: '#cbd5e1' }}>|</span>
+                            <a
+                              href="https://script.google.com"
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                color: '#0e7490',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                textDecoration: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <ExternalLink size={13} />
+                              فتح script.google.com
+                            </a>
+                          </div>
+                        </div>
+
+                        <input
+                          type="url"
+                          className="input-field"
+                          placeholder="https://script.google.com/macros/s/.../exec"
+                          value={googleScriptUrl}
+                          onChange={(e) => {
+                            setGoogleScriptUrl(e.target.value);
+                            setStoredGoogleScriptUrl(e.target.value);
+                          }}
+                          style={{ marginBottom: '6px', fontSize: '13px', direction: 'ltr', textAlign: 'left' }}
+                        />
+
+                        {/* 4 Steps Guide Box */}
+                        <div style={{ background: '#ffffff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11.5px', color: '#64748b' }}>
+                          <strong style={{ color: '#0f172a' }}>📌 كيفية تفعيل الرابط في دقيقة واحدة:</strong>
+                          <ol style={{ margin: '4px 0 0 0', paddingInlineStart: '18px', lineHeight: '1.6' }}>
+                            <li>اضغط "نسخ كود السكربت الجاهز" أعلاه وافتح <a href="https://script.google.com" target="_blank" rel="noreferrer" style={{ color: '#673ab7', fontWeight: 'bold' }}>script.google.com</a>.</li>
+                            <li>انقر "مشروع جديد" (New project) والصق الكود بالكامل.</li>
+                            <li>انقر "Deploy" (نشر) &gt; "New deployment" &gt; اختر "Web app" &gt; اجعل "Who has access" = "Anyone" &gt; Deploy.</li>
+                            <li>انسخ الرابط الناتج وضعه في الحقل أعلاه واضغط "بدء تصدير الأسئلة"!</li>
+                          </ol>
+                        </div>
+                      </div>
                     </div>
                   )}
 

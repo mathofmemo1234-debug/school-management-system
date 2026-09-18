@@ -1,12 +1,15 @@
 // =========================================================================
 // GOOGLE FORMS EXPORT SERVICE
 // Supports:
-// 1. Google Identity Services (GIS) OAuth Token Client with prompt: 'select_account'
-// 2. Google Forms API v1 (POST /forms, batchUpdate with isQuiz and ChoiceQuestions)
-// 3. Google Apps Script Web App Endpoint (for schools preferring script deployment)
+// 1. Firebase Auth Google Sign-In with prompt: 'select_account'
+// 2. Google Identity Services (GIS) OAuth Token Client (when custom client ID provided)
+// 3. Google Forms API v1 (POST /forms, batchUpdate with isQuiz and ChoiceQuestions)
+// 4. Google Apps Script Web App Endpoint (zero-config, works reliably without GCP setup)
 // =========================================================================
 
-const DEFAULT_GOOGLE_CLIENT_ID = "210401728875-r0m6g2c4a45u7j4b7fsq02g9hll3vdn3.apps.googleusercontent.com";
+import { auth } from "../firebase";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+
 const STORAGE_KEY_CLIENT_ID = "school_system_google_client_id";
 const STORAGE_KEY_SCRIPT_URL = "school_system_google_script_url";
 
@@ -31,6 +34,41 @@ export const setStoredGoogleScriptUrl = (url) => {
     localStorage.setItem(STORAGE_KEY_SCRIPT_URL, url.trim());
   } else {
     localStorage.removeItem(STORAGE_KEY_SCRIPT_URL);
+  }
+};
+
+/**
+ * Sign in using Firebase Google Auth with forced account picker
+ */
+export const signInWithFirebaseGoogle = async () => {
+  const provider = new GoogleAuthProvider();
+  provider.addScope("https://www.googleapis.com/auth/forms.body");
+  provider.addScope("https://www.googleapis.com/auth/drive.file");
+  provider.setCustomParameters({
+    prompt: "select_account"
+  });
+
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const accessToken = credential?.accessToken;
+
+    return {
+      accessToken,
+      user: {
+        displayName: result.user?.displayName || "معلم المدرسة",
+        email: result.user?.email || "",
+        photoURL: result.user?.photoURL || ""
+      }
+    };
+  } catch (err) {
+    if (err.code === "auth/popup-closed-by-user") {
+      throw new Error("تم إغلاق نافذة تسجيل الدخول قبل إتمام اختيار الحساب");
+    }
+    if (err.code === "auth/cancelled-popup-request") {
+      throw new Error("تم إلغاء طلب تسجيل الدخول");
+    }
+    throw new Error(`خطأ تسجيل الدخول عبر Google: ${err.message}`);
   }
 };
 
@@ -68,51 +106,58 @@ export const loadGoogleGsiScript = () => {
 };
 
 /**
- * Trigger Google Sign-In with forced account selection (prompt: 'select_account')
- * and request forms.body scope
+ * Request Google Access Token:
+ * If a custom Google Client ID is provided in settings, uses GIS.
+ * Otherwise, uses Firebase Auth Google Sign-In (which uses the registered project OAuth credentials).
  */
 export const requestGoogleAccessToken = async (customClientId = null) => {
-  const clientId = customClientId || getStoredGoogleClientId() || DEFAULT_GOOGLE_CLIENT_ID;
+  const clientId = customClientId || getStoredGoogleClientId();
 
-  if (!clientId) {
-    throw new Error("يرجى إدخال معرّف العميل (Google Client ID) الخاص بمدرستك أو حسابك للمتابعة.");
+  // If user provided a specific custom Google Client ID, use GIS token client
+  if (clientId && clientId.trim()) {
+    await loadGoogleGsiScript();
+
+    return new Promise((resolve, reject) => {
+      try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientId.trim(),
+          scope: "https://www.googleapis.com/auth/forms.body https://www.googleapis.com/auth/drive.file",
+          prompt: "select_account",
+          callback: (response) => {
+            if (response.error) {
+              if (response.error === "popup_closed_by_user" || response.error === "access_denied") {
+                return reject(new Error("تم إلغاء عملية تسجيل الدخول أو رفض منح الصلاحيات"));
+              }
+              return reject(new Error(`خطأ مصادقة Google: ${response.error_description || response.error}`));
+            }
+            if (response.access_token) {
+              resolve({
+                accessToken: response.access_token,
+                expiresIn: response.expires_in,
+                scope: response.scope,
+                user: {
+                  displayName: "حساب Google المعتمد",
+                  email: ""
+                }
+              });
+            } else {
+              reject(new Error("لم يتم استلام رمز الوصول (Access Token) من Google"));
+            }
+          },
+          error_callback: (nonOAuthErr) => {
+            reject(new Error(`تعذر فتح نافذة تسجيل الدخول من Google: ${nonOAuthErr?.message || "خطأ غير متوقع"}`));
+          }
+        });
+
+        client.requestAccessToken({ prompt: "select_account" });
+      } catch (err) {
+        reject(err);
+      }
+    });
   }
 
-  await loadGoogleGsiScript();
-
-  return new Promise((resolve, reject) => {
-    try {
-      const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: "https://www.googleapis.com/auth/forms.body https://www.googleapis.com/auth/drive.file",
-        prompt: "select_account",
-        callback: (response) => {
-          if (response.error) {
-            if (response.error === "popup_closed_by_user" || response.error === "access_denied") {
-              return reject(new Error("تم إلغاء عملية تسجيل الدخول أو رفض منح الصلاحيات"));
-            }
-            return reject(new Error(`خطأ مصادقة Google: ${response.error_description || response.error}`));
-          }
-          if (response.access_token) {
-            resolve({
-              accessToken: response.access_token,
-              expiresIn: response.expires_in,
-              scope: response.scope
-            });
-          } else {
-            reject(new Error("لم يتم استلام رمز الوصول (Access Token) من Google"));
-          }
-        },
-        error_callback: (nonOAuthErr) => {
-          reject(new Error(`تعذر فتح نافذة تسجيل الدخول من Google: ${nonOAuthErr?.message || "خطأ غير متوقع"}`));
-        }
-      });
-
-      client.requestAccessToken({ prompt: "select_account" });
-    } catch (err) {
-      reject(err);
-    }
-  });
+  // Otherwise, use Firebase Google Auth which has valid project credentials!
+  return await signInWithFirebaseGoogle();
 };
 
 /**
@@ -124,6 +169,9 @@ export const exportToGoogleFormsApi = async (exam, accessToken, onProgress = nul
   }
   if (!exam.questions || exam.questions.length === 0) {
     throw new Error("لا توجد أسئلة مسجلة في هذا الاختبار للتصدير");
+  }
+  if (!accessToken) {
+    throw new Error("لم يتم توفير رمز الوصول (Access Token) لـ Google. يرجى تسجيل الدخول أولاً.");
   }
 
   // Step 1: Create Form
@@ -149,7 +197,7 @@ export const exportToGoogleFormsApi = async (exam, accessToken, onProgress = nul
       throw new Error("انتهت صلاحية الجلسة أو رمز الوصول غير صالح. يرجى إعادة تسجيل الدخول.");
     }
     if (createRes.status === 403) {
-      throw new Error(`تم رفض الوصول من Google Forms API: ${message}. تأكد من تفعيل Google Forms API في مشروع Google Cloud ومنح صلاحية forms.body.`);
+      throw new Error(`تم رفض الوصول من Google Forms API: ${message}. نوصي باستخدام خيار 'Google Apps Script' المباشر الذي لا يتطلب شاشات موافقة Google Cloud.`);
     }
     throw new Error(`فشل إنشاء النموذج: ${message}`);
   }
@@ -310,7 +358,7 @@ export const getGoogleAppsScriptTemplateCode = () => {
   return `/**
  * Google Apps Script Web App لتصدير اختبارات المدرسة إلى Google Forms
  * طريقة النشر:
- * 1. افتح https://script.google.com وانقر "مشروع جديد"
+ * 1. افتح https://script.google.com وانقر "مشروع جديد" (New project)
  * 2. الصق هذا الكود بالكامل
  * 3. انقر على "Deploy" (نشر) -> "New deployment" (نشر جديد)
  * 4. اختر النوع: "Web app"
