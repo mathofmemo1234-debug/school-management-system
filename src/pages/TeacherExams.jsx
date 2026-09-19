@@ -45,7 +45,9 @@ import {
   Eye,
   Wifi,
   WifiOff,
-  Radio
+  Radio,
+  Filter,
+  User
 } from 'lucide-react';
 import MarkdownInput from '../components/MarkdownInput';
 import MarkdownViewer from '../components/MarkdownViewer';
@@ -53,6 +55,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import PrintExamModal from '../components/PrintExamModal';
 import FormsExportModal from '../components/FormsExportModal';
 import SharedQuestionBankModal from '../components/SharedQuestionBankModal';
+import ExamPreviewModal from '../components/ExamPreviewModal';
 import GamificationBadge from '../components/GamificationBadge';
 import { calculateStudentActivity } from '../utils/gamificationEngine';
 import { formatArabicTime } from '../utils/dateTimeUtils';
@@ -110,6 +113,14 @@ export default function TeacherExams() {
   const [printingResultsData, setPrintingResultsData] = useState(null);
   const [formsExportExam, setFormsExportExam] = useState(null);
   const [formsExportPlatform, setFormsExportPlatform] = useState('google');
+  const [previewExamData, setPreviewExamData] = useState(null);
+
+  // Leadership Role Check & Filter States (Admin, Supervisor, Staff / Vice Principal)
+  const isLeadership = userData?.role === 'admin' || userData?.role === 'supervisor' || userData?.role === 'staff' || userData?.role === 'superadmin';
+  const [filterTeacher, setFilterTeacher] = useState('all');
+  const [filterSubject, setFilterSubject] = useState('all');
+  const [filterClass, setFilterClass] = useState('all');
+  const [teachersList, setTeachersList] = useState([]);
   
   // Results Analytics sub-tab: 'class' | 'student'
   const [analyticsTab, setAnalyticsTab] = useState('class');
@@ -168,10 +179,31 @@ export default function TeacherExams() {
     return () => unsubClasses();
   }, [userData?.schoolId]);
 
-  // Fetch exams for this teacher
+  // Fetch teachers list for leadership filter
   useEffect(() => {
-    if (!teacherDocId) return;
-    const q = query(collection(db, 'exams'), where('teacherId', '==', teacherDocId));
+    if (!isLeadership) return;
+    const schoolId = userData?.schoolId || 'default_school_1';
+    const qT = schoolId === 'ALL'
+      ? collection(db, 'teachers')
+      : query(collection(db, 'teachers'), where('schoolId', '==', schoolId));
+    getDocs(qT).then(snap => {
+      setTeachersList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+  }, [isLeadership, userData?.schoolId]);
+
+  // Fetch exams (teacher sees their own, leadership sees all school exams)
+  useEffect(() => {
+    const schoolId = userData?.schoolId || 'default_school_1';
+    let q;
+    if (isLeadership) {
+      q = schoolId === 'ALL'
+        ? collection(db, 'exams')
+        : query(collection(db, 'exams'), where('schoolId', '==', schoolId));
+    } else {
+      if (!teacherDocId) return;
+      q = query(collection(db, 'exams'), where('teacherId', '==', teacherDocId));
+    }
+
     const unsub = onSnapshot(q, snap => {
       const data = [];
       snap.forEach(d => data.push({ id: d.id, ...d.data() }));
@@ -179,7 +211,17 @@ export default function TeacherExams() {
       setExams(data);
     });
     return () => unsub();
-  }, [teacherDocId]);
+  }, [teacherDocId, isLeadership, userData?.schoolId]);
+
+  // Filtered exams for display
+  const displayedExams = useMemo(() => {
+    return exams.filter(e => {
+      if (filterTeacher !== 'all' && e.teacherId !== filterTeacher && e.teacherName !== filterTeacher) return false;
+      if (filterSubject !== 'all' && e.subject !== filterSubject) return false;
+      if (filterClass !== 'all' && e.targetClass !== filterClass) return false;
+      return true;
+    });
+  }, [exams, filterTeacher, filterSubject, filterClass]);
 
   // Fetch students dictionary cache
   useEffect(() => {
@@ -487,10 +529,41 @@ export default function TeacherExams() {
     }
   };
 
+  // Helper to convert external image URLs to Base64 (saving images directly without external links)
+  const convertExternalImageUrlsToBase64 = async (text) => {
+    if (!text || typeof text !== 'string') return text;
+    const imgRegex = /!\[(.*?)\]\((https?:\/\/[^\s\)]+|blob:[^\s\)]+)\)/g;
+    let match;
+    let updatedText = text;
+    const matches = [];
+    while ((match = imgRegex.exec(text)) !== null) {
+      matches.push({ full: match[0], alt: match[1], url: match[2] });
+    }
+
+    for (const item of matches) {
+      try {
+        const response = await fetch(item.url, { mode: 'cors' });
+        const blob = await response.blob();
+        const base64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        });
+        if (base64) {
+          updatedText = updatedText.replace(item.full, `![${item.alt}](${base64})`);
+        }
+      } catch (err) {
+        console.warn('Could not convert external image to Base64:', item.url, err);
+      }
+    }
+    return updatedText;
+  };
+
   // Save Electronic Exam
   const handleSaveElectronic = async (e) => {
     e.preventDefault();
-    if (!teacherDocId) return;
+    if (!teacherDocId && !isLeadership) return;
     
     const defaultOptLetters = ['( أ )', '( ب )', '( ج )', '( د )'];
     const sanitizedQuestions = questions.map(q => ({
@@ -506,9 +579,21 @@ export default function TeacherExams() {
     }
 
     setIsSaving(true);
+    
+    // Convert any external image URLs into embedded Base64 (save images directly inside exam, no external link dependencies)
+    const processedQuestions = await Promise.all(sanitizedQuestions.map(async (q) => {
+      const processedText = await convertExternalImageUrlsToBase64(q.text);
+      const processedOptions = await Promise.all((q.options || []).map(opt => convertExternalImageUrlsToBase64(opt)));
+      return {
+        ...q,
+        text: processedText,
+        options: processedOptions
+      };
+    }));
+
     const finalCutoff = entryDeadline || calculateDefaultCutoff(startTime);
     const examData = {
-      teacherId: teacherDocId,
+      teacherId: teacherDocId || userData?.uid || 'leadership',
       teacherName: userData?.name || 'معلم',
       teacherEmail: userData?.email || '',
       title,
@@ -519,7 +604,7 @@ export default function TeacherExams() {
       entryDeadline: finalCutoff,
       duration: parseInt(duration),
       isExternal: false,
-      questions: sanitizedQuestions,
+      questions: processedQuestions,
       schoolId: userData?.schoolId || 'default_school_1',
       schoolName: userData?.schoolName || '',
       updatedAt: serverTimestamp()
@@ -2336,13 +2421,78 @@ export default function TeacherExams() {
           </div>
         </div>
 
-        {exams.length === 0 ? (
+        {/* Leadership / General Filters Bar */}
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          background: 'rgba(248, 250, 252, 0.85)',
+          padding: '14px 16px',
+          borderRadius: '10px',
+          marginBottom: '20px',
+          border: '1px solid #e2e8f0'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontWeight: 'bold', fontSize: '13px' }}>
+            <Filter size={16} /> تصفية الاختبارات:
+          </div>
+
+          {isLeadership && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <select
+                className="input-field"
+                style={{ padding: '6px 12px', fontSize: '13px', width: 'auto', minWidth: '160px' }}
+                value={filterTeacher}
+                onChange={e => setFilterTeacher(e.target.value)}
+              >
+                <option value="all">كل المعلمين</option>
+                {teachersList.map(t => (
+                  <option key={t.id} value={t.id}>{t.name || t.email}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <select
+              className="input-field"
+              style={{ padding: '6px 12px', fontSize: '13px', width: 'auto', minWidth: '140px' }}
+              value={filterSubject}
+              onChange={e => setFilterSubject(e.target.value)}
+            >
+              <option value="all">كل المواد</option>
+              {subjectsList.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <select
+              className="input-field"
+              style={{ padding: '6px 12px', fontSize: '13px', width: 'auto', minWidth: '140px' }}
+              value={filterClass}
+              onChange={e => setFilterClass(e.target.value)}
+            >
+              <option value="all">كل الفصول</option>
+              {classesList.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginInlineStart: 'auto', fontSize: '13px', color: '#64748b' }}>
+            عدد الاختبارات المعروضة: <strong>{displayedExams.length}</strong>
+          </div>
+        </div>
+
+        {displayedExams.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>
             {t('teacherExams.noExamsRecorded')}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
-            {exams.map(exam => {
+            {displayedExams.map(exam => {
               const submissionCount = allResultsCountMap[exam.id] || 0;
 
               return (
@@ -2376,6 +2526,11 @@ export default function TeacherExams() {
                   </div>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', color: '#475569' }}>
+                    {(isLeadership || exam.teacherName) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#1e3a8a', fontWeight: 'bold' }}>
+                        <User size={16} /> المعلم: <span>{exam.teacherName || 'غير محدد'}</span>
+                      </div>
+                    )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Users size={16}/> {t('teacherExams.classLabel')} <strong>{exam.targetClass}</strong></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16}/> {t('teacherExams.subjectLabel')} <strong>{exam.subject}</strong></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2510,11 +2665,36 @@ export default function TeacherExams() {
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', gap: '6px' }}>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {!exam.isExternal && (
+                        <button 
+                          className="btn btn-primary" 
+                          style={{
+                            flex: 1,
+                            minWidth: '100px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '5px',
+                            fontSize: '12px',
+                            padding: '6px 10px',
+                            background: 'linear-gradient(135deg, #1e3a8a, #2563eb)',
+                            color: '#fff',
+                            border: 'none',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
+                          }} 
+                          onClick={() => setPreviewExamData(exam)}
+                          title="معاينة تفاعلية كاملة للاختبار كما يظهر للطلاب وحفظه بالصور كملف مستقل"
+                        >
+                          <Eye size={14} /> معاينة الاختبار
+                        </button>
+                      )}
+
                       {!exam.isExternal && (
                         <button 
                           className="btn btn-outline" 
-                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '12px', padding: '6px' }} 
+                          style={{ flex: 1, minWidth: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '12px', padding: '6px' }} 
                           onClick={() => setPrintingExamData(exam)}
                           title="طباعة وتصدير أسئلة الاختبار بصيغة Word و PDF"
                         >
@@ -2774,6 +2954,46 @@ export default function TeacherExams() {
 
           <button
             type="button"
+            className="btn btn-outline"
+            style={{
+              padding: '12px 24px',
+              fontSize: '15px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderColor: '#2563eb',
+              color: '#2563eb',
+              background: '#eff6ff'
+            }}
+            onClick={() => {
+              const defaultOptLetters = ['( أ )', '( ب )', '( ج )', '( د )'];
+              const previewDraft = {
+                id: currentExam?.id || 'preview-draft',
+                title: title || 'معاينة مسودة الاختبار',
+                targetClass: targetClass || 'غير محدد',
+                subject: subject || 'غير محدد',
+                duration: parseInt(duration) || 45,
+                examDate: examDate || new Date().toISOString().split('T')[0],
+                startTime: startTime || '08:00',
+                teacherName: userData?.name || 'المعلم',
+                schoolName: userData?.schoolName || '',
+                questions: questions.map((q, idx) => ({
+                  id: q.id || `q_${idx}`,
+                  text: q.text || `سؤال ${idx + 1}`,
+                  correctOption: q.correctOption !== undefined ? q.correctOption : 0,
+                  options: [0, 1, 2, 3].map(optIdx => (q.options && q.options[optIdx] !== undefined && q.options[optIdx] !== '') ? q.options[optIdx] : defaultOptLetters[optIdx])
+                }))
+              };
+              setPreviewExamData(previewDraft);
+            }}
+            title="معاينة تفاعلية فورية لمسودة الاختبار كما سيراها الطلاب قبل الحفظ"
+          >
+            <Eye size={18} /> معاينة الاختبار
+          </button>
+
+          <button
+            type="button"
             className="btn"
             style={{
               background: '#f3e8ff',
@@ -2855,6 +3075,16 @@ export default function TeacherExams() {
           exam={formsExportExam}
           initialPlatform={formsExportPlatform}
           onClose={() => setFormsExportExam(null)}
+        />
+      )}
+
+      {/* Full Interactive Exam Preview Modal */}
+      {previewExamData && (
+        <ExamPreviewModal
+          isOpen={!!previewExamData}
+          exam={previewExamData}
+          onClose={() => setPreviewExamData(null)}
+          onOpenPrint={(ex) => setPrintingExamData(ex)}
         />
       )}
     </div>

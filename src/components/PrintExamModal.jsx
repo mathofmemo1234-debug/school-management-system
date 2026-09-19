@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Printer, Download, X, FileText, CheckCircle, FileSpreadsheet, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import FormsExportModal from './FormsExportModal';
+import MarkdownViewer from './MarkdownViewer';
 
 export default function PrintExamModal({
   exam,
@@ -627,8 +628,8 @@ export default function PrintExamModal({
                           </div>
 
                           {/* Question Text */}
-                          <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '14px', color: '#1e293b', whiteSpace: 'pre-wrap' }}>
-                            {q.text}
+                          <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '14px', color: '#1e293b' }}>
+                            <MarkdownViewer content={q.text} />
                           </div>
 
                           {/* Options Grid */}
@@ -642,32 +643,34 @@ export default function PrintExamModal({
                               const isCorrect = q.correctOption === optIdx;
                               return (
                                 <div key={optIdx} style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '10px',
-                                  padding: '8px 12px',
-                                  borderRadius: '6px',
-                                  border: (showAnswerKey && isCorrect) ? '2px solid #10b981' : '1px solid #e2e8f0',
-                                  background: (showAnswerKey && isCorrect) ? '#ecfdf5' : '#f8fafc'
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   gap: '10px',
+                                   padding: '8px 12px',
+                                   borderRadius: '6px',
+                                   border: (showAnswerKey && isCorrect) ? '2px solid #10b981' : '1px solid #e2e8f0',
+                                   background: (showAnswerKey && isCorrect) ? '#ecfdf5' : '#f8fafc'
                                 }}>
                                   <span style={{
-                                    width: '24px',
-                                    height: '24px',
-                                    borderRadius: '50%',
-                                    border: '1.5px solid #64748b',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '12px',
-                                    fontWeight: 'bold',
-                                    background: (showAnswerKey && isCorrect) ? '#10b981' : '#ffffff',
-                                    color: (showAnswerKey && isCorrect) ? '#ffffff' : '#1e293b'
+                                     width: '24px',
+                                     height: '24px',
+                                     borderRadius: '50%',
+                                     border: '1.5px solid #64748b',
+                                     display: 'flex',
+                                     alignItems: 'center',
+                                     justifyContent: 'center',
+                                     fontSize: '12px',
+                                     fontWeight: 'bold',
+                                     background: (showAnswerKey && isCorrect) ? '#10b981' : '#ffffff',
+                                     color: (showAnswerKey && isCorrect) ? '#ffffff' : '#1e293b'
                                   }}>
-                                    {letters[optIdx] || optIdx + 1}
+                                     {letters[optIdx] || optIdx + 1}
                                   </span>
-                                  <span style={{ flex: 1 }}>{opt}</span>
+                                  <span style={{ flex: 1 }}>
+                                    <MarkdownViewer content={opt} />
+                                  </span>
                                   {showAnswerKey && isCorrect && (
-                                    <span style={{ color: '#10b981', fontSize: '11px', fontWeight: 'bold' }}>✓ الإجابة الصحيحة</span>
+                                     <span style={{ color: '#10b981', fontSize: '11px', fontWeight: 'bold' }}>✓ الإجابة الصحيحة</span>
                                   )}
                                 </div>
                               );

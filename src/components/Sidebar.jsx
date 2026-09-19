@@ -32,6 +32,7 @@ export default function Sidebar({ role }) {
   const adminLinks = [
     { path: '/admin', icon: Home, label: t('sidebar.overview') },
     { path: '/admin/exams-management', icon: FileSpreadsheet, label: 'إدارة الاختبارات ورصد الدرجات' },
+    { path: '/admin/teacher-exams', icon: FileText, label: 'معاينة بنك اختبارات المعلمين' },
     { path: '/admin/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
     { path: '/admin/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/admin/portfolio', icon: Award, label: 'ملف الإنجاز القيادي' },
@@ -57,6 +58,7 @@ export default function Sidebar({ role }) {
 
   const staffLinks = [
     { path: '/staff', icon: Home, label: t('sidebar.overview') },
+    { path: '/staff/teacher-exams', icon: FileText, label: 'معاينة بنك اختبارات المعلمين' },
     { path: '/staff/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
     { path: '/staff/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/staff/portfolio', icon: Award, label: 'ملف الإنجاز الإداري' },
@@ -76,6 +78,7 @@ export default function Sidebar({ role }) {
 
   const supervisorLinks = [
     { path: '/supervisor', icon: Home, label: t('sidebar.overview') },
+    { path: '/supervisor/teacher-exams', icon: FileText, label: 'معاينة بنك اختبارات المعلمين' },
     { path: '/supervisor/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
     { path: '/supervisor/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/supervisor/portfolio', icon: Award, label: 'ملف الإنجاز الإشرافي' },
