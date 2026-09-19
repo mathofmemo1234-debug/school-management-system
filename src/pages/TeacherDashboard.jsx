@@ -799,7 +799,7 @@ function Assignments() {
           newQs.push({
             id: `q_hw_${Date.now()}_${i}`,
             text: '',
-            options: ['', '', '', ''],
+            options: ['( أ )', '( ب )', '( ج )', '( د )'],
             correctOption: 0
           });
         }
@@ -1711,29 +1711,46 @@ function Assignments() {
                   />
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
-                    {[0, 1, 2, 3].map(optIndex => (
-                      <div key={optIndex} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: q.correctOption === optIndex ? 'rgba(37, 211, 102, 0.1)' : 'transparent', padding: '12px', borderRadius: '8px', border: q.correctOption === optIndex ? '2px solid #25D366' : '1px solid var(--color-border)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <label style={{ margin: 0, fontWeight: 'bold' }}>الخيار {optIndex + 1}</label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, cursor: 'pointer', color: q.correctOption === optIndex ? '#25D366' : 'inherit' }}>
-                            <input 
-                              type="radio" 
-                              name={`hw_correct_${qIndex}`} 
-                              checked={q.correctOption === optIndex} 
-                              onChange={() => updateQuestion(qIndex, 'correctOption', optIndex)}
-                            />
-                            الإجابة الصحيحة
-                          </label>
+                    {[0, 1, 2, 3].map(optIndex => {
+                      const defaultLetter = ['( أ )', '( ب )', '( ج )', '( د )'][optIndex];
+                      return (
+                        <div key={optIndex} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: q.correctOption === optIndex ? 'rgba(37, 211, 102, 0.1)' : 'transparent', padding: '12px', borderRadius: '8px', border: q.correctOption === optIndex ? '2px solid #25D366' : '1px solid var(--color-border)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#0f172a',
+                              color: '#ffffff',
+                              fontWeight: '800',
+                              fontSize: '15px',
+                              padding: '4px 14px',
+                              borderRadius: '6px',
+                              letterSpacing: '0.5px',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
+                            }}>
+                              {defaultLetter}
+                            </span>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, cursor: 'pointer', color: q.correctOption === optIndex ? '#25D366' : 'inherit', fontWeight: 'bold' }}>
+                              <input 
+                                type="radio" 
+                                name={`hw_correct_${qIndex}`} 
+                                checked={q.correctOption === optIndex} 
+                                onChange={() => updateQuestion(qIndex, 'correctOption', optIndex)}
+                              />
+                              الإجابة الصحيحة
+                            </label>
+                          </div>
+                          <MarkdownInput 
+                            label=""
+                            value={q.options && q.options[optIndex] !== undefined ? q.options[optIndex] : defaultLetter}
+                            onChange={(val) => updateOption(qIndex, optIndex, val)}
+                            placeholder={defaultLetter}
+                            height="90px"
+                          />
                         </div>
-                        <MarkdownInput 
-                          label=""
-                          value={q.options[optIndex]}
-                          onChange={(val) => updateOption(qIndex, optIndex, val)}
-                          placeholder={`نص الخيار ${optIndex + 1}...`}
-                          height="90px"
-                        />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}

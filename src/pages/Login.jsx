@@ -7,6 +7,7 @@ import { auth, db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import AboutSchoolModal from '../components/AboutSchoolModal';
+import QiyasPlatformModal from '../components/QiyasPlatformModal';
 import './Login.css';
 
 const ROLE_NAMES = {
@@ -888,6 +889,9 @@ export default function Login() {
         isOpen={showAboutModal} 
         onClose={() => setShowAboutModal(false)} 
       />
+
+      {/* Qiyas Platform Floating Button & Modal */}
+      <QiyasPlatformModal isLoginPage={true} />
     </main>
   );
 }

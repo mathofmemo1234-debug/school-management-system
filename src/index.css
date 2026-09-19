@@ -361,4 +361,411 @@ body {
   animation: flash-beacon-dot 1.2s infinite ease-in-out;
 }
 
+/* ========================================================================= */
+/* ANIMATED FLOATING QIYAS PLATFORM BUTTON & MODAL */
+/* ========================================================================= */
+@keyframes qiyas-pulse-royal {
+  0% {
+    box-shadow: 0 10px 25px -5px rgba(67, 56, 202, 0.5), 0 0 0 0 rgba(129, 140, 248, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 14px 32px -4px rgba(79, 70, 229, 0.75), 0 0 0 12px rgba(129, 140, 248, 0);
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 10px 25px -5px rgba(67, 56, 202, 0.5), 0 0 0 0 rgba(129, 140, 248, 0.7);
+    transform: scale(1);
+  }
+}
+
+@keyframes qiyas-icon-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(-5deg); }
+}
+
+@keyframes qiyas-pulse-glow-ring {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.25); opacity: 0; }
+  100% { transform: scale(0.95); opacity: 0; }
+}
+
+.floating-qiyas-btn {
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 295px !important;
+  z-index: 9995 !important;
+  background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 50%, #0284c7 100%) !important;
+  color: #ffffff !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+  border-radius: 50px !important;
+  padding: 8px 18px 8px 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  box-shadow: 0 10px 25px -5px rgba(67, 56, 202, 0.55), 0 0 16px rgba(99, 102, 241, 0.3) !important;
+  animation: qiyas-pulse-royal 2.6s infinite ease-in-out !important;
+  cursor: pointer !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  text-decoration: none !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  direction: rtl !important;
+}
+
+.floating-qiyas-btn:hover {
+  transform: translateY(-4px) scale(1.05) !important;
+  box-shadow: 0 18px 35px -4px rgba(79, 70, 229, 0.8), 0 0 24px rgba(129, 140, 248, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.floating-qiyas-btn:hover .qiyas-btn-icon {
+  animation: qiyas-icon-float 0.8s ease-in-out infinite;
+}
+
+.floating-qiyas-login {
+  right: 24px !important;
+}
+
+@media (max-width: 1024px) {
+  .floating-qiyas-btn {
+    right: 20px !important;
+    bottom: 85px !important;
+  }
+}
+
+.qiyas-btn-icon-wrapper {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.qiyas-btn-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: right;
+  line-height: 1.2;
+}
+
+.qiyas-title {
+  font-size: 13.5px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+}
+
+.qiyas-sub {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #c7d2fe;
+}
+
+.qiyas-sparkle {
+  color: #facc15;
+  animation: flash-icon-wiggle 1.5s ease-in-out infinite;
+}
+
+.qiyas-pulse-dot {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #facc15;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+}
+
+.qiyas-pulse-ring {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #facc15;
+  animation: qiyas-pulse-glow-ring 2s infinite ease-out;
+}
+
+/* Modal Overlay & Container */
+.qiyas-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(6px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.qiyas-modal-container {
+  background: #ffffff;
+  width: 740px;
+  max-width: 100%;
+  max-height: 92vh;
+  overflow-y: auto;
+  border-radius: 24px;
+  position: relative;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  direction: rtl;
+  display: flex;
+  flex-direction: column;
+}
+
+.qiyas-modal-close-btn {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.qiyas-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(1.08);
+}
+
+.qiyas-modal-hero {
+  background: linear-gradient(135deg, #1e1b4b 0%, #3730a3 50%, #0284c7 100%);
+  padding: 32px 28px 24px 28px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+}
+
+.qiyas-hero-decoration {
+  position: absolute;
+  top: -40px;
+  left: -40px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
+}
+
+.qiyas-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fef08a;
+  margin-bottom: 12px;
+}
+
+.qiyas-hero-title {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.qiyas-hero-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #e0e7ff;
+  line-height: 1.6;
+}
+
+.qiyas-launch-hero-btn {
+  background: #ffffff;
+  color: #3730a3;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 22px;
+  font-size: 14.5px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+
+.qiyas-launch-hero-btn:hover {
+  background: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+.qiyas-modal-body {
+  padding: 24px 28px;
+  flex: 1;
+}
+
+.qiyas-intro-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+
+.qiyas-section-title {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qiyas-intro-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #334155;
+}
+
+.qiyas-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.qiyas-feature-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.qiyas-feature-card:hover {
+  border-color: #a5b4fc;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+  transform: translateY(-2px);
+}
+
+.qiyas-feature-icon-box {
+  background: #f1f5f9;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.qiyas-feature-info {
+  flex: 1;
+}
+
+.qiyas-feature-title {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.qiyas-feature-desc {
+  margin: 0;
+  font-size: 12.5px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.qiyas-highlights-box {
+  margin-top: 20px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qiyas-highlight-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.qiyas-modal-footer {
+  padding: 16px 28px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+}
+
+.qiyas-btn-cancel {
+  background: #e2e8f0;
+  color: #475569;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.qiyas-btn-cancel:hover {
+  background: #cbd5e1;
+  color: #1e293b;
+}
+
+.qiyas-btn-primary {
+  background: linear-gradient(135deg, #3730a3 0%, #0284c7 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-size: 14.5px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(55, 48, 163, 0.3);
+  transition: all 0.2s ease;
+}
+
+.qiyas-btn-primary:hover {
+  box-shadow: 0 6px 20px rgba(55, 48, 163, 0.45);
+  transform: translateY(-2px);
+}
+
 

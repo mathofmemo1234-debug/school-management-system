@@ -334,7 +334,7 @@ export default function TeacherExams() {
           newQs.push({
             id: `q_${Date.now()}_${i}`,
             text: '',
-            options: ['', '', '', ''],
+            options: ['( أ )', '( ب )', '( ج )', '( د )'],
             correctOption: 0
           });
         }
@@ -492,16 +492,16 @@ export default function TeacherExams() {
     e.preventDefault();
     if (!teacherDocId) return;
     
-    for (let i = 0; i < questions.length; i++) {
-      if (!questions[i].text) {
+    const defaultOptLetters = ['( أ )', '( ب )', '( ج )', '( د )'];
+    const sanitizedQuestions = questions.map(q => ({
+      ...q,
+      options: [0, 1, 2, 3].map(j => (q.options && q.options[j] && q.options[j].trim()) ? q.options[j] : defaultOptLetters[j])
+    }));
+
+    for (let i = 0; i < sanitizedQuestions.length; i++) {
+      if (!sanitizedQuestions[i].text) {
         alert(t('teacherExams.questionEmpty').replace('{num}', i+1));
         return;
-      }
-      for (let j = 0; j < 4; j++) {
-        if (!questions[i].options[j]) {
-          alert(t('teacherExams.optionEmpty').replace('{opt}', j+1).replace('{num}', i+1));
-          return;
-        }
       }
     }
 
@@ -519,7 +519,7 @@ export default function TeacherExams() {
       entryDeadline: finalCutoff,
       duration: parseInt(duration),
       isExternal: false,
-      questions,
+      questions: sanitizedQuestions,
       schoolId: userData?.schoolId || 'default_school_1',
       schoolName: userData?.schoolName || '',
       updatedAt: serverTimestamp()
@@ -2721,29 +2721,46 @@ export default function TeacherExams() {
               />
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
-                {[0, 1, 2, 3].map(optIndex => (
-                  <div key={optIndex} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: q.correctOption === optIndex ? 'rgba(37, 211, 102, 0.1)' : 'transparent', padding: '12px', borderRadius: '8px', border: q.correctOption === optIndex ? '2px solid #25D366' : '1px solid var(--color-border)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label style={{ margin: 0, fontWeight: 'bold' }}>{t('teacherExams.option')} {optIndex + 1}</label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, cursor: 'pointer', color: q.correctOption === optIndex ? '#25D366' : 'inherit' }}>
-                        <input 
-                          type="radio" 
-                          name={`correct_${qIndex}`} 
-                          checked={q.correctOption === optIndex} 
-                          onChange={() => updateQuestion(qIndex, 'correctOption', optIndex)}
-                        />
-                        {t('teacherExams.correctAnswer')}
-                      </label>
+                {[0, 1, 2, 3].map(optIndex => {
+                  const defaultLetter = ['( أ )', '( ب )', '( ج )', '( د )'][optIndex];
+                  return (
+                    <div key={optIndex} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: q.correctOption === optIndex ? 'rgba(37, 211, 102, 0.1)' : 'transparent', padding: '12px', borderRadius: '8px', border: q.correctOption === optIndex ? '2px solid #25D366' : '1px solid var(--color-border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#0f172a',
+                          color: '#ffffff',
+                          fontWeight: '800',
+                          fontSize: '15px',
+                          padding: '4px 14px',
+                          borderRadius: '6px',
+                          letterSpacing: '0.5px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
+                        }}>
+                          {defaultLetter}
+                        </span>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, cursor: 'pointer', color: q.correctOption === optIndex ? '#25D366' : 'inherit', fontWeight: 'bold' }}>
+                          <input 
+                            type="radio" 
+                            name={`correct_${qIndex}`} 
+                            checked={q.correctOption === optIndex} 
+                            onChange={() => updateQuestion(qIndex, 'correctOption', optIndex)}
+                          />
+                          {t('teacherExams.correctAnswer')}
+                        </label>
+                      </div>
+                      <MarkdownInput 
+                        label=""
+                        value={q.options && q.options[optIndex] !== undefined ? q.options[optIndex] : defaultLetter}
+                        onChange={(val) => updateOption(qIndex, optIndex, val)}
+                        placeholder={defaultLetter}
+                        height="100px"
+                      />
                     </div>
-                    <MarkdownInput 
-                      label=""
-                      value={q.options[optIndex]}
-                      onChange={(val) => updateOption(qIndex, optIndex, val)}
-                      placeholder={`${t('teacherExams.option')} ${optIndex + 1}...`}
-                      height="100px"
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}

@@ -4,6 +4,7 @@ import Header from './Header';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Building2, Sparkles } from 'lucide-react';
 import AboutSchoolModal from './AboutSchoolModal';
+import QiyasPlatformModal from './QiyasPlatformModal';
 import './Layout.css';
 
 export default function Layout({ role, title, children }) {
@@ -38,6 +39,9 @@ export default function Layout({ role, title, children }) {
         isOpen={showAboutModal} 
         onClose={() => setShowAboutModal(false)} 
       />
+
+      {/* Global Floating Action Button & Modal: منصة نبيه للقدرات (في الجهة اليمنى بعيداً عن زر من نحن) */}
+      <QiyasPlatformModal />
 
       <div style={{
         position: 'fixed',
