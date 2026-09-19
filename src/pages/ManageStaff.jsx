@@ -177,17 +177,28 @@ export default function ManageStaff({ schoolId }) {
     setIsSaving(true);
 
     try {
-      // Strict duplicate check across all collections
-      const uCheck = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
+      // 1. Check active staff
       const staffCheck = await getDocs(query(collection(db, 'staff'), where('nationalId', '==', nid)));
+      if (!staffCheck.empty) {
+        alert('عذراً: يوجد عضو كادر إداري مسجل مسبقاً بهذا الرقم في النظام!');
+        setIsSaving(false);
+        return;
+      }
+
+      // 2. Check active teachers, students, supervisors
       const supCheck = await getDocs(query(collection(db, 'supervisors'), where('nationalId', '==', nid)));
       const tCheck = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', nid)));
       const sCheck = await getDocs(query(collection(db, 'students'), where('nationalId', '==', nid)));
-
-      if (!uCheck.empty || !staffCheck.empty || !supCheck.empty || !tCheck.empty || !sCheck.empty) {
-        alert('عذراً: رقم الهوية هذا مسجل مسبقاً في النظام. لا يمكن تسجيل نفس الرقم نهائياً!');
+      if (!supCheck.empty || !tCheck.empty || !sCheck.empty) {
+        alert('عذراً: رقم الهوية هذا مسجل مسبقاً لمستخدم آخر في النظام!');
         setIsSaving(false);
         return;
+      }
+
+      // 3. Clean up any leftover orphaned user records from previously deleted accounts
+      const uCheck = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
+      if (!uCheck.empty) {
+        await Promise.all(uCheck.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
       }
 
       const fakeEmail = `${nid}@school.local`;
@@ -328,18 +339,29 @@ export default function ManageStaff({ schoolId }) {
         await deleteDoc(doc(db, 'staff', id));
       }
       if (nationalId) {
-        const staffSnap = await getDocs(query(collection(db, 'staff'), where('nationalId', '==', nationalId)));
-        staffSnap.forEach(async (d) => await deleteDoc(doc(db, 'staff', d.id)));
-        const uSnap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nationalId)));
-        uSnap.forEach(async (d) => await deleteDoc(doc(db, 'users', d.id)));
+        const nid = String(nationalId).trim();
+        const staffSnap = await getDocs(query(collection(db, 'staff'), where('nationalId', '==', nid)));
+        await Promise.all(staffSnap.docs.map(d => deleteDoc(doc(db, 'staff', d.id))));
+
+        const uQueries = [
+          query(collection(db, 'users'), where('nationalId', '==', nid)),
+          query(collection(db, 'users'), where('email', '==', `${nid}@school.local`))
+        ];
+        if (!isNaN(nid)) uQueries.push(query(collection(db, 'users'), where('nationalId', '==', Number(nid))));
+        for (const q of uQueries) {
+          try {
+            const uSnap = await getDocs(q);
+            await Promise.all(uSnap.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
+          } catch (e) {}
+        }
 
         try {
           const saved = JSON.parse(localStorage.getItem('msc_custom_staff') || '[]');
-          const updated = saved.filter(s => String(s.nationalId).trim() !== String(nationalId).trim());
+          const updated = saved.filter(s => String(s.nationalId).trim() !== nid);
           localStorage.setItem('msc_custom_staff', JSON.stringify(updated));
         } catch (e) {}
       }
-      alert('تم حذف العضو بنجاح');
+      alert('تم حذف العضو وكافة سجلاته بنجاح');
     } catch (err) {
       console.error(err);
       alert('حدث خطأ أثناء الحذف');

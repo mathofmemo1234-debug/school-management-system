@@ -925,14 +925,17 @@ function SuperAdminHome() {
         if (nid) {
           try {
             const qNidStr = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
-            qNidStr.forEach(async (d) => { if (d.id !== admin.id) await deleteDoc(doc(db, 'users', d.id)); });
+            await Promise.all(qNidStr.docs.map(d => {
+              if (d.id !== admin.id) return deleteDoc(doc(db, 'users', d.id));
+              return Promise.resolve();
+            }));
           } catch (e) {}
         }
 
         if (email) {
           try {
             const qEmail = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
-            qEmail.forEach(async (d) => { await deleteDoc(doc(db, 'users', d.id)); });
+            await Promise.all(qEmail.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
           } catch (e) {}
         }
 

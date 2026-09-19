@@ -28,6 +28,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import GamificationBadge from '../components/GamificationBadge';
 import { calculateTeacherActivity, calculateStudentActivity } from '../utils/gamificationEngine';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
+import TeacherSubjectSelector from '../components/TeacherSubjectSelector';
 
 function AdminHome({ schoolId }) {
   const { t, isRTL } = useLanguage();
@@ -1227,6 +1228,8 @@ function ManageTeachers({ schoolId }) {
   const [name, setName] = useState('');
   const [nationalId, setNationalId] = useState('');
   const [subject, setSubject] = useState('');
+  const [selectedSubjects, setSelectedSubjects] = useState([]);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
   const [nationality, setNationality] = useState('سعودي');
   const [isSaving, setIsSaving] = useState(false);
   const [teacherActivityMap, setTeacherActivityMap] = useState({});
@@ -1234,6 +1237,17 @@ function ManageTeachers({ schoolId }) {
   // Bulk Add
   const [bulkData, setBulkData] = useState('');
   
+  // Load school subjects for dropdown selection
+  useEffect(() => {
+    if (!schoolId) return;
+    const qSub = schoolId === 'ALL' ? collection(db, 'subjects') : query(collection(db, 'subjects'), where('schoolId', '==', schoolId));
+    const unsubSub = onSnapshot(qSub, (snap) => {
+      const dbSubs = snap.docs.map(d => d.data()?.name?.trim()).filter(Boolean);
+      setAvailableSubjects(dbSubs);
+    });
+    return () => unsubSub();
+  }, [schoolId]);
+
   useEffect(() => {
     if (!schoolId) return;
     const q = query(collection(db, 'teachers'), where('schoolId', '==', schoolId));
@@ -1334,18 +1348,38 @@ function ManageTeachers({ schoolId }) {
     e.preventDefault();
     const nid = nationalId.trim();
     const tName = name.trim();
-    const tSubj = subject.trim();
+    const subjsList = selectedSubjects.length > 0 ? selectedSubjects : (subject.trim() ? [subject.trim()] : []);
+    const tSubj = subjsList.join('، ');
+    
     if (!tName || !nid) return;
+    if (subjsList.length === 0) {
+      alert('يرجى إسناد مادة واحدة على الأقل للمعلم (من القائمة أو كتابتها يدوياً).');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      // Strict check: No duplicate national IDs allowed anywhere in system
-      const uCheck = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
+      // 1. Strict check on active teachers
       const tCheck = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', nid)));
-      const sCheck = await getDocs(query(collection(db, 'students'), where('nationalId', '==', nid)));
-      if (!uCheck.empty || !tCheck.empty || !sCheck.empty) {
-        alert('عذراً: رقم الهوية هذا مسجل مسبقاً في النظام. لا يمكن تسجيل نفس الرقم نهائياً!');
+      if (!tCheck.empty) {
+        alert('عذراً: يوجد معلم مسجل مسبقاً برقم الهوية هذا في النظام!');
         setIsSaving(false);
         return;
+      }
+
+      // 2. Strict check on students
+      const sCheck = await getDocs(query(collection(db, 'students'), where('nationalId', '==', nid)));
+      if (!sCheck.empty) {
+        alert('عذراً: رقم الهوية هذا مسجل مسبقاً لطالب في النظام. لا يمكن استخدام نفس الرقم للمعلم!');
+        setIsSaving(false);
+        return;
+      }
+
+      // 3. Clean up any leftover orphaned user records from previously deleted accounts
+      const uCheck = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
+      if (!uCheck.empty) {
+        console.log('Cleaning up orphaned users documents for deleted account:', nid);
+        await Promise.all(uCheck.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
       }
 
       const fakeEmail = `${nid}@school.local`;
@@ -1355,6 +1389,7 @@ function ManageTeachers({ schoolId }) {
         nationalId: nid,
         email: fakeEmail,
         subject: tSubj,
+        subjects: subjsList,
         nationality: tNat,
         role: 'teacher',
         schoolId,
@@ -1378,6 +1413,7 @@ function ManageTeachers({ schoolId }) {
         role: 'teacher',
         name: tName,
         subject: tSubj,
+        subjects: subjsList,
         nationality: tNat,
         password: nid,
         schoolId
@@ -1393,7 +1429,8 @@ function ManageTeachers({ schoolId }) {
       }
 
       setIsAdding(false);
-      setName(''); setNationalId(''); setSubject(''); setNationality('سعودي');
+      setName(''); setNationalId(''); setSubject(''); setSelectedSubjects([]); setNationality('سعودي');
+      alert('✅ تمت إضافة المعلم بنجاح.');
     } catch (err) {
       console.error(err);
       alert(t('adminDashboard.saveError'));
@@ -1535,41 +1572,86 @@ function ManageTeachers({ schoolId }) {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (!editingTeacher) return;
     setIsSaving(true);
     try {
       const updatedName = editingTeacher.name?.trim() || '';
-      const updatedSubj = editingTeacher.subject?.trim() || '';
+      const oldNid = String(editingTeacher.originalNationalId || editingTeacher.nationalId || '').trim();
+      const newNid = String(editingTeacher.nationalId || '').trim();
+      const updatedSubjs = editingTeacher.selectedSubjects || (editingTeacher.subject ? editingTeacher.subject.split(/[,،]+/).map(s => s.trim()).filter(Boolean) : []);
+      const updatedSubjStr = updatedSubjs.join('، ');
       const updatedWhatsapp = editingTeacher.whatsapp?.trim() || '';
       const updatedNat = editingTeacher.nationality?.trim() || 'سعودي';
 
-      await updateDoc(doc(db, 'teachers', editingTeacher.id), {
+      if (!updatedName || !newNid) {
+        alert('يرجى إدخال اسم ورقم المعلم.');
+        setIsSaving(false);
+        return;
+      }
+
+      if (updatedSubjs.length === 0) {
+        alert('يرجى إسناد مادة واحدة على الأقل للمعلم.');
+        setIsSaving(false);
+        return;
+      }
+
+      // If nationalId was changed, ensure it's not already used by someone else
+      if (newNid !== oldNid) {
+        const tCheck = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', newNid)));
+        const sCheck = await getDocs(query(collection(db, 'students'), where('nationalId', '==', newNid)));
+        const otherTeacher = tCheck.docs.find(d => d.id !== editingTeacher.id);
+        if (otherTeacher || !sCheck.empty) {
+          alert('عذراً: رقم المعلم / الهوية الجديد مسجل مسبقاً لمستخدم آخر في النظام!');
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      const updatedData = {
         name: updatedName,
-        subject: updatedSubj,
+        nationalId: newNid,
+        email: `${newNid}@school.local`,
+        subject: updatedSubjStr,
+        subjects: updatedSubjs,
         whatsapp: updatedWhatsapp,
         nationality: updatedNat
-      });
+      };
 
-      if (editingTeacher.nationalId) {
-        const tSnap = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', editingTeacher.nationalId)));
-        tSnap.forEach(async (d) => {
+      await updateDoc(doc(db, 'teachers', editingTeacher.id), updatedData);
+
+      if (oldNid) {
+        const tSnap = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', oldNid)));
+        await Promise.all(tSnap.docs.map(async (d) => {
           if (d.id !== editingTeacher.id) {
-            await updateDoc(doc(db, 'teachers', d.id), {
-              name: updatedName,
-              subject: updatedSubj,
-              whatsapp: updatedWhatsapp,
-              nationality: updatedNat
-            });
+            await updateDoc(doc(db, 'teachers', d.id), updatedData);
           }
-        });
-
-        const snap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', editingTeacher.nationalId)));
-        snap.forEach(async (d) => await updateDoc(doc(db, 'users', d.id), {
-          name: updatedName,
-          nationality: updatedNat
         }));
+
+        const snap = await getDocs(query(collection(db, 'users'), where('nationalId', '==', oldNid)));
+        await Promise.all(snap.docs.map(async (d) => await updateDoc(doc(db, 'users', d.id), {
+          name: updatedName,
+          nationalId: newNid,
+          email: `${newNid}@school.local`,
+          subject: updatedSubjStr,
+          subjects: updatedSubjs,
+          nationality: updatedNat,
+          whatsapp: updatedWhatsapp
+        })));
+
+        try {
+          const saved = JSON.parse(localStorage.getItem('msc_custom_teachers') || '[]');
+          const updated = saved.map(t => {
+            if (String(t.nationalId).trim() === oldNid || t.id === editingTeacher.id) {
+              return { ...t, ...updatedData };
+            }
+            return t;
+          });
+          localStorage.setItem('msc_custom_teachers', JSON.stringify(updated));
+        } catch (lsErr) {}
       }
 
       setEditingTeacher(null);
+      alert('✅ تم حفظ كافة تعديلات المعلم بنجاح.');
     } catch (err) {
       console.error(err);
       alert(t('adminDashboard.updateError'));
@@ -1675,7 +1757,22 @@ function ManageTeachers({ schoolId }) {
                 >
                   <Award size={15} /> ملف الإنجاز
                 </button>
-                <button onClick={() => setEditingTeacher(tData)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', color: 'var(--color-primary)', padding: '6px', display: 'flex', alignItems: 'center' }}><Edit size={16} /></button>
+                <button 
+                  onClick={() => {
+                    const curSubjs = (tData.subjects && Array.isArray(tData.subjects) && tData.subjects.length > 0)
+                      ? tData.subjects
+                      : (tData.subject ? tData.subject.split(/[,،]+/).map(s => s.trim()).filter(Boolean) : []);
+                    setEditingTeacher({
+                      ...tData,
+                      originalNationalId: tData.nationalId,
+                      selectedSubjects: curSubjs
+                    });
+                  }} 
+                  style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', color: 'var(--color-primary)', padding: '6px', display: 'flex', alignItems: 'center' }}
+                  title="تعديل بيانات المعلم"
+                >
+                  <Edit size={16} />
+                </button>
                 <button onClick={() => handleDelete(tData.id, tData.nationalId)} style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', cursor: 'pointer', color: '#ff4d4f', padding: '6px', display: 'flex', alignItems: 'center' }}><Trash2 size={16} /></button>
               </div>
             </div>
@@ -1685,7 +1782,7 @@ function ManageTeachers({ schoolId }) {
 
       {isAdding && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '420px', padding: '24px', position: 'relative' }}>
+          <div className="glass-panel" style={{ width: '480px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', position: 'relative' }}>
             <button onClick={() => setIsAdding(false)} style={{ position: 'absolute', top: '15px', left: '15px', background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color="var(--color-text-muted)" /></button>
             <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--color-primary-dark)' }}>{t('adminDashboard.addNewTeacher')}</h3>
             <form onSubmit={handleSaveSingle} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1694,14 +1791,15 @@ function ManageTeachers({ schoolId }) {
                 <input type="text" className="input-field" value={name} onChange={e => setName(e.target.value)} placeholder={t('adminDashboard.fullNamePlaceholder')} required />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-muted)' }}>{t('adminDashboard.nationalId')}</label>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-muted)' }}>{t('adminDashboard.nationalId')} (رقم المعلم / الهوية)</label>
                 <input type="text" className="input-field" value={nationalId} onChange={e => setNationalId(e.target.value)} placeholder="10xxxxxxxx" required />
               </div>
               <NationalitySelect value={nationality} onChange={setNationality} required />
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-muted)' }}>{t('adminDashboard.subject')}</label>
-                <input type="text" className="input-field" value={subject} onChange={e => setSubject(e.target.value)} placeholder={t('adminDashboard.subjectPlaceholder')} required />
-              </div>
+              <TeacherSubjectSelector 
+                selectedSubjects={selectedSubjects} 
+                onChange={setSelectedSubjects} 
+                availableSubjects={availableSubjects} 
+              />
               <button type="submit" className="btn btn-primary" disabled={isSaving}>{isSaving ? t('adminDashboard.saving') : t('adminDashboard.saveData')}</button>
             </form>
           </div>
@@ -1710,7 +1808,7 @@ function ManageTeachers({ schoolId }) {
 
       {editingTeacher && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '420px', padding: '24px', position: 'relative' }}>
+          <div className="glass-panel" style={{ width: '480px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', position: 'relative' }}>
             <button onClick={() => setEditingTeacher(null)} style={{ position: 'absolute', top: '15px', left: '15px', background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color="var(--color-text-muted)" /></button>
             <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--color-primary-dark)' }}>{t('adminDashboard.editTeacherTitle')}</h3>
             <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1718,14 +1816,26 @@ function ManageTeachers({ schoolId }) {
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-muted)' }}>{t('adminDashboard.teacherName')}</label>
                 <input type="text" className="input-field" value={editingTeacher.name} onChange={e => setEditingTeacher({...editingTeacher, name: e.target.value})} placeholder={t('adminDashboard.fullNamePlaceholder')} required />
               </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-muted)' }}>رقم المعلم / الهوية الوطنية (قابل للتعديل)</label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  value={editingTeacher.nationalId || ''} 
+                  onChange={e => setEditingTeacher({...editingTeacher, nationalId: e.target.value})} 
+                  placeholder="10xxxxxxxx" 
+                  required 
+                />
+              </div>
               <NationalitySelect 
                 value={editingTeacher.nationality || 'سعودي'} 
                 onChange={val => setEditingTeacher({...editingTeacher, nationality: val})} 
               />
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-muted)' }}>{t('adminDashboard.subject')}</label>
-                <input type="text" className="input-field" value={editingTeacher.subject} onChange={e => setEditingTeacher({...editingTeacher, subject: e.target.value})} placeholder={t('adminDashboard.subjectPlaceholder')} required />
-              </div>
+              <TeacherSubjectSelector 
+                selectedSubjects={editingTeacher.selectedSubjects || []} 
+                onChange={subs => setEditingTeacher({...editingTeacher, selectedSubjects: subs, subject: subs.join('، ')})} 
+                availableSubjects={availableSubjects} 
+              />
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-muted)' }}>{t('adminDashboard.whatsappOptional')}</label>
                 <input type="text" className="input-field" value={editingTeacher.whatsapp || ''} onChange={e => setEditingTeacher({...editingTeacher, whatsapp: e.target.value})} placeholder={t('adminDashboard.whatsappPlaceholder')} />
@@ -1884,14 +1994,27 @@ function ManageSupervisors({ schoolId }) {
     if (!sName || !nid) return;
     setIsSaving(true);
     try {
-      const uCheck = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
+      // 1. Check active supervisors
       const supCheck = await getDocs(query(collection(db, 'supervisors'), where('nationalId', '==', nid)));
-      const tCheck = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', nid)));
-      const sCheck = await getDocs(query(collection(db, 'students'), where('nationalId', '==', nid)));
-      if (!uCheck.empty || !supCheck.empty || !tCheck.empty || !sCheck.empty) {
-        alert('عذراً: رقم الهوية هذا مسجل مسبقاً في النظام. لا يمكن تسجيل نفس الرقم نهائياً!');
+      if (!supCheck.empty) {
+        alert('عذراً: يوجد مشرف مسجل مسبقاً بهذا الرقم في النظام!');
         setIsSaving(false);
         return;
+      }
+
+      // 2. Check active teachers and students
+      const tCheck = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', nid)));
+      const sCheck = await getDocs(query(collection(db, 'students'), where('nationalId', '==', nid)));
+      if (!tCheck.empty || !sCheck.empty) {
+        alert('عذراً: رقم الهوية هذا مسجل مسبقاً لمستخدم آخر في النظام!');
+        setIsSaving(false);
+        return;
+      }
+
+      // 3. Clean up any leftover orphaned user records from previously deleted accounts
+      const uCheck = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
+      if (!uCheck.empty) {
+        await Promise.all(uCheck.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
       }
 
       const fakeEmail = `${nid}@school.local`;
@@ -2475,15 +2598,34 @@ function ManageStudents({ schoolId }) {
     if (!sName || !nid || !sClass) return;
     setIsSaving(true);
     try {
-      // Strict check: No duplicate national IDs allowed anywhere in system
-      const uCheck = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
+      // 1. Check active students
       const sCheck = await getDocs(query(collection(db, 'students'), where('nationalId', '==', nid)));
-      const tCheck = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', nid)));
-      if (!uCheck.empty || !sCheck.empty || !tCheck.empty) {
-        alert('عذراً: رقم الهوية هذا مسجل مسبقاً في النظام. لا يمكن تسجيل نفس الرقم نهائياً!');
+      if (!sCheck.empty) {
+        alert('عذراً: يوجد طالب مسجل مسبقاً بهذا الرقم في النظام!');
         setIsSaving(false);
         return;
       }
+
+      // 2. Check active teachers
+      const tCheck = await getDocs(query(collection(db, 'teachers'), where('nationalId', '==', nid)));
+      if (!tCheck.empty) {
+        alert('عذراً: رقم الهوية هذا مسجل مسبقاً لمعلم في النظام!');
+        setIsSaving(false);
+        return;
+      }
+
+      // 3. Clean up any leftover orphaned user records from previously deleted accounts
+      const uCheck = await getDocs(query(collection(db, 'users'), where('nationalId', '==', nid)));
+      if (!uCheck.empty) {
+        await Promise.all(uCheck.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
+      }
+
+      // 4. Remove from deleted students blacklist if previously deleted
+      try {
+        const deletedList = JSON.parse(localStorage.getItem('msc_deleted_students') || '[]');
+        const updatedDeleted = deletedList.filter(x => String(x).trim() !== nid);
+        localStorage.setItem('msc_deleted_students', JSON.stringify(updatedDeleted));
+      } catch (lsErr) {}
 
       const fakeEmail = `${nid}@school.local`;
       const studentData = {

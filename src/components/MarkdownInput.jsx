@@ -44,13 +44,31 @@ export default function MarkdownInput({ label, value, onChange, placeholder, hei
       });
 
       setCompressNotice('جاري رفع الصورة المحسنة...');
-      const storageRef = ref(storage, `inline_images/${Date.now()}_${optimizedFile.name || 'image.jpg'}`);
-      await uploadBytes(storageRef, optimizedFile);
-      const url = await getDownloadURL(storageRef);
-      insertTextAtCursor(`\n![${t('markdownInput.image')}](${url})\n`);
+      let imageUrl = null;
+
+      try {
+        const storageRef = ref(storage, `inline_images/${Date.now()}_${optimizedFile.name || 'image.jpg'}`);
+        await uploadBytes(storageRef, optimizedFile);
+        imageUrl = await getDownloadURL(storageRef);
+      } catch (storageErr) {
+        console.warn('Firebase Storage upload failed, seamlessly falling back to high-quality compressed Base64:', storageErr);
+      }
+
+      // If Firebase Storage failed (CORS, rules, quota, etc.), seamlessly fall back to Base64 Data URL
+      if (!imageUrl) {
+        setCompressNotice('جاري تضمين الصورة بدقة عالية...');
+        imageUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(optimizedFile);
+        });
+      }
+
+      insertTextAtCursor(`\n![${t('markdownInput.image') || 'صورة'}](${imageUrl})\n`);
     } catch (error) {
-      console.error('Error uploading inline image:', error);
-      alert('حدث خطأ أثناء معالجة ورفع الصورة');
+      console.error('Error processing inline image:', error);
+      alert('حدث خطأ أثناء معالجة الصورة، يرجى المحاولة مرة أخرى.');
     } finally {
       setIsUploading(false);
       setCompressNotice('');

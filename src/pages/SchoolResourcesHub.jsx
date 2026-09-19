@@ -1263,10 +1263,32 @@ export default function SchoolResourcesHub({ role }) {
         }
       }
 
-      // 2. Delete teacher doc
+      // 2. Delete teacher doc and corresponding users doc(s)
+      const targetTeacher = teachersList.find(t => t.id === teacherId);
       await deleteDoc(doc(db, 'teachers', teacherId));
+
+      if (targetTeacher?.nationalId) {
+        const nid = String(targetTeacher.nationalId).trim();
+        const uQ = [
+          query(collection(db, 'users'), where('nationalId', '==', nid)),
+          query(collection(db, 'users'), where('email', '==', `${nid}@school.local`))
+        ];
+        if (!isNaN(nid)) uQ.push(query(collection(db, 'users'), where('nationalId', '==', Number(nid))));
+        for (const q of uQ) {
+          try {
+            const uSnap = await getDocs(q);
+            await Promise.all(uSnap.docs.map(d => deleteDoc(doc(db, 'users', d.id))));
+          } catch (e) {}
+        }
+        try {
+          const saved = JSON.parse(localStorage.getItem('msc_custom_teachers') || '[]');
+          const updated = saved.filter(t => String(t.nationalId).trim() !== nid);
+          localStorage.setItem('msc_custom_teachers', JSON.stringify(updated));
+        } catch (e) {}
+      }
+
       setTeachersList(prev => prev.filter(t => t.id !== teacherId));
-      alert('تم حذف المعلم بنجاح وتحديث جداول الفصول.');
+      alert('تم حذف المعلم بنجاح وتحديث جداول الفصول وكافة سجلات الحساب.');
     } catch (err) {
       console.error('Error deleting teacher:', err);
       setTeachersList(prev => prev.filter(t => t.id !== teacherId));
