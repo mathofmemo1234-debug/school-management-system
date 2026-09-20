@@ -57,6 +57,7 @@ export default function AdminExamsManagement() {
   const userRole = userData?.role || 'admin';
   const isAdmin = userRole === 'admin' || userRole === 'superadmin';
   const isSupervisor = userRole === 'supervisor';
+  const isStaff = userRole === 'staff';
   const canManageLevels = isAdmin || (isSupervisor && allowSupervisorsToManageLevels) || (isStaff && allowStaffToManageLevels);
 
   // Set default tab for supervisor or staff to remedial_matrix
