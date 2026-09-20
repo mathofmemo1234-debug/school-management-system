@@ -198,7 +198,7 @@ export const generateMicrosoftFormsImportDocument = (exam) => {
     type: "application/msword;charset=utf-8"
   });
 
-  const cleanFilename = `${(exam.title || "اختبار").replace(/[/\\?%*:|"<>]/g, "_")}_Microsoft_Forms.doc`;
+  const cleanFilename = `${(exam.title || (exam.subject ? `اختبار_${exam.subject}_${exam.targetClass || ''}` : "اختبار")).replace(/[/\\?%*:|"<>]/g, "_").trim()}.doc`;
 
   return {
     blob,

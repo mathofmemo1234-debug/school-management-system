@@ -214,9 +214,8 @@ export default function ExamPreviewModal({
 
     const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `اختبار_${exam.subject || 'مادة'}_${exam.targetClass || ''}_مستقل_بالصور.html`;
+    const cleanExamTitle = (exam.title || (exam.subject ? `اختبار_${exam.subject}_${exam.targetClass || ''}` : 'اختبار')).replace(/[/\\?%*:|"<>]/g, '_').trim();
+    a.download = `${cleanExamTitle}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

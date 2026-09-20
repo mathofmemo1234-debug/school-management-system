@@ -20,6 +20,7 @@ import ComprehensiveStudentRecord from './ComprehensiveStudentRecord';
 import TeacherPerformanceEvaluationHub from './TeacherPerformanceEvaluationHub';
 import SchoolResourcesHub from './SchoolResourcesHub';
 import TeacherExams from './TeacherExams';
+import AdminExamsManagement from './AdminExamsManagement';
 
 function SupervisorHome({ schoolId }) {
   const { userData } = useAuth();
@@ -275,6 +276,7 @@ export default function SupervisorDashboard() {
         <Route path="/resources" element={<SchoolResourcesHub role="supervisor" />} />
         <Route path="/messages" element={<SchoolMessagingHub />} />
         <Route path="/portfolio" element={<AchievementPortfolioPage />} />
+        <Route path="/exams-management/*" element={<AdminExamsManagement />} />
         <Route path="/teacher-exams/*" element={<TeacherExams />} />
         <Route path="/teacher-evaluations" element={<TeacherPerformanceEvaluationHub role="supervisor" />} />
         <Route path="/student-records" element={<ComprehensiveStudentRecord role="supervisor" />} />

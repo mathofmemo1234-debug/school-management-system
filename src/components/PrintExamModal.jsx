@@ -35,7 +35,14 @@ export default function PrintExamModal({
   const passRate = totalStudents > 0 ? Math.round((passCount / totalStudents) * 100) : 0;
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    const cleanExamTitle = (exam?.title || (exam?.subject ? `اختبار_${exam.subject}_${exam.targetClass || ''}` : 'اختبار')).replace(/[/\\?%*:|"<>]/g, '_').trim();
+    const printTitle = mode === 'exam' ? cleanExamTitle : `كشف_نتائج_${cleanExamTitle}`;
+    document.title = printTitle;
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   };
 
   // Helper to generate Word Document (.doc) Blob
@@ -126,9 +133,10 @@ export default function PrintExamModal({
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
+    const cleanExamTitle = (exam?.title || (exam?.subject ? `اختبار_${exam.subject}_${exam.targetClass || ''}` : 'اختبار')).replace(/[/\\?%*:|"<>]/g, '_').trim();
     const filename = mode === 'exam' 
-      ? `اختبار_${exam?.subject || 'مادة'}_${exam?.targetClass || ''}.doc`
-      : `كشف_نتائج_اختبار_${exam?.title || 'مادة'}.doc`;
+      ? `${cleanExamTitle}.doc`
+      : `كشف_نتائج_${cleanExamTitle}.doc`;
 
     link.href = url;
     link.download = filename;

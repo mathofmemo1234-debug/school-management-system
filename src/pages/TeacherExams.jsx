@@ -1561,7 +1561,15 @@ export default function TeacherExams() {
             <button 
               className="btn btn-primary" 
               style={{ background: 'linear-gradient(135deg, #0e7490, #63B2C6)', display: 'flex', alignItems: 'center', gap: '6px' }}
-              onClick={() => window.print()}
+              onClick={() => {
+                const originalTitle = document.title;
+                const cleanExamTitle = (currentExam?.title || 'الاختبار').replace(/[/\\?%*:|"<>]/g, '_').trim();
+                document.title = `تقرير_تحليل_${cleanExamTitle}`;
+                window.print();
+                setTimeout(() => {
+                  document.title = originalTitle;
+                }, 1000);
+              }}
             >
               <Printer size={16} /> طباعة تقرير التحليل (PDF)
             </button>

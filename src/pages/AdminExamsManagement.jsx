@@ -48,6 +48,24 @@ export default function AdminExamsManagement() {
   const [editingLevel, setEditingLevel] = useState(null);
   const [matrixSaving, setMatrixSaving] = useState(false);
 
+  // Delegation of Permissions for Supervisor & Staff
+  const [allowSupervisorsToManageLevels, setAllowSupervisorsToManageLevels] = useState(false);
+  const [allowStaffToManageLevels, setAllowStaffToManageLevels] = useState(false);
+  const [savingPermissions, setSavingPermissions] = useState(false);
+
+  // Roles & Permissions check
+  const userRole = userData?.role || 'admin';
+  const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+  const isSupervisor = userRole === 'supervisor';
+  const canManageLevels = isAdmin || (isSupervisor && allowSupervisorsToManageLevels) || (isStaff && allowStaffToManageLevels);
+
+  // Set default tab for supervisor or staff to remedial_matrix
+  useEffect(() => {
+    if (!isAdmin && (isSupervisor || isStaff)) {
+      setActiveTab('remedial_matrix');
+    }
+  }, [isAdmin, isSupervisor, isStaff]);
+
   // Exam Builder Modal state
   const [showExamModal, setShowExamModal] = useState(false);
   const [editingExamId, setEditingExamId] = useState(null);
@@ -93,14 +111,23 @@ export default function AdminExamsManagement() {
     return () => unsub();
   }, [schoolId]);
 
-  // Realtime Listener for Custom Remedial Matrix
+  // Realtime Listener for Custom Remedial Matrix and Permissions
   useEffect(() => {
     const configDocRef = doc(db, 'exam_remedial_configs', schoolId);
     const unsub = onSnapshot(configDocRef, docSnap => {
-      if (docSnap.exists() && Array.isArray(docSnap.data().levels)) {
-        setRemedialMatrix(docSnap.data().levels);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (Array.isArray(data.levels) && data.levels.length > 0) {
+          setRemedialMatrix(data.levels);
+        } else {
+          setRemedialMatrix(ACADEMIC_LEVELS);
+        }
+        setAllowSupervisorsToManageLevels(Boolean(data.allowSupervisorsToManageLevels));
+        setAllowStaffToManageLevels(Boolean(data.allowStaffToManageLevels));
       } else {
         setRemedialMatrix(ACADEMIC_LEVELS);
+        setAllowSupervisorsToManageLevels(false);
+        setAllowStaffToManageLevels(false);
       }
     }, err => {
       console.warn('Remedial config listener notice:', err);
@@ -273,22 +300,109 @@ export default function AdminExamsManagement() {
 
   // Save Custom Remedial Matrix to Firestore
   const handleSaveRemedialMatrix = async (updatedLevels) => {
+    if (!canManageLevels) {
+      alert('ليس لديك صلاحية لتعديل مصفوفة المستويات. يرجى التواصل مع مدير المدرسة.');
+      return;
+    }
     setMatrixSaving(true);
     try {
+      // ترتيب المستويات تنازلياً حسب النسبة المئوية
+      const sorted = [...updatedLevels].sort((a, b) => (Number(b.minPercentage) || 0) - (Number(a.minPercentage) || 0));
       await setDoc(doc(db, 'exam_remedial_configs', schoolId), {
         schoolId,
-        levels: updatedLevels,
+        levels: sorted,
+        allowSupervisorsToManageLevels,
+        allowStaffToManageLevels,
         updatedAt: serverTimestamp(),
         updatedBy: userData?.name || 'مدير قسم الاختبارات'
       }, { merge: true });
-      setRemedialMatrix(updatedLevels);
+      setRemedialMatrix(sorted);
       setEditingLevel(null);
-      alert('تم حفظ مصفوفة البرامج العلاجية بنجاح!');
+      alert('تم حفظ مصفوفة البرامج العلاجية وتحديث المستويات بنجاح!');
     } catch (err) {
       console.error('Error saving remedial matrix:', err);
       alert('حدث خطأ أثناء حفظ مصفوفة البرامج العلاجية');
     } finally {
       setMatrixSaving(false);
+    }
+  };
+
+  // Delete Level
+  const handleDeleteLevel = (levelCode) => {
+    if (!canManageLevels) {
+      alert('ليس لديك صلاحية لتعديل أو حذف المستويات.');
+      return;
+    }
+    if (remedialMatrix.length <= 1) {
+      alert('يجب الإبقاء على مستوى واحد على الأقل في النظام.');
+      return;
+    }
+    if (!window.confirm('هل أنت متأكد من حذف هذا المستوى الأكاديمي؟')) return;
+    const filtered = remedialMatrix.filter(lvl => (lvl.code || `level_${lvl.id}`) !== levelCode);
+    handleSaveRemedialMatrix(filtered);
+  };
+
+  // Add New Level
+  const handleAddNewLevel = () => {
+    if (!canManageLevels) {
+      alert('ليس لديك صلاحية لإضافة مستويات.');
+      return;
+    }
+    const newId = remedialMatrix.length + 1;
+    const newLevel = {
+      code: `level_custom_${Date.now()}`,
+      id: newId,
+      name: 'مستوى جديد',
+      symbol: 'C+',
+      minPercentage: 65,
+      maxPercentage: 74.99,
+      color: '#0284c7',
+      bgColor: '#f0f9ff',
+      borderColor: '#bae6fd',
+      type: 'reinforcement',
+      typeLabel: 'برنامج تعزيز ودعم المهارات',
+      defaultTitle: 'برنامج تطوير المهارات الأكاديمية والارتقاء بالأداء',
+      diagnosis: 'يظهر الطالب استيعاباً للمفاهيم الأساسية، مع وجود فرص للتطوير في المهارات التطبيقية.',
+      actionPlan: [
+        'تطبيق أوراق عمل تفاعلية على المهارات المستهدفة.',
+        'متابعة حل التدريبات الصفية وتوجيه تغذية راجعة فورية.',
+        'تشجيع الطالب على المشاركة المنتظمة.'
+      ],
+      parentAdvice: 'يرجى متابعة الطالب في المنزل وتنظيم أوقات المذاكرة والتعاون مع معلم المادة.',
+      enTitle: 'Academic Development & Skills Reinforcement Program',
+      enDiagnosis: 'Student shows a good understanding of core skills with opportunities to improve.',
+      enActionPlan: [
+        'Provide targeted practice worksheets.',
+        'Follow up with classroom assignments and provide immediate feedback.',
+        'Encourage active participation in daily lessons.'
+      ],
+      enParentAdvice: 'Please assist in organizing home study routines and communicate regularly with the subject teacher.'
+    };
+    setEditingLevel(newLevel);
+  };
+
+  // Toggle Permissions for Supervisor / Staff
+  const handleTogglePermission = async (permKey, value) => {
+    if (!isAdmin) {
+      alert('فقط مدير المدرسة يملك صلاحية منح أو تعديل أذونات النظام.');
+      return;
+    }
+    setSavingPermissions(true);
+    try {
+      await setDoc(doc(db, 'exam_remedial_configs', schoolId), {
+        schoolId,
+        [permKey]: value,
+        updatedAt: serverTimestamp(),
+        updatedBy: userData?.name || 'مدير المدرسة'
+      }, { merge: true });
+      if (permKey === 'allowSupervisorsToManageLevels') setAllowSupervisorsToManageLevels(value);
+      if (permKey === 'allowStaffToManageLevels') setAllowStaffToManageLevels(value);
+      alert('تم تحديث الصلاحية بنجاح!');
+    } catch (err) {
+      console.error('Error updating permissions:', err);
+      alert('حدث خطأ أثناء حفظ الصلاحية');
+    } finally {
+      setSavingPermissions(false);
     }
   };
 
@@ -623,43 +737,155 @@ export default function AdminExamsManagement() {
       ───────────────────────────────────────────────────────────── */}
       {activeTab === 'remedial_matrix' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* Permission Notice if user cannot manage levels */}
+          {!canManageLevels && (
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '14px 18px', borderRadius: '12px', color: '#92400e', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <AlertCircle size={20} color="#d97706" />
+              <div>
+                <strong>تنبيه الصلاحية:</strong> مصفوفة المستويات والبرامج العلاجية للقراءة فقط لحسابك الحالي. يمكن لمدير المدرسة منحك صلاحية التعديل من خلال لوحة تفويض الصلاحيات أدناه.
+              </div>
+            </div>
+          )}
+
+          {/* Admin Permissions Delegation Card */}
+          {isAdmin && (
+            <div className="glass-panel" style={{ 
+              padding: '18px 22px', 
+              borderRadius: '16px', 
+              background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
+              border: '2px solid #bfdbfe'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Sliders size={18} color="#2563eb" />
+                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#1e3a8a' }}>
+                      تفويض صلاحيات إدارة المستويات والبرامج العلاجية
+                    </h3>
+                  </div>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                    يمكنك كمدير للمدرسة منح صلاحية تعديل مسميات ونسب المستويات وإعداد الخطط للمشرف التربوي والكادر الإداري:
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    fontSize: '12px', 
+                    fontWeight: 'bold', 
+                    color: allowSupervisorsToManageLevels ? '#166534' : '#334155', 
+                    cursor: 'pointer', 
+                    background: allowSupervisorsToManageLevels ? '#f0fdf4' : 'white', 
+                    padding: '8px 14px', 
+                    borderRadius: '10px', 
+                    border: `1px solid ${allowSupervisorsToManageLevels ? '#86efac' : '#cbd5e1'}` 
+                  }}>
+                    <input 
+                      type="checkbox" 
+                      checked={allowSupervisorsToManageLevels}
+                      onChange={(e) => handleTogglePermission('allowSupervisorsToManageLevels', e.target.checked)}
+                      disabled={savingPermissions}
+                    />
+                    <span>صلاحية المشرف التربوي (Supervisor)</span>
+                  </label>
+
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    fontSize: '12px', 
+                    fontWeight: 'bold', 
+                    color: allowStaffToManageLevels ? '#166534' : '#334155', 
+                    cursor: 'pointer', 
+                    background: allowStaffToManageLevels ? '#f0fdf4' : 'white', 
+                    padding: '8px 14px', 
+                    borderRadius: '10px', 
+                    border: `1px solid ${allowStaffToManageLevels ? '#86efac' : '#cbd5e1'}` 
+                  }}>
+                    <input 
+                      type="checkbox" 
+                      checked={allowStaffToManageLevels}
+                      onChange={(e) => handleTogglePermission('allowStaffToManageLevels', e.target.checked)}
+                      disabled={savingPermissions}
+                    />
+                    <span>صلاحية الكادر الإداري (Staff)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', background: 'var(--color-bg-card)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }}>
               <div>
                 <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 4px 0', color: '#0f172a' }}>
-                  مصفوفة المستويات الأكاديمية الثمانية والبرامج العلاجية التلقائية
+                  مصفوفة المستويات الأكاديمية والبرامج العلاجية ({remedialMatrix.length} مستويات)
                 </h2>
                 <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
-                  يقوم النظام بتصنيف درجات الطلاب آلياً إلى أحد المستويات الثمانية فور إدخال المعلم للدرجة، وتوليد الخطة العلاجية أو الإثرائية المقترحة. يمكن لمدير الاختبارات تخصيص التوصيات لكل مستوى.
+                  تصنيف ديناميكي مرن: يمكنك تعديل التسميات، مدى الدرجات والنسب، الرموز، وإضافة أو حذف المستويات.
                 </p>
               </div>
 
-              <button 
-                onClick={() => handleSaveRemedialMatrix(ACADEMIC_LEVELS)}
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
-                  color: '#475569',
-                  borderRadius: '8px',
-                  padding: '8px 16px',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
-                }}
-              >
-                استعادة الضبط الافتراضي للمستويات
-              </button>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {canManageLevels && (
+                  <button 
+                    onClick={handleAddNewLevel}
+                    style={{
+                      background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+                      border: 'none',
+                      color: 'white',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
+                    }}
+                  >
+                    <Plus size={16} />
+                    <span>إضافة مستوى جديد</span>
+                  </button>
+                )}
+
+                {canManageLevels && (
+                  <button 
+                    onClick={() => {
+                      if (window.confirm('هل أنت متأكد من استعادة الضبط الافتراضي للمستويات الثمانية؟')) {
+                        handleSaveRemedialMatrix(ACADEMIC_LEVELS);
+                      }
+                    }}
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      color: '#475569',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    استعادة الضبط الافتراضي
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* 8 Levels Cards Grid */}
+            {/* Levels Cards Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-              {remedialMatrix.map((lvl) => (
+              {remedialMatrix.map((lvl, index) => (
                 <div 
-                  key={lvl.code}
+                  key={lvl.code || lvl.id || index}
                   style={{
                     borderRadius: '14px',
-                    border: `2px solid ${lvl.borderColor}`,
-                    background: lvl.bgColor,
+                    border: `2px solid ${lvl.borderColor || '#cbd5e1'}`,
+                    background: lvl.bgColor || '#f8fafc',
                     padding: '18px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -676,7 +902,7 @@ export default function AdminExamsManagement() {
                           width: '32px', 
                           height: '32px', 
                           borderRadius: '8px', 
-                          background: lvl.color, 
+                          background: lvl.color || '#0284c7', 
                           color: 'white', 
                           fontWeight: 'bold', 
                           fontSize: '13px', 
@@ -684,14 +910,14 @@ export default function AdminExamsManagement() {
                           alignItems: 'center', 
                           justifyContent: 'center' 
                         }}>
-                          {lvl.symbol}
+                          {lvl.symbol || 'L'}
                         </span>
                         <div>
-                          <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: lvl.color }}>
-                            {lvl.id}. {lvl.name}
+                          <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: lvl.color || '#0f172a' }}>
+                            {lvl.name}
                           </h4>
                           <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>
-                            {lvl.typeLabel}
+                            {lvl.typeLabel || (lvl.type === 'enrichment' ? 'برنامج إثرائي' : lvl.type === 'remedial' ? 'برنامج علاجي' : 'برنامج تعزيز')}
                           </span>
                         </div>
                       </div>
@@ -702,8 +928,8 @@ export default function AdminExamsManagement() {
                         padding: '3px 8px', 
                         borderRadius: '6px', 
                         background: 'white', 
-                        color: lvl.color,
-                        border: `1px solid ${lvl.borderColor}`
+                        color: lvl.color || '#0284c7',
+                        border: `1px solid ${lvl.borderColor || '#cbd5e1'}`
                       }}>
                         {lvl.minPercentage}% - {lvl.maxPercentage}%
                       </span>
@@ -720,8 +946,8 @@ export default function AdminExamsManagement() {
                     </p>
 
                     {/* Action Plan Points Preview */}
-                    <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${lvl.borderColor}`, fontSize: '11px', color: '#334155' }}>
-                      <strong style={{ display: 'block', marginBottom: '6px', color: lvl.color }}>أبرز بنود الخطة:</strong>
+                    <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${lvl.borderColor || '#e2e8f0'}`, fontSize: '11px', color: '#334155' }}>
+                      <strong style={{ display: 'block', marginBottom: '6px', color: lvl.color || '#0284c7' }}>أبرز بنود الخطة:</strong>
                       <ul style={{ margin: 0, paddingRight: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {(lvl.actionPlan || []).slice(0, 3).map((pt, i) => (
                           <li key={i}>{pt}</li>
@@ -730,27 +956,53 @@ export default function AdminExamsManagement() {
                     </div>
                   </div>
 
-                  {/* Edit Level Button */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: `1px dashed ${lvl.borderColor}`, paddingTop: '10px' }}>
-                    <button 
-                      onClick={() => setEditingLevel({ ...lvl })}
-                      style={{
-                        background: 'white',
-                        border: `1px solid ${lvl.borderColor}`,
-                        color: lvl.color,
-                        padding: '6px 14px',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <Edit size={14} />
-                      <span>تخصيص الخطة والتوجيهات</span>
-                    </button>
+                  {/* Actions (Edit / Delete) */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px dashed ${lvl.borderColor || '#cbd5e1'}`, paddingTop: '10px' }}>
+                    {canManageLevels && remedialMatrix.length > 1 ? (
+                      <button
+                        onClick={() => handleDeleteLevel(lvl.code || `level_${lvl.id}`)}
+                        style={{
+                          background: '#fef2f2',
+                          border: '1px solid #fecaca',
+                          color: '#dc2626',
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                        title="حذف هذا المستوى"
+                      >
+                        <Trash2 size={13} />
+                        <span>حذف</span>
+                      </button>
+                    ) : <div />}
+
+                    {canManageLevels ? (
+                      <button 
+                        onClick={() => setEditingLevel({ ...lvl })}
+                        style={{
+                          background: 'white',
+                          border: `1px solid ${lvl.borderColor || '#cbd5e1'}`,
+                          color: lvl.color || '#0284c7',
+                          padding: '6px 14px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <Edit size={14} />
+                        <span>تعديل المستوى والخطة</span>
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>للقراءة فقط</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1242,18 +1494,21 @@ export default function AdminExamsManagement() {
             background: 'white',
             borderRadius: '20px',
             width: '100%',
-            maxWidth: '640px',
-            maxHeight: '90vh',
+            maxWidth: '680px',
+            maxHeight: '92vh',
             overflowY: 'auto',
             padding: '24px',
-            direction: 'rtl'
+            direction: 'rtl',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px', marginBottom: '18px' }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 'bold', color: editingLevel.color }}>
-                  تخصيص الخطة: {editingLevel.name} ({editingLevel.minPercentage}% - {editingLevel.maxPercentage}%)
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: editingLevel.color || '#0284c7' }}>
+                  تخصيص المستوى الأكاديمي: {editingLevel.name}
                 </h3>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>{editingLevel.typeLabel}</span>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  تعديل التسمية، مدى الدرجات والنسبة المئوية، وبنود الخطة العلاجية والإثرائية
+                </span>
               </div>
               <button 
                 onClick={() => setEditingLevel(null)}
@@ -1264,57 +1519,249 @@ export default function AdminExamsManagement() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
-                  عنوان البرنامج التلقائي
-                </label>
-                <input 
-                  type="text" 
-                  value={editingLevel.defaultTitle}
-                  onChange={(e) => setEditingLevel({ ...editingLevel, defaultTitle: e.target.value })}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                />
+              
+              {/* Row 1: Name & Symbol */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
+                    مسمى المستوى الأكاديمي (التسمية) *
+                  </label>
+                  <input 
+                    type="text" 
+                    value={editingLevel.name || ''}
+                    onChange={(e) => setEditingLevel({ ...editingLevel, name: e.target.value })}
+                    placeholder="مثال: ممتاز مرتفع، متقدم، يحتاج دعم..."
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 'bold' }}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
+                    الرمز (Symbol) *
+                  </label>
+                  <input 
+                    type="text" 
+                    value={editingLevel.symbol || ''}
+                    onChange={(e) => setEditingLevel({ ...editingLevel, symbol: e.target.value })}
+                    placeholder="A+, A, B..."
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}
+                    required
+                  />
+                </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
-                  التشخيص التربوي للمستوى
-                </label>
-                <textarea 
-                  rows="2"
-                  value={editingLevel.diagnosis}
-                  onChange={(e) => setEditingLevel({ ...editingLevel, diagnosis: e.target.value })}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                />
+              {/* Row 2: Min & Max Percentage (Score Range) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
+                    الحد الأدنى للنسبة (%) *
+                  </label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={editingLevel.minPercentage !== undefined ? editingLevel.minPercentage : 0}
+                    onChange={(e) => setEditingLevel({ ...editingLevel, minPercentage: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
+                    الحد الأعلى للنسبة (%) *
+                  </label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={editingLevel.maxPercentage !== undefined ? editingLevel.maxPercentage : 100}
+                    onChange={(e) => setEditingLevel({ ...editingLevel, maxPercentage: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
+                    تصنيف البرنامج التربوي
+                  </label>
+                  <select 
+                    value={editingLevel.type || 'reinforcement'}
+                    onChange={(e) => {
+                      const tVal = e.target.value;
+                      const labelMap = {
+                        enrichment: 'برنامج إثرائي متقدم ورعاية موهوبين',
+                        reinforcement: 'برنامج تعزيز ودعم المهارات',
+                        remedial: 'برنامج علاجي وتدخل طارئ'
+                      };
+                      setEditingLevel({ 
+                        ...editingLevel, 
+                        type: tVal,
+                        typeLabel: labelMap[tVal] || 'برنامج أكاديمي'
+                      });
+                    }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold' }}
+                  >
+                    <option value="enrichment">إثرائي ورعاية موهوبين (Enrichment)</option>
+                    <option value="reinforcement">تعزيز ودعم المهارات (Reinforcement)</option>
+                    <option value="remedial">علاجي وتدخل طارئ (Remedial)</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
-                  بنود الخطة والأنشطة المقترحة (بند في كل سطر)
-                </label>
-                <textarea 
-                  rows="4"
-                  value={(editingLevel.actionPlan || []).join('\n')}
-                  onChange={(e) => setEditingLevel({ 
-                    ...editingLevel, 
-                    actionPlan: e.target.value.split('\n').filter(line => line.trim().length > 0) 
-                  })}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', lineHeight: '1.5' }}
-                />
+              {/* Row 3: Color Theme */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>لون تمييز المستوى:</span>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {['#059669', '#10b981', '#2563eb', '#0891b2', '#d97706', '#ea580c', '#dc2626', '#991b1b', '#7c3aed'].map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setEditingLevel({ 
+                        ...editingLevel, 
+                        color: c, 
+                        bgColor: `${c}12`, 
+                        borderColor: `${c}40` 
+                      })}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: c,
+                        border: editingLevel.color === c ? '3px solid #0f172a' : '2px solid white',
+                        cursor: 'pointer',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  ))}
+                  <input 
+                    type="color" 
+                    value={editingLevel.color || '#2563eb'}
+                    onChange={(e) => setEditingLevel({ 
+                      ...editingLevel, 
+                      color: e.target.value,
+                      bgColor: `${e.target.value}15`,
+                      borderColor: `${e.target.value}45`
+                    })}
+                    style={{ width: '32px', height: '30px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                    title="اختر لوناً مخصصاً"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
-                  إرشادات وتوجيهات لولي الأمر في التقرير
-                </label>
-                <textarea 
-                  rows="2"
-                  value={editingLevel.parentAdvice}
-                  onChange={(e) => setEditingLevel({ ...editingLevel, parentAdvice: e.target.value })}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                />
+              {/* Arabic Content */}
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: 'bold', color: '#0369a1' }}>
+                  🇸🇦 النصوص والرسائل باللغة العربية:
+                </h4>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
+                      عنوان البرنامج التلقائي
+                    </label>
+                    <input 
+                      type="text" 
+                      value={editingLevel.defaultTitle || ''}
+                      onChange={(e) => setEditingLevel({ ...editingLevel, defaultTitle: e.target.value })}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
+                      التشخيص التربوي للمستوى
+                    </label>
+                    <textarea 
+                      rows="2"
+                      value={editingLevel.diagnosis || ''}
+                      onChange={(e) => setEditingLevel({ ...editingLevel, diagnosis: e.target.value })}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
+                      بنود الخطة والأنشطة المقترحة (بند في كل سطر)
+                    </label>
+                    <textarea 
+                      rows="3"
+                      value={(editingLevel.actionPlan || []).join('\n')}
+                      onChange={(e) => setEditingLevel({ 
+                        ...editingLevel, 
+                        actionPlan: e.target.value.split('\n').filter(line => line.trim().length > 0) 
+                      })}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', lineHeight: '1.5' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b' }}>
+                      إرشادات وتوجيهات لولي الأمر في التقرير
+                    </label>
+                    <textarea 
+                      rows="2"
+                      value={editingLevel.parentAdvice || ''}
+                      onChange={(e) => setEditingLevel({ ...editingLevel, parentAdvice: e.target.value })}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                    />
+                  </div>
+                </div>
               </div>
 
+              {/* English Content */}
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: 'bold', color: '#4338ca' }}>
+                  🇬🇧 النصوص والرسائل باللغة الإنجليزية (English Version):
+                </h4>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', direction: 'ltr' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b', textAlign: 'left' }}>
+                      Program Title (English)
+                    </label>
+                    <input 
+                      type="text" 
+                      value={editingLevel.enTitle || ''}
+                      onChange={(e) => setEditingLevel({ ...editingLevel, enTitle: e.target.value })}
+                      placeholder="e.g. Academic Excellence Program"
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b', textAlign: 'left' }}>
+                      Educational Diagnosis (English)
+                    </label>
+                    <textarea 
+                      rows="2"
+                      value={editingLevel.enDiagnosis || ''}
+                      onChange={(e) => setEditingLevel({ ...editingLevel, enDiagnosis: e.target.value })}
+                      placeholder="e.g. Outstanding performance demonstrating comprehensive mastery..."
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#1e293b', textAlign: 'left' }}>
+                      Parent Guidance Advice (English)
+                    </label>
+                    <textarea 
+                      rows="2"
+                      value={editingLevel.enParentAdvice || ''}
+                      onChange={(e) => setEditingLevel({ ...editingLevel, enParentAdvice: e.target.value })}
+                      placeholder="e.g. We congratulate you on your child's success..."
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #e2e8f0', paddingTop: '14px', marginTop: '10px' }}>
                 <button 
                   onClick={() => setEditingLevel(null)}
@@ -1324,7 +1771,10 @@ export default function AdminExamsManagement() {
                 </button>
                 <button 
                   onClick={() => {
-                    const updated = remedialMatrix.map(m => m.code === editingLevel.code ? editingLevel : m);
+                    const exists = remedialMatrix.some(m => (m.code || `level_${m.id}`) === (editingLevel.code || `level_${editingLevel.id}`));
+                    const updated = exists 
+                      ? remedialMatrix.map(m => (m.code || `level_${m.id}`) === (editingLevel.code || `level_${editingLevel.id}`) ? editingLevel : m)
+                      : [...remedialMatrix, editingLevel];
                     handleSaveRemedialMatrix(updated);
                   }}
                   disabled={matrixSaving}
@@ -1332,9 +1782,10 @@ export default function AdminExamsManagement() {
                   style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Save size={14} />
-                  <span>{matrixSaving ? 'جاري الحفظ...' : 'حفظ الخطة للمستوى'}</span>
+                  <span>{matrixSaving ? 'جاري الحفظ...' : 'حفظ واعتماد المستوى'}</span>
                 </button>
               </div>
+
             </div>
           </div>
         </div>

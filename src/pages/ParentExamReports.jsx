@@ -11,7 +11,11 @@ import {
   Award, 
   FileSpreadsheet, 
   Printer, 
-  Sparkles
+  Sparkles,
+  Globe,
+  Languages,
+  BookOpen,
+  MessageSquare
 } from 'lucide-react';
 import { ACADEMIC_LEVELS, getLevelByPercentage } from '../utils/examGradingEngine';
 
@@ -29,6 +33,7 @@ export default function ParentExamReports({ targetStudentNationalId, targetStude
   const [gradesRecords, setGradesRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubjectTab, setSelectedSubjectTab] = useState(null);
+  const [parentViewLang, setParentViewLang] = useState('both'); // 'both' | 'ar' | 'en'
 
   // 1. Fetch available exams
   useEffect(() => {
@@ -382,109 +387,268 @@ export default function ParentExamReports({ targetStudentNationalId, targetStude
       </div>
 
       {/* ─── SMART REMEDIAL / ENRICHMENT PROGRAM DETAILS CARD FOR PARENTS ─── */}
-      {activeSubjectRecord && (
-        <div className="glass-panel" style={{ 
-          padding: '24px', 
-          borderRadius: '16px', 
-          background: activeSubjectRecord.levelType === 'remedial' ? '#fff1f2' : '#f0fdf4',
-          border: `2px solid ${activeSubjectRecord.levelType === 'remedial' ? '#f43f5e' : '#22c55e'}`,
-          boxShadow: '0 4px 14px rgba(0,0,0,0.03)'
-        }}>
-          
-          {/* Header of Remedial Box */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ 
-                width: '40px', 
-                height: '40px', 
-                borderRadius: '10px', 
-                background: activeSubjectRecord.levelColor, 
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Sparkles size={22} />
-              </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: activeSubjectRecord.levelColor }}>
-                  {activeSubjectRecord.remedialProgram?.title || 'خطة التطوير الأكاديمي'}
-                </h3>
-                <span style={{ fontSize: '12px', color: '#475569' }}>
-                  مادة: <strong>{activeSubjectRecord.subject}</strong> | المستوى: <strong>{activeSubjectRecord.levelName} ({activeSubjectRecord.levelSymbol})</strong>
-                </span>
-              </div>
-            </div>
+      {activeSubjectRecord && (() => {
+        const rem = activeSubjectRecord.remedialProgram || {};
+        const teacherVisibility = rem.parentLanguageDisplay || 'both'; // 'ar' | 'en' | 'both'
+        
+        // Determine effective view language for parent
+        let effectiveLang = parentViewLang;
+        if (teacherVisibility === 'ar') effectiveLang = 'ar';
+        else if (teacherVisibility === 'en') effectiveLang = 'en';
 
-            {/* Subject Selector Tabs */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {examGrades.map(g => (
-                <button
-                  key={g.id}
-                  onClick={() => setSelectedSubjectTab(g.subject)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    background: selectedSubjectTab === g.subject ? activeSubjectRecord.levelColor : 'white',
-                    color: selectedSubjectTab === g.subject ? 'white' : '#475569',
-                    border: `1px solid ${selectedSubjectTab === g.subject ? activeSubjectRecord.levelColor : '#cbd5e1'}`
-                  }}
-                >
-                  {g.subject}
-                </button>
-              ))}
-            </div>
-          </div>
+        const arData = rem.ar || {
+          title: rem.title || 'خطة التطوير الأكاديمي',
+          diagnosis: rem.diagnosis || '',
+          actionPlan: rem.actionPlan || [],
+          parentAdvice: rem.parentAdvice || '',
+          teacherNotes: rem.teacherNotes || ''
+        };
 
-          {/* Educational Diagnosis */}
-          <div style={{ background: 'white', padding: '16px', borderRadius: '12px', marginBottom: '14px', border: '1px solid rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '4px' }}>
-              التشخيص التربوي للأداء:
-            </div>
-            <div style={{ fontSize: '13px', color: '#1e293b', lineHeight: '1.6' }}>
-              {activeSubjectRecord.remedialProgram?.diagnosis}
-            </div>
-          </div>
+        const enData = rem.en || {
+          title: rem.enTitle || 'Academic Development Plan',
+          diagnosis: rem.enDiagnosis || '',
+          actionPlan: rem.enActionPlan || [],
+          parentAdvice: rem.enParentAdvice || '',
+          teacherNotes: rem.teacherNotes || ''
+        };
 
-          {/* Action Items for Remedial */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+        const showAr = effectiveLang === 'ar' || effectiveLang === 'both';
+        const showEn = effectiveLang === 'en' || effectiveLang === 'both';
+
+        return (
+          <div className="glass-panel" style={{ 
+            padding: '24px', 
+            borderRadius: '16px', 
+            background: activeSubjectRecord.levelType === 'remedial' ? '#fff1f2' : '#f0fdf4',
+            border: `2px solid ${activeSubjectRecord.levelType === 'remedial' ? '#f43f5e' : '#22c55e'}`,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.03)'
+          }}>
             
-            {/* School Plan */}
-            <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)' }}>
-              <strong style={{ fontSize: '13px', color: activeSubjectRecord.levelColor, display: 'block', marginBottom: '8px' }}>
-                خطة المعلم والمدرسة لرفع المستوى:
-              </strong>
-              <ul style={{ margin: 0, paddingRight: '18px', fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px', lineHeight: '1.5' }}>
-                {(activeSubjectRecord.remedialProgram?.actionPlan || []).map((pt, idx) => (
-                  <li key={idx}>{pt}</li>
-                ))}
-              </ul>
+            {/* Header of Remedial Box */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ 
+                  width: '42px', 
+                  height: '42px', 
+                  borderRadius: '10px', 
+                  background: activeSubjectRecord.levelColor, 
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}>
+                  <Sparkles size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: activeSubjectRecord.levelColor }}>
+                    {showAr && !showEn ? arData.title : (!showAr && showEn ? enData.title : `${arData.title} / ${enData.title}`)}
+                  </h3>
+                  <span style={{ fontSize: '12px', color: '#475569' }}>
+                    مادة: <strong>{activeSubjectRecord.subject}</strong> | المستوى: <strong>{activeSubjectRecord.levelName} ({activeSubjectRecord.levelSymbol})</strong>
+                    {rem.aiGenerated && (
+                      <span style={{ marginRight: '8px', background: '#e0e7ff', color: '#4338ca', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>
+                        ✨ موصى به بالذكاء الاصطناعي
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+                {/* Subject Selector Tabs */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {examGrades.map(g => (
+                    <button
+                      key={g.id}
+                      onClick={() => setSelectedSubjectTab(g.subject)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        background: selectedSubjectTab === g.subject ? activeSubjectRecord.levelColor : 'white',
+                        color: selectedSubjectTab === g.subject ? 'white' : '#475569',
+                        border: `1px solid ${selectedSubjectTab === g.subject ? activeSubjectRecord.levelColor : '#cbd5e1'}`
+                      }}
+                    >
+                      {g.subject}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Parent Language Switcher (Only if teacher allowed 'both') */}
+                {teacherVisibility === 'both' && (
+                  <div style={{ display: 'flex', background: 'white', padding: '3px', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
+                    <button
+                      onClick={() => setParentViewLang('both')}
+                      style={{
+                        padding: '5px 10px',
+                        borderRadius: '7px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        border: 'none',
+                        background: effectiveLang === 'both' ? '#0f172a' : 'transparent',
+                        color: effectiveLang === 'both' ? 'white' : '#64748b'
+                      }}
+                    >
+                      🌐 اللغتان معاً
+                    </button>
+                    <button
+                      onClick={() => setParentViewLang('ar')}
+                      style={{
+                        padding: '5px 10px',
+                        borderRadius: '7px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        border: 'none',
+                        background: effectiveLang === 'ar' ? '#0284c7' : 'transparent',
+                        color: effectiveLang === 'ar' ? 'white' : '#64748b'
+                      }}
+                    >
+                      🇸🇦 العربية
+                    </button>
+                    <button
+                      onClick={() => setParentViewLang('en')}
+                      style={{
+                        padding: '5px 10px',
+                        borderRadius: '7px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        border: 'none',
+                        background: effectiveLang === 'en' ? '#6366f1' : 'transparent',
+                        color: effectiveLang === 'en' ? 'white' : '#64748b'
+                      }}
+                    >
+                      🇬🇧 English
+                    </button>
+                  </div>
+                )}
+                {teacherVisibility === 'ar' && (
+                  <span style={{ fontSize: '11px', color: '#0369a1', background: '#e0f2fe', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                    🇸🇦 العرض بالعربية
+                  </span>
+                )}
+                {teacherVisibility === 'en' && (
+                  <span style={{ fontSize: '11px', color: '#4338ca', background: '#e0e7ff', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                    🇬🇧 English Only
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Parent Advice & Home Role */}
-            <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)' }}>
-              <strong style={{ fontSize: '13px', color: '#0369a1', display: 'block', marginBottom: '8px' }}>
-                دور ولي الأمر في المنزل لدعم الطالب:
-              </strong>
-              <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#334155', lineHeight: '1.6' }}>
-                {activeSubjectRecord.remedialProgram?.parentAdvice}
-              </p>
+            {/* Content Display: Arabic & English Side-by-Side or Selected */}
+            <div style={{ display: 'grid', gridTemplateColumns: effectiveLang === 'both' ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr', gap: '16px' }}>
+              
+              {/* Arabic Section */}
+              {showAr && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {effectiveLang === 'both' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0369a1', fontWeight: 'bold', fontSize: '13px' }}>
+                      <span>🇸🇦 النسخة العربية</span>
+                    </div>
+                  )}
 
-              {activeSubjectRecord.remedialProgram?.teacherNotes && (
-                <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderRight: `3px solid ${activeSubjectRecord.levelColor}`, fontSize: '12px' }}>
-                  <strong style={{ display: 'block', color: '#0f172a', marginBottom: '2px' }}>ملاحظة المعلم المباشرة:</strong>
-                  <span style={{ color: '#475569' }}>{activeSubjectRecord.remedialProgram.teacherNotes}</span>
+                  {/* Educational Diagnosis (AR) */}
+                  <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '4px' }}>
+                      التشخيص التربوي للأداء:
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#1e293b', lineHeight: '1.6' }}>
+                      {arData.diagnosis || 'لا يوجد تشخيص مسجل.'}
+                    </div>
+                  </div>
+
+                  {/* Action Items (AR) */}
+                  <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)' }}>
+                    <strong style={{ fontSize: '13px', color: activeSubjectRecord.levelColor, display: 'block', marginBottom: '8px' }}>
+                      خطة المدرسة لرفع المستوى وتطوير الأداء:
+                    </strong>
+                    <ul style={{ margin: 0, paddingRight: '18px', fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px', lineHeight: '1.5' }}>
+                      {(arData.actionPlan || []).map((pt, idx) => (
+                        <li key={idx}>{pt}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Parent Advice & Home Role (AR) */}
+                  <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)' }}>
+                    <strong style={{ fontSize: '13px', color: '#0369a1', display: 'block', marginBottom: '8px' }}>
+                      دور ولي الأمر في المنزل لدعم الطالب:
+                    </strong>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#334155', lineHeight: '1.6' }}>
+                      {arData.parentAdvice || 'متابعة الطالب المستمرة والتواصل مع معلم المادة.'}
+                    </p>
+
+                    {(arData.teacherNotes || rem.teacherNotes) && (
+                      <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderRight: `3px solid ${activeSubjectRecord.levelColor}`, fontSize: '12px' }}>
+                        <strong style={{ display: 'block', color: '#0f172a', marginBottom: '2px' }}>ملاحظة المعلم المباشرة:</strong>
+                        <span style={{ color: '#475569' }}>{arData.teacherNotes || rem.teacherNotes}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
+
+              {/* English Section */}
+              {showEn && (
+                <div dir="ltr" style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
+                  {effectiveLang === 'both' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4338ca', fontWeight: 'bold', fontSize: '13px' }}>
+                      <span>🇬🇧 English Version</span>
+                    </div>
+                  )}
+
+                  {/* Educational Diagnosis (EN) */}
+                  <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '4px' }}>
+                      Educational Diagnosis:
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#1e293b', lineHeight: '1.6' }}>
+                      {enData.diagnosis || 'No educational diagnosis recorded.'}
+                    </div>
+                  </div>
+
+                  {/* Action Items (EN) */}
+                  <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)' }}>
+                    <strong style={{ fontSize: '13px', color: activeSubjectRecord.levelColor, display: 'block', marginBottom: '8px' }}>
+                      School & Teacher Action Plan:
+                    </strong>
+                    <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px', lineHeight: '1.5' }}>
+                      {(enData.actionPlan || []).map((pt, idx) => (
+                        <li key={idx}>{pt}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Parent Advice & Home Role (EN) */}
+                  <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)' }}>
+                    <strong style={{ fontSize: '13px', color: '#4338ca', display: 'block', marginBottom: '8px' }}>
+                      Parent's Role at Home:
+                    </strong>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#334155', lineHeight: '1.6' }}>
+                      {enData.parentAdvice || 'Consistent follow-up at home and regular communication with the teacher.'}
+                    </p>
+
+                    {(enData.teacherNotes || rem.teacherNotes) && (
+                      <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderLeft: `3px solid ${activeSubjectRecord.levelColor}`, fontSize: '12px' }}>
+                        <strong style={{ display: 'block', color: '#0f172a', marginBottom: '2px' }}>Teacher's Direct Observation:</strong>
+                        <span style={{ color: '#475569' }}>{enData.teacherNotes || rem.teacherNotes}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
 
           </div>
-
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );

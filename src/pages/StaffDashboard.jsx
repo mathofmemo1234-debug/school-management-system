@@ -23,6 +23,7 @@ import ComprehensiveStudentRecord from './ComprehensiveStudentRecord';
 import TeacherPerformanceEvaluationHub from './TeacherPerformanceEvaluationHub';
 import SchoolResourcesHub from './SchoolResourcesHub';
 import TeacherExams from './TeacherExams';
+import AdminExamsManagement from './AdminExamsManagement';
 
 function StaffHome({ schoolId }) {
   const { userData } = useAuth();
@@ -500,6 +501,7 @@ export default function StaffDashboard() {
         <Route path="/resources" element={<SchoolResourcesHub role="staff" />} />
         <Route path="/messages" element={<SchoolMessagingHub />} />
         <Route path="/portfolio" element={<AchievementPortfolioPage />} />
+        <Route path="/exams-management/*" element={<AdminExamsManagement />} />
         <Route path="/teacher-exams/*" element={<TeacherExams />} />
         <Route path="/teacher-evaluations" element={<TeacherPerformanceEvaluationHub role="staff" />} />
         <Route path="/student-records" element={<ComprehensiveStudentRecord role="staff" />} />

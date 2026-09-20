@@ -205,16 +205,24 @@ export const STANDARD_STAGES = [
 
 // 4. دالة البحث عن المستوى بناءً على النسبة المئوية
 export function getLevelByPercentage(percentage, customMatrix = null) {
-  const levels = customMatrix && customMatrix.length === 8 ? customMatrix : ACADEMIC_LEVELS;
+  let levels = customMatrix && Array.isArray(customMatrix) && customMatrix.length > 0 
+    ? [...customMatrix] 
+    : ACADEMIC_LEVELS;
+
+  // ترتيب المستويات تنازلياً حسب الحد الأدنى للنسبة لضمان دقة مطابقة النطاق
+  levels.sort((a, b) => (Number(b.minPercentage) || 0) - (Number(a.minPercentage) || 0));
+
   const pct = Math.max(0, Math.min(100, Number(percentage) || 0));
 
   for (const lvl of levels) {
-    if (pct >= lvl.minPercentage && pct <= lvl.maxPercentage) {
+    const min = Number(lvl.minPercentage) ?? 0;
+    const max = Number(lvl.maxPercentage) ?? 100;
+    if (pct >= min && pct <= max) {
       return lvl;
     }
   }
   // Fallback to lowest level
-  return levels[levels.length - 1];
+  return levels[levels.length - 1] || ACADEMIC_LEVELS[ACADEMIC_LEVELS.length - 1];
 }
 
 // 5. دالة احتساب المجموع، النسبة، وتوليد البرنامج العلاجي
@@ -255,22 +263,39 @@ export function calculateStudentGradeResult({
   const percentage = maxTotalScore > 0 ? (totalScore / maxTotalScore) * 100 : 0;
   const roundedPercentage = Number(percentage.toFixed(2));
 
-  // استخراج المستوى من المستويات الثمانية
+  // استخراج المستوى من مصفوفة المستويات
   const levelObj = getLevelByPercentage(roundedPercentage, customMatrix);
 
-  // توليد البرنامج العلاجي / الإثرائي
+  // توليد البرنامج العلاجي / الإثرائي ثنائي اللغة
   const remedialProgram = {
-    levelCode: levelObj.code,
+    levelCode: levelObj.code || `level_${levelObj.id || 1}`,
     levelName: levelObj.name,
     levelSymbol: levelObj.symbol,
     programType: levelObj.type,
-    programTypeLabel: levelObj.typeLabel,
-    title: levelObj.defaultTitle,
-    diagnosis: levelObj.diagnosis,
-    actionPlan: [...levelObj.actionPlan],
+    programTypeLabel: levelObj.typeLabel || '',
+    title: levelObj.defaultTitle || '',
+    diagnosis: levelObj.diagnosis || '',
+    actionPlan: Array.isArray(levelObj.actionPlan) ? [...levelObj.actionPlan] : [],
     teacherNotes: teacherCustomNotes || '',
-    parentAdvice: levelObj.parentAdvice,
-    skillsToTarget: skillsToTarget && skillsToTarget.length > 0 ? skillsToTarget : []
+    parentAdvice: levelObj.parentAdvice || '',
+    skillsToTarget: skillsToTarget && skillsToTarget.length > 0 ? skillsToTarget : [],
+    parentLanguageDisplay: 'both', // 'ar' | 'en' | 'both'
+    ar: {
+      title: levelObj.defaultTitle || '',
+      diagnosis: levelObj.diagnosis || '',
+      actionPlan: Array.isArray(levelObj.actionPlan) ? [...levelObj.actionPlan] : [],
+      parentAdvice: levelObj.parentAdvice || '',
+      teacherNotes: teacherCustomNotes || ''
+    },
+    en: {
+      title: levelObj.enTitle || `Academic Development Program (${levelObj.symbol || 'Plan'})`,
+      diagnosis: levelObj.enDiagnosis || `Educational diagnosis: Academic performance classified at ${levelObj.name || ''} (${levelObj.symbol || ''}).`,
+      actionPlan: Array.isArray(levelObj.enActionPlan) && levelObj.enActionPlan.length > 0
+        ? [...levelObj.enActionPlan]
+        : ['Follow up closely with teacher recommendations.', 'Review lesson worksheets regularly at home.', 'Practice targeted skill reinforcement exercises.'],
+      parentAdvice: levelObj.enParentAdvice || 'We kindly request regular home monitoring of study time and close coordination with the subject teacher.',
+      teacherNotes: teacherCustomNotes || ''
+    }
   };
 
   return {
@@ -280,13 +305,13 @@ export function calculateStudentGradeResult({
     totalScore: Number(totalScore.toFixed(2)),
     maxScore: maxTotalScore,
     percentage: roundedPercentage,
-    levelCode: levelObj.code,
+    levelCode: levelObj.code || `level_${levelObj.id || 1}`,
     levelName: levelObj.name,
     levelSymbol: levelObj.symbol,
-    levelColor: levelObj.color,
-    levelBgColor: levelObj.bgColor,
-    levelBorderColor: levelObj.borderColor,
-    levelType: levelObj.type,
+    levelColor: levelObj.color || '#0284c7',
+    levelBgColor: levelObj.bgColor || '#f0f9ff',
+    levelBorderColor: levelObj.borderColor || '#bae6fd',
+    levelType: levelObj.type || 'reinforcement',
     remedialProgram
   };
 }

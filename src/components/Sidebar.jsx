@@ -58,6 +58,7 @@ export default function Sidebar({ role }) {
 
   const staffLinks = [
     { path: '/staff', icon: Home, label: t('sidebar.overview') },
+    { path: '/staff/exams-management', icon: FileSpreadsheet, label: 'إدارة الاختبارات ومصفوفة المستويات' },
     { path: '/staff/teacher-exams', icon: FileText, label: 'معاينة بنك اختبارات المعلمين' },
     { path: '/staff/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
     { path: '/staff/messages', icon: Mail, label: 'المراسلات والتعاميم' },
@@ -78,6 +79,7 @@ export default function Sidebar({ role }) {
 
   const supervisorLinks = [
     { path: '/supervisor', icon: Home, label: t('sidebar.overview') },
+    { path: '/supervisor/exams-management', icon: FileSpreadsheet, label: 'إدارة الاختبارات ومصفوفة المستويات' },
     { path: '/supervisor/teacher-exams', icon: FileText, label: 'معاينة بنك اختبارات المعلمين' },
     { path: '/supervisor/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
     { path: '/supervisor/messages', icon: Mail, label: 'المراسلات والتعاميم' },
