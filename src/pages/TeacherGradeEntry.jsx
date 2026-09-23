@@ -22,7 +22,10 @@ import {
   Sparkles, 
   X, 
   Check, 
-  RefreshCw
+  RefreshCw,
+  ArrowUpDown,
+  UserX,
+  ClipboardCheck
 } from 'lucide-react';
 import { 
   STANDARD_SPECIALIZATIONS, 
@@ -30,6 +33,8 @@ import {
   computeClassExamStats 
 } from '../utils/examGradingEngine';
 import { generateRemedialPlanAI } from '../utils/aiPlanGenerator';
+import { parseBatchGrades } from '../utils/batchGradesParser';
+import { sortStudentList, STUDENT_SORT_OPTIONS } from '../utils/studentSorting';
 
 export default function TeacherGradeEntry() {
   const { userData } = useAuth();
@@ -53,6 +58,8 @@ export default function TeacherGradeEntry() {
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('default');
+  const [pasteNotice, setPasteNotice] = useState(null);
   const [selectedStudentForPlan, setSelectedStudentForPlan] = useState(null);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalLangTab, setPlanModalLangTab] = useState('ar'); // 'ar' | 'en'
@@ -231,6 +238,65 @@ export default function TeacherGradeEntry() {
           }
         };
       }
+    });
+  };
+
+  // تبديل حالة غياب الطالب بنقرة زر
+  const handleToggleAbsent = (studentId) => {
+    setEditingScores(prev => {
+      const current = prev[studentId] || { coreScore: '', customScores: {}, teacherNotes: '', skillsToTarget: [] };
+      const isCurrentlyAbsent = current.coreScore === 'غائب' || current.coreScore === 'غ';
+      return {
+        ...prev,
+        [studentId]: {
+          ...current,
+          coreScore: isCurrentlyAbsent ? '' : 'غائب'
+        }
+      };
+    });
+  };
+
+  // اللصق الذكي لمصفوفة الدرجات من Excel أو Google Sheets أو نور
+  const handleBatchPaste = (e, targetStartIndex, field = 'coreScore', colMax = 20) => {
+    const text = e.clipboardData?.getData('text');
+    const parsed = parseBatchGrades(text, colMax);
+    if (!parsed || parsed.length <= 1) return; // السماح باللصق الفردي العادي
+
+    e.preventDefault();
+    setEditingScores(prev => {
+      const updated = { ...prev };
+      let appliedCount = 0;
+
+      for (let i = 0; i < parsed.length; i++) {
+        const targetIdx = targetStartIndex + i;
+        if (targetIdx >= filteredStudentItems.length) break;
+
+        const targetStudent = filteredStudentItems[targetIdx].student;
+        const sId = targetStudent.id;
+        const item = parsed[i];
+
+        const currentStudentScore = updated[sId] || { coreScore: '', customScores: {}, teacherNotes: '', skillsToTarget: [] };
+
+        if (field === 'coreScore') {
+          updated[sId] = {
+            ...currentStudentScore,
+            coreScore: item.isAbsent ? 'غائب' : (item.isBlank ? '' : item.value)
+          };
+        } else {
+          updated[sId] = {
+            ...currentStudentScore,
+            customScores: {
+              ...(currentStudentScore.customScores || {}),
+              [field]: item.isAbsent ? 0 : (item.isBlank ? '' : item.value)
+            }
+          };
+        }
+        appliedCount++;
+      }
+
+      setPasteNotice(`✅ تم بنجاح لصق وتوزيع ${appliedCount} درجات لطلاب الفصل مباشرة!`);
+      setTimeout(() => setPasteNotice(null), 4000);
+      return updated;
     });
   };
 
@@ -475,15 +541,18 @@ export default function TeacherGradeEntry() {
     setPlanModalOpen(true);
   };
 
-  // Filtered Students by search query
+  // Filtered & Sorted Students
   const filteredStudentItems = useMemo(() => {
-    if (!searchQuery.trim()) return computedStudentsData;
-    const q = searchQuery.trim().toLowerCase();
-    return computedStudentsData.filter(item => 
-      (item.student.name || '').toLowerCase().includes(q) ||
-      (item.student.nationalId || '').includes(q)
-    );
-  }, [computedStudentsData, searchQuery]);
+    let list = computedStudentsData;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(item => 
+        (item.student.name || '').toLowerCase().includes(q) ||
+        (item.student.nationalId || '').includes(q)
+      );
+    }
+    return sortStudentList(list, sortBy);
+  }, [computedStudentsData, searchQuery, sortBy]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', direction: 'rtl' }}>
@@ -602,6 +671,15 @@ export default function TeacherGradeEntry() {
               {classStats.remedialCount}
             </div>
           </div>
+
+          {classStats.absentCount > 0 && (
+            <div style={{ background: 'rgba(239, 68, 68, 0.25)', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(254, 202, 202, 0.4)' }}>
+              <div style={{ fontSize: '11px', opacity: 0.9 }}>الطلاب الغائبين</div>
+              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#fecaca' }}>
+                {classStats.absentCount}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -682,18 +760,65 @@ export default function TeacherGradeEntry() {
           </div>
         </div>
 
-        {/* Search Input */}
-        <div style={{ position: 'relative', minWidth: '220px' }}>
-          <Search size={16} color="#94a3b8" style={{ position: 'absolute', right: '10px', top: '10px' }} />
-          <input 
-            type="text"
-            placeholder="بحث عن طالب بالاسم أو الهوية..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ width: '100%', padding: '8px 34px 8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px' }}
-          />
+        {/* Sorting & Search Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Student Sort Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ArrowUpDown size={15} color="#0284c7" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1.5px solid #cbd5e1',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#334155',
+                background: 'white',
+                cursor: 'pointer'
+              }}
+              title="فرز قائمة الطلاب"
+            >
+              {STUDENT_SORT_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Search Input */}
+          <div style={{ position: 'relative', minWidth: '220px' }}>
+            <Search size={16} color="#94a3b8" style={{ position: 'absolute', right: '10px', top: '10px' }} />
+            <input 
+              type="text"
+              placeholder="بحث عن طالب بالاسم أو الهوية..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ width: '100%', padding: '8px 34px 8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px' }}
+            />
+          </div>
         </div>
       </div>
+
+      {/* Paste Success Notice */}
+      {pasteNotice && (
+        <div style={{
+          background: '#ecfdf5',
+          color: '#065f46',
+          border: '1.5px solid #a7f3d0',
+          padding: '12px 18px',
+          borderRadius: '10px',
+          fontSize: '13px',
+          fontWeight: 'bold',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.15)'
+        }}>
+          <ClipboardCheck size={20} color="#059669" />
+          <span>{pasteNotice}</span>
+        </div>
+      )}
 
       {/* Exam Breakdown Details Banner */}
       {currentExam && (
@@ -745,11 +870,22 @@ export default function TeacherGradeEntry() {
               <thead>
                 <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1', color: '#334155' }}>
                   <th style={{ padding: '12px 14px', width: '40px', textAlign: 'center' }}>#</th>
-                  <th style={{ padding: '12px 14px', minWidth: '170px' }}>اسم الطالب</th>
+                  <th 
+                    style={{ padding: '12px 14px', minWidth: '170px', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => setSortBy(prev => prev === 'name_asc' ? 'name_desc' : 'name_asc')}
+                    title="انقر لفرز الطلاب أبجدياً بالاسم"
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>اسم الطالب</span>
+                      <ArrowUpDown size={14} color={sortBy.startsWith('name') ? '#0284c7' : '#94a3b8'} />
+                    </div>
+                  </th>
                   
                   {/* Core Exam Column */}
-                  <th style={{ padding: '12px 10px', textAlign: 'center', background: '#e0f2fe', color: '#0369a1', minWidth: '100px' }}>
-                    <div>المادة (تحريري)</div>
+                  <th style={{ padding: '12px 10px', textAlign: 'center', background: '#e0f2fe', color: '#0369a1', minWidth: '120px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                      <span>المادة (تحريري)</span>
+                    </div>
                     <span style={{ fontSize: '11px', fontWeight: 'normal' }}>العظمى: {currentExam?.coreSubjectMaxScore || 20}</span>
                   </th>
 
@@ -762,8 +898,15 @@ export default function TeacherGradeEntry() {
                   ))}
 
                   {/* Computed Total Column */}
-                  <th style={{ padding: '12px 10px', textAlign: 'center', background: '#f8fafc', minWidth: '90px' }}>
-                    <div>المجموع</div>
+                  <th 
+                    style={{ padding: '12px 10px', textAlign: 'center', background: '#f8fafc', minWidth: '90px', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => setSortBy(prev => prev === 'score_desc' ? 'score_asc' : 'score_desc')}
+                    title="انقر للفرز حسب المجموع الكلي"
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                      <span>المجموع</span>
+                      <ArrowUpDown size={13} color={sortBy.startsWith('score') ? '#0284c7' : '#94a3b8'} />
+                    </div>
                     <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}>من {currentExam?.totalMaxScore || 100}</span>
                   </th>
 
@@ -792,7 +935,8 @@ export default function TeacherGradeEntry() {
                   const { student, edit, calculation } = item;
                   const coreScoreVal = edit.coreScore !== undefined ? edit.coreScore : '';
                   const coreMax = currentExam?.coreSubjectMaxScore || 20;
-                  const isCoreOver = Number(coreScoreVal) > coreMax;
+                  const isCoreOver = !isNaN(parseFloat(coreScoreVal)) && Number(coreScoreVal) > coreMax;
+                  const isStudentAbsent = edit.coreScore === 'غائب' || edit.coreScore === 'غ' || calculation.isAbsent;
 
                   return (
                     <tr 
@@ -816,26 +960,89 @@ export default function TeacherGradeEntry() {
 
                       {/* Core Score Input */}
                       <td style={{ padding: '8px 10px', textAlign: 'center', background: '#f0f9ff' }}>
-                        <input 
-                          type="number"
-                          step="0.25"
-                          min="0"
-                          max={coreMax}
-                          value={coreScoreVal}
-                          onChange={(e) => handleScoreChange(student.id, 'coreScore', e.target.value)}
-                          placeholder="0"
-                          style={{
-                            width: '65px',
-                            padding: '6px',
-                            textAlign: 'center',
-                            borderRadius: '8px',
-                            fontWeight: 'bold',
-                            fontSize: '14px',
-                            border: `2px solid ${isCoreOver ? '#ef4444' : '#bae6fd'}`,
-                            background: isCoreOver ? '#fef2f2' : 'white',
-                            color: isCoreOver ? '#b91c1c' : '#0369a1'
-                          }}
-                        />
+                        {isStudentAbsent ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              background: '#fee2e2',
+                              color: '#b91c1c',
+                              border: '1.5px solid #fca5a5',
+                              padding: '4px 10px',
+                              borderRadius: '8px',
+                              fontWeight: 'bold',
+                              fontSize: '12px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <UserX size={13} /> غائب
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAbsent(student.id)}
+                              title="إلغاء الغياب ورصد درجة"
+                              style={{
+                                background: '#f1f5f9',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '6px',
+                                color: '#64748b',
+                                cursor: 'pointer',
+                                padding: '3px 5px',
+                                fontSize: '11px',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <input 
+                              type="text"
+                              inputMode="decimal"
+                              value={coreScoreVal}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === 'غ' || val === 'غائب') {
+                                  handleScoreChange(student.id, 'coreScore', 'غائب');
+                                } else {
+                                  handleScoreChange(student.id, 'coreScore', val);
+                                }
+                              }}
+                              onPaste={(e) => handleBatchPaste(e, index, 'coreScore', coreMax)}
+                              placeholder="0"
+                              title="اكتب الدرجة أو الصق عمود درجات من Excel"
+                              style={{
+                                width: '65px',
+                                padding: '6px',
+                                textAlign: 'center',
+                                borderRadius: '8px',
+                                fontWeight: 'bold',
+                                fontSize: '14px',
+                                border: `2px solid ${isCoreOver ? '#ef4444' : '#bae6fd'}`,
+                                background: isCoreOver ? '#fef2f2' : 'white',
+                                color: isCoreOver ? '#b91c1c' : '#0369a1'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAbsent(student.id)}
+                              title="رصد الطالب كغائب (غ)"
+                              style={{
+                                background: '#f8fafc',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '6px',
+                                color: '#64748b',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                padding: '4px 6px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              غ
+                            </button>
+                          </div>
+                        )}
                       </td>
 
                       {/* Custom Columns Inputs */}
@@ -852,7 +1059,9 @@ export default function TeacherGradeEntry() {
                               max={col.maxScore}
                               value={val}
                               onChange={(e) => handleScoreChange(student.id, col.key, e.target.value)}
+                              onPaste={(e) => handleBatchPaste(e, index, col.key, col.maxScore)}
                               placeholder="0"
+                              title="يمكنك كتابة الدرجة أو لصق عمود درجات من Excel"
                               style={{
                                 width: '60px',
                                 padding: '6px',

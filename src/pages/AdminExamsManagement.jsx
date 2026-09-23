@@ -23,7 +23,17 @@ import {
   Sliders, 
   Award, 
   X, 
-  RefreshCw
+  RefreshCw,
+  Activity,
+  Printer,
+  ArrowUpDown,
+  TrendingUp,
+  HelpCircle,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  Users,
+  Search
 } from 'lucide-react';
 import { 
   ACADEMIC_LEVELS, 
@@ -31,6 +41,9 @@ import {
   STANDARD_STAGES,
   computeClassExamStats
 } from '../utils/examGradingEngine';
+import { computePsychometrics } from '../utils/psychometricsEngine';
+import PsychometricCharts from '../components/PsychometricCharts';
+import { sortStudentList, STUDENT_SORT_OPTIONS } from '../utils/studentSorting';
 
 export default function AdminExamsManagement() {
   const { userData } = useAuth();
@@ -418,6 +431,44 @@ export default function AdminExamsManagement() {
     return computeClassExamStats(filteredGrades, 100);
   }, [filteredGrades]);
 
+  // Analytics sub-tab & sorting
+  const [analyticsSubTab, setAnalyticsSubTab] = useState('overview'); // 'overview' | 'psychometrics'
+  const [studentSortBy, setStudentSortBy] = useState('default');
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
+
+  // Computed Psychometrics for Selected Exam or All Exams
+  const adminPsychometrics = useMemo(() => {
+    if (!filteredGrades || filteredGrades.length === 0) return null;
+
+    const activeExam = exams.find(e => e.id === analyticsExamFilter);
+    const maxScore = activeExam?.coreSubjectMaxScore || activeExam?.totalMaxScore || 20;
+
+    const results = filteredGrades.map(g => ({
+      id: g.id,
+      studentId: g.studentId || g.id,
+      studentName: g.studentName,
+      nationalId: g.studentNationalId || '',
+      score: g.totalScore !== undefined ? Number(g.totalScore) : Number(g.score) || 0,
+      maxScore: g.maxScore || maxScore,
+      percentage: g.percentage !== undefined ? Number(g.percentage) : 0,
+      isAbsent: Boolean(g.isAbsent || g.status === 'غائب' || g.totalScore === 'غائب' || g.totalScore === 'غ'),
+      status: g.status,
+      answers: g.answers || null
+    }));
+
+    return computePsychometrics({
+      exam: {
+        title: activeExam?.title || 'الاختبارات المدرسية الشاملة',
+        subject: activeExam?.subject || 'جميع المواد',
+        targetClass: activeExam?.className || 'جميع الفصول',
+        maxScore: maxScore,
+        totalQuestions: activeExam?.totalQuestions || activeExam?.questions?.length || 10,
+        questions: activeExam?.questions || []
+      },
+      results
+    });
+  }, [filteredGrades, analyticsExamFilter, exams]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', direction: 'rtl' }}>
       
@@ -708,7 +759,20 @@ export default function AdminExamsManagement() {
                     <span style={{ fontSize: '11px', color: '#94a3b8' }}>
                       بواسطة: {exam.createdBy || 'المدير'}
                     </span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button 
+                        onClick={() => {
+                          setAnalyticsExamFilter(exam.id);
+                          setActiveTab('analytics');
+                          setAnalyticsSubTab('psychometrics');
+                        }}
+                        style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="عرض التحليل السيكومتري وموثوقية القياس للاختبار"
+                      >
+                        <Activity size={14} />
+                        <span>التحليل السيكومتري</span>
+                      </button>
+
                       <button 
                         onClick={() => handleOpenEditModal(exam)}
                         style={{ background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -1013,7 +1077,7 @@ export default function AdminExamsManagement() {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          TAB 3: MONITORING & ANALYTICS
+          TAB 3: MONITORING & ANALYTICS (مع التحليل السيكومتري)
       ───────────────────────────────────────────────────────────── */}
       {activeTab === 'analytics' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1039,102 +1103,440 @@ export default function AdminExamsManagement() {
             </div>
           </div>
 
-          {/* 8-Level Distribution Visual Progress Bars */}
-          <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', background: 'var(--color-bg-card)' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a', marginBottom: '18px' }}>
-              التوزيع الإحصائي للطلاب عبر المستويات الثمانية
-            </h3>
+          {/* Sub-tab Navigation: Overview vs Psychometrics */}
+          <div className="no-print" style={{ display: 'flex', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={() => setAnalyticsSubTab('overview')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                borderRadius: '10px',
+                border: '1px solid #cbd5e1',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                cursor: 'pointer',
+                background: analyticsSubTab === 'overview' ? '#0f172a' : 'white',
+                color: analyticsSubTab === 'overview' ? 'white' : '#334155',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Award size={18} />
+              <span>1. كشف السجلات والمستويات الثمانية والبرامج المخصصة</span>
+            </button>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {analyticsStats.levelsDistribution.map(lvl => (
-                <div key={lvl.code} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: lvl.color }} />
-                      <strong style={{ color: lvl.color }}>{lvl.name} ({lvl.symbol})</strong>
-                      <span style={{ fontSize: '11px', color: '#64748b' }}>[{lvl.minPercentage}% - {lvl.maxPercentage}%]</span>
-                    </div>
-                    <div style={{ fontWeight: 'bold', color: '#1e293b' }}>
-                      {lvl.count} طالب ({lvl.percentage}%)
-                    </div>
-                  </div>
+            <button
+              type="button"
+              onClick={() => setAnalyticsSubTab('psychometrics')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                borderRadius: '10px',
+                border: '1px solid #0e7490',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                cursor: 'pointer',
+                background: analyticsSubTab === 'psychometrics' ? '#0e7490' : 'white',
+                color: analyticsSubTab === 'psychometrics' ? 'white' : '#0e7490',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Activity size={18} />
+              <span>2. 📊 التحليل السيكومتري وموثوقية القياس (KR-21 والرسوم البيانية)</span>
+            </button>
+          </div>
 
-                  {/* Progress bar container */}
-                  <div style={{ width: '100%', height: '10px', borderRadius: '6px', background: '#f1f5f9', overflow: 'hidden' }}>
-                    <div 
-                      style={{ 
-                        width: `${lvl.percentage}%`, 
-                        height: '100%', 
-                        background: lvl.color, 
-                        borderRadius: '6px',
-                        transition: 'width 0.5s ease-in-out'
-                      }} 
-                    />
+          {/* ======================================================== */}
+          {/* SUB-TAB 1: OVERVIEW & 8-LEVELS DISTRIBUTION */}
+          {/* ======================================================== */}
+          {analyticsSubTab === 'overview' && (
+            <>
+              {/* 8-Level Distribution Visual Progress Bars */}
+              <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', background: 'var(--color-bg-card)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a', marginBottom: '18px' }}>
+                  التوزيع الإحصائي للطلاب عبر المستويات الثمانية
+                </h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {analyticsStats.levelsDistribution.map(lvl => (
+                    <div key={lvl.code} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: lvl.color }} />
+                          <strong style={{ color: lvl.color }}>{lvl.name} ({lvl.symbol})</strong>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>[{lvl.minPercentage}% - {lvl.maxPercentage}%]</span>
+                        </div>
+                        <div style={{ fontWeight: 'bold', color: '#1e293b' }}>
+                          {lvl.count} طالب ({lvl.percentage}%)
+                        </div>
+                      </div>
+
+                      {/* Progress bar container */}
+                      <div style={{ width: '100%', height: '10px', borderRadius: '6px', background: '#f1f5f9', overflow: 'hidden' }}>
+                        <div 
+                          style={{ 
+                            width: `${lvl.percentage}%`, 
+                            height: '100%', 
+                            background: lvl.color, 
+                            borderRadius: '6px',
+                            transition: 'width 0.5s ease-in-out'
+                          }} 
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Graded Students Detailed Table with Search & Sorting */}
+              <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', overflowX: 'auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a', margin: 0 }}>
+                    كشف سجلات الرصد المباشرة والبرامج المخصصة
+                  </h3>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    {/* Search */}
+                    <div style={{ position: 'relative', width: '220px' }}>
+                      <Search size={14} color="#94a3b8" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                      <input
+                        type="text"
+                        placeholder="بحث بالاسم أو الهوية..."
+                        value={studentSearchTerm}
+                        onChange={e => setStudentSearchTerm(e.target.value)}
+                        style={{ padding: '6px 28px 6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', width: '100%' }}
+                      />
+                    </div>
+
+                    {/* Sort Dropdown */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <ArrowUpDown size={14} color="#0e7490" />
+                      <select
+                        value={studentSortBy}
+                        onChange={e => setStudentSortBy(e.target.value)}
+                        style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', background: 'white' }}
+                      >
+                        {STUDENT_SORT_OPTIONS.map(opt => (
+                          <option key={opt.id} value={opt.id}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Graded Students Detailed Table */}
-          <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', overflowX: 'auto' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a', marginBottom: '14px' }}>
-              كشف سجلات الرصد المباشرة والبرامج المخصصة
-            </h3>
+                {filteredGrades.length === 0 ? (
+                  <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                    لا توجد سجلات درجات مرصودة ضمن الفلتر المختار
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'right' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569' }}>
+                        <th 
+                          style={{ padding: '12px', cursor: 'pointer', userSelect: 'none' }}
+                          onClick={() => setStudentSortBy(prev => prev === 'name_asc' ? 'name_desc' : 'name_asc')}
+                          title="فرز حسب اسم الطالب"
+                        >
+                          اسم الطالب {studentSortBy === 'name_asc' ? '▲' : studentSortBy === 'name_desc' ? '▼' : '⇅'}
+                        </th>
+                        <th style={{ padding: '12px' }}>الصف</th>
+                        <th style={{ padding: '12px' }}>المادة</th>
+                        <th style={{ padding: '12px' }}>المعلم الراصد</th>
+                        <th 
+                          style={{ padding: '12px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                          onClick={() => setStudentSortBy(prev => prev === 'score_desc' ? 'score_asc' : 'score_desc')}
+                          title="فرز حسب الدرجة"
+                        >
+                          المجموع / النسبة {studentSortBy === 'score_desc' ? '▼' : studentSortBy === 'score_asc' ? '▲' : '⇅'}
+                        </th>
+                        <th style={{ padding: '12px', textAlign: 'center' }}>المستوى (من 8)</th>
+                        <th style={{ padding: '12px' }}>البرنامج الموجه</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        let records = filteredGrades.filter(r => {
+                          if (!studentSearchTerm.trim()) return true;
+                          const q = studentSearchTerm.trim().toLowerCase();
+                          return (r.studentName && r.studentName.toLowerCase().includes(q)) ||
+                                 (r.studentNationalId && String(r.studentNationalId).includes(q));
+                        });
 
-            {filteredGrades.length === 0 ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                لا توجد سجلات درجات مرصودة ضمن الفلتر المختار
+                        records = sortStudentList(records, studentSortBy);
+
+                        return records.slice(0, 100).map(rec => {
+                          const isAbsent = Boolean(rec.isAbsent || rec.status === 'غائب' || rec.totalScore === 'غائب' || rec.totalScore === 'غ');
+                          return (
+                            <tr key={rec.id} style={{ borderBottom: '1px solid #f1f5f9', background: isAbsent ? '#fef2f2' : 'white' }}>
+                              <td style={{ padding: '12px', fontWeight: 'bold', color: isAbsent ? '#991b1b' : '#0f172a' }}>
+                                {rec.studentName}
+                                <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'normal' }}>{rec.studentNationalId}</div>
+                              </td>
+                              <td style={{ padding: '12px', color: '#475569' }}>{rec.className}</td>
+                              <td style={{ padding: '12px', color: '#0284c7', fontWeight: 'bold' }}>{rec.subject}</td>
+                              <td style={{ padding: '12px', color: '#475569' }}>{rec.teacherName}</td>
+                              <td style={{ padding: '12px', textAlign: 'center' }}>
+                                {isAbsent ? (
+                                  <span style={{ background: '#fee2e2', color: '#991b1b', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>
+                                    غائب عن الاختبار 🚫
+                                  </span>
+                                ) : (
+                                  <>
+                                    <strong style={{ fontSize: '14px' }}>{rec.totalScore}</strong> / {rec.maxScore}
+                                    <div style={{ fontSize: '11px', color: '#64748b' }}>{rec.percentage}%</div>
+                                  </>
+                                )}
+                              </td>
+                              <td style={{ padding: '12px', textAlign: 'center' }}>
+                                <span style={{ 
+                                  padding: '3px 10px', 
+                                  borderRadius: '12px', 
+                                  fontSize: '11px', 
+                                  fontWeight: 'bold', 
+                                  background: isAbsent ? '#fee2e2' : (rec.levelBgColor || '#f1f5f9'), 
+                                  color: isAbsent ? '#991b1b' : (rec.levelColor || '#334155'),
+                                  border: `1px solid ${isAbsent ? '#fecaca' : (rec.levelBorderColor || '#cbd5e1')}`
+                                }}>
+                                  {isAbsent ? 'غائب' : `${rec.levelName || 'المستوى'} (${rec.levelSymbol || '—'})`}
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px', fontSize: '12px', color: '#334155', maxWidth: '240px' }}>
+                                {isAbsent ? 'متابعة أسباب الغياب وإعادة الاختبار' : (rec.remedialProgram?.title || 'خطة المتابعة المنهجية')}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                )}
               </div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'right' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569' }}>
-                    <th style={{ padding: '12px' }}>اسم الطالب</th>
-                    <th style={{ padding: '12px' }}>الصف</th>
-                    <th style={{ padding: '12px' }}>المادة</th>
-                    <th style={{ padding: '12px' }}>المعلم الراصد</th>
-                    <th style={{ padding: '12px', textAlign: 'center' }}>المجموع / النسبة</th>
-                    <th style={{ padding: '12px', textAlign: 'center' }}>المستوى (من 8)</th>
-                    <th style={{ padding: '12px' }}>البرنامج الموجه</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredGrades.slice(0, 50).map(rec => (
-                    <tr key={rec.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px', fontWeight: 'bold', color: '#0f172a' }}>
-                        {rec.studentName}
-                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'normal' }}>{rec.studentNationalId}</div>
-                      </td>
-                      <td style={{ padding: '12px', color: '#475569' }}>{rec.className}</td>
-                      <td style={{ padding: '12px', color: '#0284c7', fontWeight: 'bold' }}>{rec.subject}</td>
-                      <td style={{ padding: '12px', color: '#475569' }}>{rec.teacherName}</td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <strong style={{ fontSize: '14px' }}>{rec.totalScore}</strong> / {rec.maxScore}
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>{rec.percentage}%</div>
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <span style={{ 
-                          padding: '3px 10px', 
-                          borderRadius: '12px', 
-                          fontSize: '11px', 
-                          fontWeight: 'bold', 
-                          background: rec.levelBgColor || '#f1f5f9', 
-                          color: rec.levelColor || '#334155',
-                          border: `1px solid ${rec.levelBorderColor || '#cbd5e1'}`
-                        }}>
-                          {rec.levelName} ({rec.levelSymbol})
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', fontSize: '12px', color: '#334155', maxWidth: '240px' }}>
-                        {rec.remedialProgram?.title || 'خطة المتابعة المنهجية'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+            </>
+          )}
+
+          {/* ======================================================== */}
+          {/* SUB-TAB 2: PSYCHOMETRIC & MEASUREMENT RELIABILITY ANALYSIS */}
+          {/* ======================================================== */}
+          {analyticsSubTab === 'psychometrics' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* Header with Print Action */}
+              <div style={{ 
+                background: 'white', 
+                padding: '20px 24px', 
+                borderRadius: '16px', 
+                border: '1px solid #e2e8f0', 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                flexWrap: 'wrap', 
+                gap: '12px' 
+              }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>
+                    المملكة العربية السعودية • وزارة التعليم • {userData?.schoolName || 'المجمع التعليمي'}
+                  </div>
+                  <h2 style={{ margin: '0 0 6px 0', color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Activity size={26} color="#0e7490" /> تقرير التحليل السيكومتري وموثوقية الاختبارات
+                  </h2>
+                  <p style={{ margin: 0, color: '#475569', fontSize: '13px' }}>
+                    الاختبار المستهدف: <strong>{exams.find(e => e.id === analyticsExamFilter)?.title || 'كافة الاختبارات المدرسية المجمعة'}</strong> | إجمالي السجلات: <strong>{filteredGrades.length} طالب</strong>
+                  </p>
+                </div>
+
+                <div className="no-print">
+                  <button
+                    className="btn btn-primary"
+                    style={{ background: 'linear-gradient(135deg, #0e7490, #0284c7)', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => {
+                      const orig = document.title;
+                      document.title = `تقرير_التحليل_السيكومتري_المدرسي_${new Date().toISOString().split('T')[0]}`;
+                      window.print();
+                      setTimeout(() => { document.title = orig; }, 1000);
+                    }}
+                  >
+                    <Printer size={16} /> طباعة تقرير التحليل المعتمد (PDF)
+                  </button>
+                </div>
+              </div>
+
+              {!adminPsychometrics || filteredGrades.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '50px', color: 'var(--color-text-muted)', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                  <AlertCircle size={40} style={{ opacity: 0.4, marginBottom: '10px' }} />
+                  <h3>لا توجد درجات مرصودة لهذا الاختبار حتى الآن لحساب التحليل السيكومتري</h3>
+                </div>
+              ) : (
+                <>
+                  {/* Attendees & Absence Summary Bar */}
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', padding: '10px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px' }}>
+                    <div>👥 إجمالي المسجلين: <strong>{adminPsychometrics.totalTested || filteredGrades.length}</strong></div>
+                    <div>•</div>
+                    <div style={{ color: '#16a34a' }}>✅ الحاضرون: <strong>{adminPsychometrics.presentCount || filteredGrades.filter(r => !r.isAbsent).length}</strong></div>
+                    <div>•</div>
+                    <div style={{ color: '#dc2626' }}>🚫 الغائبون: <strong>{adminPsychometrics.absentCount || filteredGrades.filter(r => r.isAbsent).length}</strong></div>
+                    <div>•</div>
+                    <div>معادلة الثبات المحسوبة: <strong style={{ color: '#0e7490' }}>{adminPsychometrics.formulaUsed || 'KR-21'}</strong></div>
+                  </div>
+
+                  {/* Core Psychometric Indicator Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px' }}>
+                    <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '10px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534' }}>
+                        معامل الثبات ({adminPsychometrics.formulaUsed || 'KR-21'})
+                      </div>
+                      <div style={{ fontSize: '26px', fontWeight: '900', color: '#15803d', margin: '4px 0' }}>{adminPsychometrics.kr20}</div>
+                      <div style={{ fontSize: '11px', color: '#166534', fontWeight: 'bold' }}>
+                        {parseFloat(adminPsychometrics.kr20) >= 0.70 ? '✅ ثبات عالي وموثوق' : parseFloat(adminPsychometrics.kr20) >= 0.50 ? '⚠️ ثبات متوسط ومقبول' : '❌ ثبات منخفض بحاجة لمراجعة'}
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#f0fdfa', padding: '16px', borderRadius: '10px', border: '1px solid #99f6e4', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#0f766e' }}>معامل الصدق الذاتي</div>
+                      <div style={{ fontSize: '26px', fontWeight: '900', color: '#0d9488', margin: '4px 0' }}>{adminPsychometrics.validity}</div>
+                      <div style={{ fontSize: '11px', color: '#0f766e' }}>جذر معامل الثبات (√{adminPsychometrics.formulaUsed || 'KR-21'})</div>
+                    </div>
+
+                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>متوسط صعوبة الاختبار (P)</div>
+                      <div style={{ fontSize: '26px', fontWeight: '900', color: '#0284c7', margin: '4px 0' }}>{adminPsychometrics.meanDifficulty}</div>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>المعدل المثالي (0.40 - 0.75)</div>
+                    </div>
+
+                    <div style={{ background: '#fdf4ff', padding: '16px', borderRadius: '10px', border: '1px solid #f5d0fe', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#86198f' }}>الانحراف المعياري (Sx)</div>
+                      <div style={{ fontSize: '26px', fontWeight: '900', color: '#a21caf', margin: '4px 0' }}>{adminPsychometrics.stdDev}</div>
+                      <div style={{ fontSize: '11px', color: '#86198f' }}>تشتت درجات الطلاب</div>
+                    </div>
+
+                    <div style={{ background: '#fffbeb', padding: '16px', borderRadius: '10px', border: '1px solid #fde68a', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#92400e' }}>خطأ القياس المعياري (SEM)</div>
+                      <div style={{ fontSize: '26px', fontWeight: '900', color: '#b45309', margin: '4px 0' }}>{adminPsychometrics.sem}</div>
+                      <div style={{ fontSize: '11px', color: '#92400e' }}>دقة تقدير الدرجة الحقيقية</div>
+                    </div>
+                  </div>
+
+                  {/* VISUAL CHARTS */}
+                  <PsychometricCharts psychometrics={adminPsychometrics} printMode={false} />
+
+                  {/* Kelly's 27% Upper vs Lower Groups Analysis */}
+                  {adminPsychometrics.kellyAnalysis && (
+                    <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #e2e8f0' }}>
+                      <h3 style={{ margin: '0 0 16px 0', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <TrendingUp size={20} color="#0e7490" /> تحليل الفئات الطرفية (طريقة كيلي 27% للتمييز والمقارنة)
+                      </h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                        <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+                          <div style={{ fontWeight: 'bold', color: '#166534', marginBottom: '8px' }}>🟢 الفئة العليا (الأعلى 27%)</div>
+                          <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div>عدد الطلاب: <strong>{adminPsychometrics.kellyAnalysis.upperCount} طالب</strong></div>
+                            <div>متوسط درجات الفئة العليا: <strong style={{ color: '#16a34a' }}>{adminPsychometrics.kellyAnalysis.upperMean}%</strong></div>
+                          </div>
+                        </div>
+
+                        <div style={{ background: '#fef2f2', padding: '16px', borderRadius: '10px', border: '1px solid #fecaca' }}>
+                          <div style={{ fontWeight: 'bold', color: '#991b1b', marginBottom: '8px' }}>🔴 الفئة الدنيا (الأدنى 27%)</div>
+                          <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div>عدد الطلاب: <strong>{adminPsychometrics.kellyAnalysis.lowerCount} طالب</strong></div>
+                            <div>متوسط درجات الفئة الدنيا: <strong style={{ color: '#dc2626' }}>{adminPsychometrics.kellyAnalysis.lowerMean}%</strong></div>
+                          </div>
+                        </div>
+
+                        <div style={{ background: '#f0f9ff', padding: '16px', borderRadius: '10px', border: '1px solid #bae6fd' }}>
+                          <div style={{ fontWeight: 'bold', color: '#0369a1', marginBottom: '8px' }}>⚖️ القوة التمييزية للاختبار</div>
+                          <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div>الفرق بين الفئتين: <strong>{adminPsychometrics.kellyAnalysis.diffScore}%</strong></div>
+                            <div>التقييم: <strong style={{ color: '#0284c7' }}>{adminPsychometrics.kellyAnalysis.discriminationQuality}</strong></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quartiles */}
+                      {adminPsychometrics.quartiles && (
+                        <div style={{ display: 'flex', gap: '20px', marginTop: '16px', padding: '12px 16px', background: '#f8fafc', borderRadius: '8px', fontSize: '13px', flexWrap: 'wrap' }}>
+                          <div>الربيع الأول (Q1): <strong>{adminPsychometrics.quartiles.q1}%</strong></div>
+                          <div>•</div>
+                          <div>الوسيط (Q2 / Median): <strong>{adminPsychometrics.quartiles.median}%</strong></div>
+                          <div>•</div>
+                          <div>الربيع الثالث (Q3): <strong>{adminPsychometrics.quartiles.q3}%</strong></div>
+                          <div>•</div>
+                          <div>المدى الربيعي (IQR): <strong>{adminPsychometrics.quartiles.iqr}%</strong></div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Classical Test Theory Note */}
+                  <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <h4 style={{ margin: '0 0 8px 0', color: '#0f172a' }}>📋 تقرير تحليل ثبات وصدق الاختبارات المدرسية المضافة</h4>
+                    <p style={{ margin: 0, color: '#475569', fontSize: '13px', lineHeight: '1.7' }}>
+                      تم تطبيق خوارزمية كودر-ريتشاردسون 21 (KR-21) لتقدير الاتساق الداخلي للاختبار بموثوقية بلغت <strong>({adminPsychometrics.kr20})</strong>، والصدق الذاتي المحسوب <strong>({adminPsychometrics.validity})</strong>، مع متوسط معامل صعوبة كلي قدره <strong>({adminPsychometrics.meanDifficulty})</strong>، مما يتيح للإدارة المدرسية والمشرفين تقييم كفاءة الاختبارات المضافة واعتماد النتائج.
+                    </p>
+                  </div>
+
+                  {/* Official Signatures Section for Teacher, Supervisor, Principal */}
+                  <div style={{ 
+                    marginTop: '20px', 
+                    padding: '24px 20px', 
+                    background: 'white', 
+                    borderRadius: '12px', 
+                    border: '1.5px solid #cbd5e1' 
+                  }}>
+                    <div style={{ textAlign: 'center', marginBottom: '20px', fontWeight: 'bold', color: '#1e293b', fontSize: '15px' }}>
+                      الاعتماد والمصادقة الرسمية على تقرير التحليل السيكومتري وموثوقية الاختبار
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', textAlign: 'center' }}>
+                      {/* 1. Teacher / Coordinator */}
+                      <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0e7490', marginBottom: '6px' }}>معلم المادة / المنسق</div>
+                        <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>
+                          {filteredGrades[0]?.teacherName || 'معلم المادة المعتمد'}
+                        </div>
+                        <div style={{ marginTop: '30px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                          التوقيع: .......................................
+                        </div>
+                      </div>
+
+                      {/* 2. Supervisor */}
+                      <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0284c7', marginBottom: '6px' }}>المشرف التربوي</div>
+                        <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>
+                          {userData?.role === 'supervisor' ? userData.name : 'المشرف التربوي المكلف'}
+                        </div>
+                        <div style={{ marginTop: '30px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                          التوقيع: .......................................
+                        </div>
+                      </div>
+
+                      {/* 3. Principal */}
+                      <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#166534', marginBottom: '6px' }}>مدير المدرسة</div>
+                        <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>
+                          {userData?.role === 'admin' ? userData.name : (userData?.schoolPrincipal || 'مدير المدرسة')}
+                        </div>
+                        <div style={{ marginTop: '30px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                          الختم والتوقيع: .......................................
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '11px', color: '#94a3b8' }}>
+                      وثيقة رسمية صادرة عبر منظومة إدارة الاختبارات المدرسية الذكية • {new Date().toLocaleDateString('ar-SA')}
+                    </div>
+                  </div>
+                </>
+              )}
+
+            </div>
+          )}
+
         </div>
       )}
 

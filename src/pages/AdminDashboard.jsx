@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext';
 import { Routes, Route, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers, Send, ArrowLeftRight, CheckCircle2, AlertCircle, Sparkles, Check, Archive, Undo2, Eye, EyeOff, FileSpreadsheet, Search } from 'lucide-react';
+import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers, Send, ArrowLeftRight, CheckCircle2, AlertCircle, Sparkles, Check, Archive, Undo2, Eye, EyeOff, FileSpreadsheet, Search, ArrowUpDown } from 'lucide-react';
 import ManageSchedules from './ManageSchedules';
 import { db, createSecondaryAuthUser } from '../firebase';
 import { collection, addDoc, setDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
@@ -30,6 +30,7 @@ import GamificationBadge from '../components/GamificationBadge';
 import { calculateTeacherActivity, calculateStudentActivity } from '../utils/gamificationEngine';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
 import TeacherSubjectSelector from '../components/TeacherSubjectSelector';
+import { sortStudentList, STUDENT_SORT_OPTIONS } from '../utils/studentSorting';
 
 function AdminHome({ schoolId }) {
   const { t, isRTL } = useLanguage();
@@ -2466,6 +2467,7 @@ function ManageStudents({ schoolId }) {
   const [isPrintingStudentRecords, setIsPrintingStudentRecords] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState('');
+  const [studentSortBy, setStudentSortBy] = useState('name_asc');
   
   // Single Add
   const [name, setName] = useState('');
@@ -2962,7 +2964,7 @@ function ManageStudents({ schoolId }) {
   };
 
   const filteredStudents = useMemo(() => {
-    return students.filter(s => {
+    const list = students.filter(s => {
       const term = searchTerm.trim().toLowerCase();
       const matchSearch = !term || 
         (s.name && s.name.toLowerCase().includes(term)) ||
@@ -2971,7 +2973,8 @@ function ManageStudents({ schoolId }) {
       const matchClass = !filterClass || sClass === filterClass;
       return matchSearch && matchClass;
     });
-  }, [students, searchTerm, filterClass]);
+    return sortStudentList(list, studentSortBy);
+  }, [students, searchTerm, filterClass, studentSortBy]);
 
   return (
     <div className="glass-panel" style={{ padding: '24px' }}>
@@ -3018,6 +3021,19 @@ function ManageStudents({ schoolId }) {
             <option value="">جميع الفصول ({students.length})</option>
             {classesList.map(c => (
               <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ width: '180px' }}>
+          <select
+            className="input-field"
+            style={{ margin: 0, fontWeight: 600, color: '#334155' }}
+            value={studentSortBy}
+            onChange={(e) => setStudentSortBy(e.target.value)}
+          >
+            {STUDENT_SORT_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
         </div>

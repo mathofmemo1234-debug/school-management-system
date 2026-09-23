@@ -240,7 +240,14 @@ export function calculateStudentGradeResult({
     totalMaxScore: 20
   };
 
-  const cScore = Number(coreScore) || 0;
+  // فحص حالة الغياب
+  const isAbsent = coreScore === 'غ' || 
+                   coreScore === 'غائب' || 
+                   coreScore === 'absent' || 
+                   coreScore === 'ABSENT' ||
+                   (typeof coreScore === 'object' && coreScore?.isAbsent === true);
+
+  const cScore = isAbsent ? 0 : (Number(coreScore) || 0);
   
   // احتساب مجموع الأعمدة المخصصة
   let customTotal = 0;
@@ -263,8 +270,26 @@ export function calculateStudentGradeResult({
   const percentage = maxTotalScore > 0 ? (totalScore / maxTotalScore) * 100 : 0;
   const roundedPercentage = Number(percentage.toFixed(2));
 
-  // استخراج المستوى من مصفوفة المستويات
-  const levelObj = getLevelByPercentage(roundedPercentage, customMatrix);
+  // استخراج المستوى من مصفوفة المستويات أو تعيين حالة الغياب
+  const levelObj = isAbsent ? {
+    code: 'absent',
+    id: 0,
+    name: 'غائب عن الاختبار',
+    symbol: 'غ',
+    color: '#dc2626',
+    bgColor: '#fef2f2',
+    borderColor: '#fca5a5',
+    type: 'absent',
+    typeLabel: 'حالة غياب مرصودة',
+    defaultTitle: 'متابعة الطالب الغائب وإجراء الاختبار البديل',
+    diagnosis: 'الطالب غائب عن جلسة الاختبار التحريري، ويستوجب التنسيق لإجراء اختبار بديل حسب اللوائح المعتمدة.',
+    actionPlan: [
+      'حصر عذر الغياب بالتنسيق مع الموجه الطلابي وإدارة المدرسة.',
+      'تحديد موعد جلسة الاختبار التحريري البديل وإشعار ولي الأمر.',
+      'رصد درجة الاختبار البديل فور تطبيقه وتحديث السجل.'
+    ],
+    parentAdvice: 'نحيطكم علماً بغياب ابنكم عن الاختبار التحريري، نرجو تقديم عذر الغياب للمدرسة لتمكينه من الاختبار البديل.'
+  } : getLevelByPercentage(roundedPercentage, customMatrix);
 
   // توليد البرنامج العلاجي / الإثرائي ثنائي اللغة
   const remedialProgram = {
@@ -299,12 +324,13 @@ export function calculateStudentGradeResult({
   };
 
   return {
-    coreScore: cScore,
+    isAbsent: Boolean(isAbsent),
+    coreScore: isAbsent ? 'غائب' : cScore,
     customScores: sanitizedCustomScores,
     customTotal,
-    totalScore: Number(totalScore.toFixed(2)),
+    totalScore: isAbsent ? 0 : Number(totalScore.toFixed(2)),
     maxScore: maxTotalScore,
-    percentage: roundedPercentage,
+    percentage: isAbsent ? 0 : roundedPercentage,
     levelCode: levelObj.code || `level_${levelObj.id || 1}`,
     levelName: levelObj.name,
     levelSymbol: levelObj.symbol,
@@ -320,6 +346,9 @@ export function calculateStudentGradeResult({
 export function validateInputScore(value, maxScore) {
   if (value === '' || value === null || value === undefined) {
     return { isValid: true, numVal: 0 };
+  }
+  if (value === 'غ' || value === 'غائب' || value === 'absent') {
+    return { isValid: true, isAbsent: true, numVal: 0 };
   }
   const num = Number(value);
   if (isNaN(num)) {
@@ -339,6 +368,9 @@ export function computeClassExamStats(gradesRecords = [], totalMaxScore = 100) {
   if (!gradesRecords || gradesRecords.length === 0) {
     return {
       totalCount: 0,
+      totalRegistered: 0,
+      presentCount: 0,
+      absentCount: 0,
       averageScore: 0,
       averagePercentage: 0,
       passCount: 0,
@@ -352,6 +384,7 @@ export function computeClassExamStats(gradesRecords = [], totalMaxScore = 100) {
   let totalScoreSum = 0;
   let passCount = 0;
   let remedialCount = 0;
+  let absentCount = 0;
 
   const distributionMap = {};
   ACADEMIC_LEVELS.forEach(lvl => {
@@ -359,6 +392,17 @@ export function computeClassExamStats(gradesRecords = [], totalMaxScore = 100) {
   });
 
   gradesRecords.forEach(rec => {
+    const isAbsent = rec.isAbsent === true || 
+                     rec.levelCode === 'absent' || 
+                     rec.levelSymbol === 'غ' || 
+                     rec.coreScore === 'غ' || 
+                     rec.coreScore === 'غائب';
+
+    if (isAbsent) {
+      absentCount += 1;
+      return;
+    }
+
     const score = Number(rec.totalScore) || 0;
     const pct = Number(rec.percentage) || (totalMaxScore > 0 ? (score / totalMaxScore) * 100 : 0);
     totalScoreSum += score;
@@ -376,12 +420,17 @@ export function computeClassExamStats(gradesRecords = [], totalMaxScore = 100) {
   });
 
   const totalCount = gradesRecords.length;
-  const avgScore = totalCount > 0 ? (totalScoreSum / totalCount) : 0;
+  const presentCount = totalCount - absentCount;
+  
+  // احتساب المتوسط ونسب النجاح بناء على الطلاب الحاضرين الفعليين
+  const avgScore = presentCount > 0 ? (totalScoreSum / presentCount) : 0;
   const avgPct = totalMaxScore > 0 ? (avgScore / totalMaxScore) * 100 : 0;
+  const passRate = presentCount > 0 ? Number(((passCount / presentCount) * 100).toFixed(1)) : 0;
+  const remedialRate = presentCount > 0 ? Number(((remedialCount / presentCount) * 100).toFixed(1)) : 0;
 
   const levelsDistribution = ACADEMIC_LEVELS.map(lvl => {
     const count = distributionMap[lvl.code].count;
-    const percentage = totalCount > 0 ? Number(((count / totalCount) * 100).toFixed(1)) : 0;
+    const percentage = presentCount > 0 ? Number(((count / presentCount) * 100).toFixed(1)) : 0;
     return {
       ...lvl,
       count,
@@ -391,12 +440,15 @@ export function computeClassExamStats(gradesRecords = [], totalMaxScore = 100) {
 
   return {
     totalCount,
+    totalRegistered: totalCount,
+    presentCount,
+    absentCount,
     averageScore: Number(avgScore.toFixed(2)),
     averagePercentage: Number(avgPct.toFixed(1)),
     passCount,
     remedialCount,
-    passRate: Number(((passCount / totalCount) * 100).toFixed(1)),
-    remedialRate: Number(((remedialCount / totalCount) * 100).toFixed(1)),
+    passRate,
+    remedialRate,
     levelsDistribution
   };
 }

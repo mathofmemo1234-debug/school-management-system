@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import GamificationBadge from '../components/GamificationBadge';
 import { calculateStudentActivity } from '../utils/gamificationEngine';
+import { sortStudentList, STUDENT_SORT_OPTIONS } from '../utils/studentSorting';
 
 const DEFAULT_CRITERIA = [
   { id: 'attendance', name: 'الحضور والانتظام', maxScore: 10, isActive: true, isBuiltIn: true },
@@ -60,6 +61,7 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'EXCELLENT' | 'VERY_GOOD' | 'GOOD' | 'NEEDS_SUPPORT' | 'HIGH_ABSENCE'
+  const [sortBy, setSortBy] = useState('default');
   const [selectedStudentForDossier, setSelectedStudentForDossier] = useState(null);
 
   // Manual Attendance Editor Modal
@@ -776,7 +778,7 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
 
   // 6. Filtered Student Records for Table Display
   const filteredRecords = useMemo(() => {
-    return processedStudentRecords.filter(rec => {
+    const list = processedStudentRecords.filter(rec => {
       // Search Query filter
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
@@ -794,7 +796,9 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
 
       return true;
     });
-  }, [processedStudentRecords, searchQuery, statusFilter]);
+
+    return sortStudentList(list, sortBy);
+  }, [processedStudentRecords, searchQuery, statusFilter, sortBy]);
 
   // 7. Auto-Select Student for Parent Dossier View
   useEffect(() => {
@@ -1176,6 +1180,31 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
             />
           </div>
 
+          {/* Student Sorting Selector */}
+          <div style={{ minWidth: '160px' }}>
+            <select
+              className="input-field"
+              style={{
+                width: '100%',
+                marginBottom: 0,
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#334155',
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              {STUDENT_SORT_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Status Filter Pills */}
           {activeView === 'matrix' && (
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1343,8 +1372,24 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '13px' }}>
                 <thead style={{ background: '#f8fafc', borderBottom: '2px solid #cbd5e1', color: '#334155', fontWeight: 700 }}>
                   <tr>
-                    <th style={{ padding: '12px 14px', width: '40px', textAlign: 'center' }}>#</th>
-                    <th style={{ padding: '12px 14px', minWidth: '170px' }}>اسم الطالب</th>
+                    <th 
+                      onClick={() => setSortBy(prev => prev === 'id_asc' ? 'id_desc' : 'id_asc')} 
+                      style={{ padding: '12px 14px', width: '40px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                      title="فرز حسب الرقم"
+                    >
+                      # {sortBy === 'id_asc' ? '▲' : sortBy === 'id_desc' ? '▼' : ''}
+                    </th>
+                    <th 
+                      onClick={() => setSortBy(prev => prev === 'name_asc' ? 'name_desc' : 'name_asc')} 
+                      style={{ padding: '12px 14px', minWidth: '170px', cursor: 'pointer', userSelect: 'none' }}
+                      title="فرز أبجدي"
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        اسم الطالب
+                        <ArrowUpDown size={13} style={{ color: sortBy.startsWith('name') ? '#0284c7' : '#94a3b8' }} />
+                        {sortBy === 'name_asc' ? ' (أ-ي)' : sortBy === 'name_desc' ? ' (ي-أ)' : ''}
+                      </span>
+                    </th>
                     
                     {/* Active Criteria Columns */}
                     {customCriteria.filter(c => c.isActive).map(crit => (
@@ -1354,9 +1399,18 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
                       </th>
                     ))}
 
-                    <th style={{ padding: '12px 14px', minWidth: '120px', textAlign: 'center', background: '#f0fdf4' }}>
-                      <div>المجموع المرصود</div>
-                      <div style={{ fontSize: '11px', color: '#166534', fontWeight: 'normal' }}>المرصود فعلياً</div>
+                    <th 
+                      onClick={() => setSortBy(prev => prev === 'score_desc' ? 'score_asc' : 'score_desc')} 
+                      style={{ padding: '12px 14px', minWidth: '120px', textAlign: 'center', background: '#f0fdf4', cursor: 'pointer', userSelect: 'none' }}
+                      title="فرز حسب المجموع"
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        <span>المجموع المرصود</span>
+                        <ArrowUpDown size={13} style={{ color: sortBy.startsWith('score') ? '#166534' : '#94a3b8' }} />
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#166534', fontWeight: 'normal' }}>
+                        {sortBy === 'score_desc' ? 'الأعلى أولاً' : sortBy === 'score_asc' ? 'الأقل أولاً' : 'المرصود فعلياً'}
+                      </div>
                     </th>
                     <th style={{ padding: '12px 14px', minWidth: '100px', textAlign: 'center', background: '#ecfdf5' }}>النسبة المئوية</th>
                     <th style={{ padding: '12px 14px', minWidth: '110px', textAlign: 'center' }}>التقدير العام</th>

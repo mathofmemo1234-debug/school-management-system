@@ -47,7 +47,8 @@ import {
   WifiOff,
   Radio,
   Filter,
-  User
+  User,
+  ArrowUpDown
 } from 'lucide-react';
 import MarkdownInput from '../components/MarkdownInput';
 import MarkdownViewer from '../components/MarkdownViewer';
@@ -58,6 +59,10 @@ import SharedQuestionBankModal from '../components/SharedQuestionBankModal';
 import ExamPreviewModal from '../components/ExamPreviewModal';
 import GamificationBadge from '../components/GamificationBadge';
 import { calculateStudentActivity } from '../utils/gamificationEngine';
+import { computePsychometrics } from '../utils/psychometricsEngine';
+import PsychometricCharts from '../components/PsychometricCharts';
+import { sortStudentList, STUDENT_SORT_OPTIONS } from '../utils/studentSorting';
+import { parseBatchGrades } from '../utils/batchGradesParser';
 import { formatArabicTime } from '../utils/dateTimeUtils';
 import { useNavigate } from 'react-router-dom';
 
@@ -98,6 +103,9 @@ export default function TeacherExams() {
   const [externalStudentsList, setExternalStudentsList] = useState([]);
   const [manualScores, setManualScores] = useState({}); // { [studentId]: score }
   const [manualNotes, setManualNotes] = useState({}); // { [studentId]: note }
+  const [externalSortBy, setExternalSortBy] = useState('default');
+  const [externalPasteNotice, setExternalPasteNotice] = useState(null);
+  const [analyticsStudentSortBy, setAnalyticsStudentSortBy] = useState('default');
   const [externalEntryTab, setExternalEntryTab] = useState('manual'); // 'manual' | 'excel'
   const [excelPasteText, setExcelPasteText] = useState('');
   const [importNotice, setImportNotice] = useState('');
@@ -652,7 +660,7 @@ export default function TeacherExams() {
         isExternal: true,
         type: 'paper_exam',
         maxScore: totalMax,
-        totalQuestions: totalMax,
+        totalQuestions: parseInt(numQuestions) || totalMax || 10,
         questions: [],
         schoolId,
         schoolName: userData?.schoolName || '',
@@ -679,8 +687,9 @@ export default function TeacherExams() {
 
       externalStudentsList.forEach(student => {
         const rawScore = manualScores[student.id];
-        const hasScore = rawScore !== undefined && rawScore !== '' && rawScore !== null;
-        const numScore = hasScore ? Math.min(totalMax, Math.max(0, parseFloat(rawScore))) : 0;
+        const isAbsent = rawScore === 'غ' || rawScore === 'غائب';
+        const hasScore = (rawScore !== undefined && rawScore !== '' && rawScore !== null && !isNaN(parseFloat(rawScore))) || isAbsent;
+        const numScore = isAbsent ? 0 : Math.min(totalMax, Math.max(0, parseFloat(rawScore)));
         const note = manualNotes[student.id] || '';
 
         if (hasScore) {
@@ -693,10 +702,12 @@ export default function TeacherExams() {
             subject,
             examTitle: title.trim(),
             score: numScore,
-            totalQuestions: totalMax,
+            totalQuestions: parseInt(numQuestions) || totalMax || 10,
             maxScore: totalMax,
-            percentage: Math.round((numScore / totalMax) * 100),
-            note,
+            percentage: isAbsent ? 0 : Math.round((numScore / totalMax) * 100),
+            isAbsent: Boolean(isAbsent),
+            status: isAbsent ? 'غائب' : (numScore >= totalMax * 0.5 ? 'ناجح' : 'راسب'),
+            note: isAbsent ? (note || 'غائب عن الاختبار') : note,
             isExternal: true,
             schoolId,
             timestamp: serverTimestamp()
@@ -724,6 +735,50 @@ export default function TeacherExams() {
       setIsSaving(false);
     }
   };
+
+  // تبديل غياب الطالب في الاختبار الورقي
+  const handleToggleExternalAbsent = (studentId) => {
+    setManualScores(prev => {
+      const isCurrentlyAbsent = prev[studentId] === 'غائب' || prev[studentId] === 'غ';
+      return {
+        ...prev,
+        [studentId]: isCurrentlyAbsent ? '' : 'غائب'
+      };
+    });
+  };
+
+  // اللصق الذكي لمصفوفة الدرجات للاختبار الورقي
+  const handleBatchPasteExternal = (e, startIndex, totalMax) => {
+    const text = e.clipboardData?.getData('text');
+    const parsed = parseBatchGrades(text, totalMax);
+    if (!parsed || parsed.length <= 1) return;
+
+    e.preventDefault();
+    setManualScores(prev => {
+      const updated = { ...prev };
+      let appliedCount = 0;
+      for (let i = 0; i < parsed.length; i++) {
+        const targetIdx = startIndex + i;
+        if (targetIdx >= sortedExternalStudents.length) break;
+        const student = sortedExternalStudents[targetIdx];
+        const item = parsed[i];
+        if (item.isAbsent) {
+          updated[student.id] = 'غائب';
+        } else if (!item.isBlank) {
+          updated[student.id] = String(item.value);
+        }
+        appliedCount++;
+      }
+      setExternalPasteNotice(`✅ تم بنجاح لصق وتوزيع ${appliedCount} درجات للاختبار الورقي مباشرة!`);
+      setTimeout(() => setExternalPasteNotice(null), 4000);
+      return updated;
+    });
+  };
+
+  // الطلاب بعد الفرز في الاختبار الورقي
+  const sortedExternalStudents = useMemo(() => {
+    return sortStudentList(externalStudentsList, externalSortBy);
+  }, [externalStudentsList, externalSortBy]);
 
   // Bulk score helper tools
   const handleBulkFillFullScore = () => {
@@ -857,158 +912,7 @@ export default function TeacherExams() {
   // ==========================================
   const itemAnalysisData = useMemo(() => {
     if (!currentExam || examResults.length === 0) return null;
-
-    const N = examResults.length;
-    const K = currentExam.questions?.length || 1;
-    const sortedResults = [...examResults].sort((a, b) => b.score - a.score);
-
-    const groupSize = N >= 20 ? Math.max(1, Math.round(N * 0.27)) : Math.max(1, Math.floor(N / 2));
-    const upperGroup = sortedResults.slice(0, groupSize);
-    const lowerGroup = sortedResults.slice(N - groupSize);
-
-    let sumP = 0;
-    let sumPItemVariance = 0;
-
-    const questionsAnalysis = (currentExam.questions || []).map((q, qIndex) => {
-      let totalCorrect = 0;
-      let upperCorrect = 0;
-      let lowerCorrect = 0;
-      const optionCounts = [0, 0, 0, 0];
-      const upperOptionCounts = [0, 0, 0, 0];
-      const lowerOptionCounts = [0, 0, 0, 0];
-
-      examResults.forEach(res => {
-        const studentAns = res.answers ? parseInt(res.answers[qIndex]) : -1;
-        if (studentAns >= 0 && studentAns < 4) optionCounts[studentAns]++;
-        if (studentAns === q.correctOption) totalCorrect++;
-      });
-
-      upperGroup.forEach(res => {
-        const ans = res.answers ? parseInt(res.answers[qIndex]) : -1;
-        if (ans >= 0 && ans < 4) upperOptionCounts[ans]++;
-        if (ans === q.correctOption) upperCorrect++;
-      });
-
-      lowerGroup.forEach(res => {
-        const ans = res.answers ? parseInt(res.answers[qIndex]) : -1;
-        if (ans >= 0 && ans < 4) lowerOptionCounts[ans]++;
-        if (ans === q.correctOption) lowerCorrect++;
-      });
-
-      const p = totalCorrect / N;
-      sumP += p;
-      sumPItemVariance += (p * (1 - p));
-      const d = groupSize > 0 ? (upperCorrect - lowerCorrect) / groupSize : 0;
-
-      let diffCategory = 'متوازن ومثالي';
-      let diffColor = '#16a34a';
-      let diffBg = '#dcfce7';
-      if (p > 0.85) {
-        diffCategory = 'سهل جداً';
-        diffColor = '#2563eb';
-        diffBg = '#dbeafe';
-      } else if (p < 0.30) {
-        diffCategory = 'صعب جداً';
-        diffColor = '#dc2626';
-        diffBg = '#fee2e2';
-      }
-
-      let discCategory = 'تمييز ممتاز (D ≥ 0.40)';
-      let discColor = '#16a34a';
-      let discBg = '#dcfce7';
-      if (d >= 0.40) {
-        discCategory = 'تمييز ممتاز (D ≥ 0.40)';
-      } else if (d >= 0.30) {
-        discCategory = 'تمييز جيد (0.30 - 0.39)';
-        discColor = '#0284c7';
-        discBg = '#e0f2fe';
-      } else if (d >= 0.20) {
-        discCategory = 'تمييز مقبول (0.20 - 0.29)';
-        discColor = '#d97706';
-        discBg = '#fef3c7';
-      } else {
-        discCategory = 'تمييز ضعيف / يحتاج مراجعة (D < 0.20)';
-        discColor = '#dc2626';
-        discBg = '#fee2e2';
-      }
-
-      const distractors = (q.options || []).map((optText, optIdx) => {
-        const isCorrect = optIdx === q.correctOption;
-        const count = optionCounts[optIdx];
-        const pct = Math.round((count / N) * 100);
-        const uCount = upperOptionCounts[optIdx];
-        const lCount = lowerOptionCounts[optIdx];
-
-        let note = '';
-        if (!isCorrect) {
-          if (count === 0) note = 'مشتت غير فعال (لم يختره أحد)';
-          else if (uCount > lCount) note = 'مشتت جذاب مضلل (جذب المتفوقين)';
-          else note = 'مشتت فعال ومناسب';
-        }
-
-        return {
-          optIndex: optIdx,
-          text: optText,
-          isCorrect,
-          count,
-          pct,
-          uCount,
-          lCount,
-          note
-        };
-      });
-
-      let recommendation = 'سؤال صالح وممتاز، يُنصح بحفظه في بنك الأسئلة.';
-      if (d < 0.20 && p > 0.85) {
-        recommendation = 'السؤال مباشر وسهل جداً، يفضل تعميق مستوى الصعوبة لقياس مهارات تفكير أعلى.';
-      } else if (d < 0.20 && p < 0.30) {
-        recommendation = 'السؤال شديد الصعوبة أو غامض، يرجى مراجعة الصياغة ومناسبة البدائل.';
-      } else if (d < 0.15) {
-        recommendation = 'معامل التمييز منخفض، يُنصح بتنقيح المشتتات والخيارات.';
-      }
-
-      return {
-        qIndex,
-        question: q,
-        totalCorrect,
-        p,
-        d,
-        diffCategory,
-        diffColor,
-        diffBg,
-        discCategory,
-        discColor,
-        discBg,
-        distractors,
-        recommendation
-      };
-    });
-
-    const rawScores = examResults.map(r => r.score);
-    const meanRaw = rawScores.reduce((a, b) => a + b, 0) / N;
-    const varRaw = rawScores.reduce((a, b) => a + Math.pow(b - meanRaw, 2), 0) / N;
-    const stdDev = Math.sqrt(varRaw);
-
-    let kr20 = 0;
-    if (K > 1 && varRaw > 0) {
-      const alpha = (K / (K - 1)) * (1 - (sumPItemVariance / varRaw));
-      kr20 = Math.max(0, Math.min(1, alpha));
-    }
-    const validity = Math.sqrt(kr20);
-    const sem = stdDev * Math.sqrt(Math.max(0, 1 - kr20));
-    const meanDifficulty = K > 0 ? (sumP / K) : 0;
-
-    return {
-      totalStudents: N,
-      totalQuestions: K,
-      meanScore: meanRaw.toFixed(1),
-      stdDev: stdDev.toFixed(2),
-      kr20: kr20.toFixed(2),
-      validity: validity.toFixed(2),
-      sem: sem.toFixed(2),
-      meanDifficulty: meanDifficulty.toFixed(2),
-      questionsAnalysis
-    };
+    return computePsychometrics({ exam: currentExam, results: examResults });
   }, [currentExam, examResults]);
 
   // ==========================================
@@ -1222,6 +1126,24 @@ export default function TeacherExams() {
                 style={{ fontWeight: 'bold', color: '#0e7490' }}
               />
             </div>
+
+            <div className="form-group">
+              <label style={{ fontWeight: 'bold' }}>
+                عدد فقرات/أسئلة الاختبار
+              </label>
+              <input 
+                type="number" 
+                min="1" 
+                max="200" 
+                className="input-field" 
+                value={numQuestions} 
+                onChange={e => setNumQuestions(e.target.value)} 
+                required 
+                placeholder="مثال: 10 أو 20"
+                style={{ fontWeight: 'bold', color: '#0e7490' }}
+              />
+              <span style={{ fontSize: '11px', color: '#64748b' }}>مهم لحساب معامل ثبات الاختبار KR-21 والصدق بدقة</span>
+            </div>
           </div>
 
           {/* Results Entry Modes: Manual vs Excel */}
@@ -1396,13 +1318,60 @@ export default function TeacherExams() {
               </div>
             ) : (
               <div style={{ background: 'white', borderRadius: '10px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                {/* Sorting & Batch Paste Toolbar */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  padding: '12px 16px', 
+                  background: '#f8fafc', 
+                  borderBottom: '1px solid #e2e8f0', 
+                  flexWrap: 'wrap', 
+                  gap: '10px' 
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ArrowUpDown size={16} color="#0e7490" />
+                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>فرز وترتيب الطلاب:</span>
+                    <select
+                      value={externalSortBy}
+                      onChange={(e) => setExternalSortBy(e.target.value)}
+                      style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', background: 'white' }}
+                    >
+                      {STUDENT_SORT_OPTIONS.map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    💡 <strong>لصق الدرجات:</strong> يمكنك نسخ عمود الدرجات من Excel أو نظام نور ولصقه في أول خلية لرصد الفصل كاملاً دفعة واحدة!
+                  </div>
+                </div>
+
+                {externalPasteNotice && (
+                  <div style={{ background: '#dcfce7', color: '#166534', padding: '10px 16px', borderBottom: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>
+                    <CheckCircle2 size={16} /> {externalPasteNotice}
+                  </div>
+                )}
+
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
                   <thead style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                     <tr>
                       <th style={{ padding: '12px 14px', fontSize: '13px', width: '40px' }}>#</th>
-                      <th style={{ padding: '12px 14px', fontSize: '13px' }}>اسم الطالب</th>
-                      <th style={{ padding: '12px 14px', fontSize: '13px' }}>رقم الهوية</th>
-                      <th style={{ padding: '12px 14px', fontSize: '13px', width: '160px', textAlign: 'center' }}>
+                      <th 
+                        style={{ padding: '12px 14px', fontSize: '13px', cursor: 'pointer', userSelect: 'none' }}
+                        onClick={() => setExternalSortBy(prev => prev === 'name_asc' ? 'name_desc' : 'name_asc')}
+                        title="انقر للفرز أبجدياً"
+                      >
+                        اسم الطالب {externalSortBy === 'name_asc' ? '▲ (أ-ي)' : externalSortBy === 'name_desc' ? '▼ (ي-أ)' : '⇅'}
+                      </th>
+                      <th 
+                        style={{ padding: '12px 14px', fontSize: '13px', cursor: 'pointer', userSelect: 'none' }}
+                        onClick={() => setExternalSortBy(prev => prev === 'id_asc' ? 'id_desc' : 'id_asc')}
+                        title="انقر لفرز رقم الهوية"
+                      >
+                        رقم الهوية {externalSortBy === 'id_asc' ? '▲' : externalSortBy === 'id_desc' ? '▼' : '⇅'}
+                      </th>
+                      <th style={{ padding: '12px 14px', fontSize: '13px', width: '190px', textAlign: 'center' }}>
                         الدرجة (من {totalMax})
                       </th>
                       <th style={{ padding: '12px 14px', fontSize: '13px', textAlign: 'center', width: '90px' }}>النسبة</th>
@@ -1411,11 +1380,12 @@ export default function TeacherExams() {
                     </tr>
                   </thead>
                   <tbody>
-                    {externalStudentsList.map((student, idx) => {
+                    {sortedExternalStudents.map((student, idx) => {
                       const scoreVal = manualScores[student.id];
+                      const isAbsent = scoreVal === 'غ' || scoreVal === 'غائب';
                       const numScore = parseFloat(scoreVal);
-                      const hasScore = scoreVal !== undefined && scoreVal !== '' && !isNaN(numScore);
-                      const pct = hasScore ? Math.round((numScore / totalMax) * 100) : null;
+                      const hasScore = !isAbsent && scoreVal !== undefined && scoreVal !== '' && !isNaN(numScore);
+                      const pct = isAbsent ? null : (hasScore ? Math.round((numScore / totalMax) * 100) : null);
                       const isPass = pct !== null && pct >= 50;
 
                       return (
@@ -1423,52 +1393,107 @@ export default function TeacherExams() {
                           key={student.id} 
                           style={{ 
                             borderBottom: '1px solid #f1f5f9', 
-                            background: idx % 2 === 0 ? 'white' : '#fafafa' 
+                            background: isAbsent ? '#fef2f2' : (idx % 2 === 0 ? 'white' : '#fafafa') 
                           }}
                         >
                           <td style={{ padding: '12px 14px', color: '#64748b', fontWeight: 'bold' }}>{idx + 1}</td>
-                          <td style={{ padding: '12px 14px', fontWeight: '700', color: '#0f172a' }}>{student.name}</td>
+                          <td style={{ padding: '12px 14px', fontWeight: '700', color: isAbsent ? '#991b1b' : '#0f172a' }}>{student.name}</td>
                           <td style={{ padding: '12px 14px', color: '#64748b', fontFamily: 'monospace' }}>{student.nationalId || '—'}</td>
                           
-                          {/* Score Input */}
+                          {/* Score Input & Absent Controls */}
                           <td style={{ padding: '8px 14px', textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              <input
-                                type="number"
-                                step="0.25"
-                                min="0"
-                                max={totalMax}
-                                placeholder="0"
-                                value={scoreVal !== undefined ? scoreVal : ''}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  setManualScores(prev => ({
-                                    ...prev,
-                                    [student.id]: val
-                                  }));
-                                }}
-                                style={{
-                                  width: '80px',
-                                  padding: '6px 10px',
+                            {isAbsent ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{
+                                  background: '#fee2e2',
+                                  color: '#991b1b',
+                                  border: '1px solid #fecaca',
+                                  padding: '4px 10px',
                                   borderRadius: '6px',
-                                  border: `1.5px solid ${hasScore ? '#0e7490' : '#cbd5e1'}`,
-                                  textAlign: 'center',
                                   fontWeight: 'bold',
-                                  fontSize: '14px'
-                                }}
-                              />
-                              <span style={{ color: '#64748b', fontSize: '13px' }}>/ {totalMax}</span>
-                            </div>
+                                  fontSize: '12px'
+                                }}>
+                                  غائب عن الاختبار 🚫
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleExternalAbsent(student.id)}
+                                  className="btn btn-outline"
+                                  style={{ padding: '2px 8px', fontSize: '11px', color: '#0e7490', borderColor: '#cbd5e1' }}
+                                  title="إلغاء الغياب وإتاحة إدخال الدرجة"
+                                >
+                                  إلغاء
+                                </button>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <input
+                                  type="number"
+                                  step="0.25"
+                                  min="0"
+                                  max={totalMax}
+                                  placeholder="0"
+                                  value={scoreVal !== undefined ? scoreVal : ''}
+                                  onPaste={(e) => handleBatchPasteExternal(e, idx, totalMax)}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setManualScores(prev => ({
+                                      ...prev,
+                                      [student.id]: val
+                                    }));
+                                  }}
+                                  style={{
+                                    width: '75px',
+                                    padding: '6px 8px',
+                                    borderRadius: '6px',
+                                    border: `1.5px solid ${hasScore ? '#0e7490' : '#cbd5e1'}`,
+                                    textAlign: 'center',
+                                    fontWeight: 'bold',
+                                    fontSize: '14px'
+                                  }}
+                                />
+                                <span style={{ color: '#64748b', fontSize: '13px' }}>/ {totalMax}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleExternalAbsent(student.id)}
+                                  title="تسجيل الطالب كغائب عن هذا الاختبار"
+                                  style={{
+                                    background: '#fef2f2',
+                                    border: '1px solid #fecaca',
+                                    color: '#b91c1c',
+                                    borderRadius: '6px',
+                                    padding: '5px 9px',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  غ
+                                </button>
+                              </div>
+                            )}
                           </td>
 
                           {/* Live Percentage */}
-                          <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 'bold', color: pct === null ? '#94a3b8' : isPass ? '#16a34a' : '#dc2626' }}>
-                            {pct !== null ? `${pct}%` : '—'}
+                          <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 'bold', color: isAbsent ? '#991b1b' : (pct === null ? '#94a3b8' : isPass ? '#16a34a' : '#dc2626') }}>
+                            {isAbsent ? '—' : (pct !== null ? `${pct}%` : '—')}
                           </td>
 
-                          {/* Pass/Fail Status */}
+                          {/* Pass/Fail/Absent Status */}
                           <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                            {pct === null ? (
+                            {isAbsent ? (
+                              <span style={{
+                                display: 'inline-block',
+                                padding: '3px 8px',
+                                borderRadius: '10px',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                background: '#fee2e2',
+                                color: '#991b1b'
+                              }}>
+                                غائب 🚫
+                              </span>
+                            ) : pct === null ? (
                               <span style={{ color: '#94a3b8', fontSize: '12px' }}>غير مرصود</span>
                             ) : (
                               <span style={{
@@ -1489,7 +1514,7 @@ export default function TeacherExams() {
                           <td style={{ padding: '6px 14px' }}>
                             <input
                               type="text"
-                              placeholder="ملاحظات اختيارية..."
+                              placeholder={isAbsent ? 'غائب بعذر / بدون عذر...' : 'ملاحظات اختيارية...'}
                               value={manualNotes[student.id] || ''}
                               onChange={e => {
                                 const val = e.target.value;
@@ -1545,33 +1570,48 @@ export default function TeacherExams() {
   // 2. ITEM ANALYSIS VIEW (تحليل الاختبار ومفرداته)
   // =========================================================================
   if (activeView === 'item_analysis' && currentExam) {
+    const isPaperExam = Boolean(currentExam.isExternal) || !currentExam.questions || currentExam.questions.length === 0;
+
     return (
       <div className="glass-panel" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '2px solid rgba(0,0,0,0.08)', paddingBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+        {/* Printable Official Header */}
+        <div style={{ 
+          borderBottom: '2px solid rgba(0,0,0,0.1)', 
+          paddingBottom: '16px', 
+          marginBottom: '20px', 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'wrap', 
+          gap: '12px' 
+        }}>
           <div>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}>
+              المملكة العربية السعودية • وزارة التعليم • {userData?.schoolName || 'المجمع التعليمي'}
+            </div>
             <h2 style={{ margin: '0 0 6px 0', color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Activity size={26} color="#0e7490" /> تقرير التحليل السيكومتري ومفردات الاختبار: {currentExam.title}
+              <Activity size={26} color="#0e7490" /> تقرير التحليل السيكومتري وموثوقية الاختبار: {currentExam.title}
             </h2>
-            <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
-              الفصل: <strong>{currentExam.targetClass}</strong> | المادة: <strong>{currentExam.subject}</strong> | عدد الأسئلة: <strong>{currentExam.questions?.length || 0}</strong> | المختبرين: <strong>{examResults.length}</strong>
+            <p style={{ margin: 0, color: '#475569', fontSize: '13px' }}>
+              الفصل: <strong>{currentExam.targetClass}</strong> | المادة: <strong>{currentExam.subject}</strong> | نوع الاختبار: <strong>{isPaperExam ? '📝 ورقي / تحريري مباشر' : '💻 إلكتروني'}</strong> | عدد الأسئلة: <strong>{currentExam.questions?.length || currentExam.totalQuestions || 10}</strong> | الراصد: <strong>{currentExam.teacherName || userData?.name || 'معلم المادة'}</strong>
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div className="no-print" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <button 
               className="btn btn-primary" 
               style={{ background: 'linear-gradient(135deg, #0e7490, #63B2C6)', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={() => {
                 const originalTitle = document.title;
                 const cleanExamTitle = (currentExam?.title || 'الاختبار').replace(/[/\\?%*:|"<>]/g, '_').trim();
-                document.title = `تقرير_تحليل_${cleanExamTitle}`;
+                document.title = `تقرير_التحليل_السيكومتري_${cleanExamTitle}`;
                 window.print();
                 setTimeout(() => {
                   document.title = originalTitle;
                 }, 1000);
               }}
             >
-              <Printer size={16} /> طباعة تقرير التحليل (PDF)
+              <Printer size={16} /> طباعة تقرير التحليل والاعتماد (PDF)
             </button>
             <button className="btn btn-outline" onClick={resetForm}>
               <ArrowRight size={16} /> العودة للاختبارات
@@ -1587,22 +1627,37 @@ export default function TeacherExams() {
         ) : itemAnalysisData && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
+            {/* Attendees & Absence Summary Bar */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', padding: '10px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px' }}>
+              <div>👥 إجمالي المسجلين: <strong>{itemAnalysisData.totalTested || examResults.length}</strong></div>
+              <div>•</div>
+              <div style={{ color: '#16a34a' }}>✅ الحاضرون: <strong>{itemAnalysisData.presentCount || examResults.filter(r => !r.isAbsent).length}</strong></div>
+              <div>•</div>
+              <div style={{ color: '#dc2626' }}>🚫 الغائبون: <strong>{itemAnalysisData.absentCount || examResults.filter(r => r.isAbsent).length}</strong></div>
+              <div>•</div>
+              <div>معادلة الثبات المستخدمة: <strong style={{ color: '#0e7490' }}>{itemAnalysisData.formulaUsed || (isPaperExam ? 'KR-21' : 'KR-20')}</strong></div>
+            </div>
+
             {/* Overall Psychometric Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px' }}>
               <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '10px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534' }}>معامل الثبات (KR-20)</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534' }}>
+                  معامل الثبات ({itemAnalysisData.formulaUsed || (isPaperExam ? 'KR-21' : 'KR-20')})
+                </div>
                 <div style={{ fontSize: '26px', fontWeight: '900', color: '#15803d', margin: '4px 0' }}>{itemAnalysisData.kr20}</div>
-                <div style={{ fontSize: '11px', color: '#166534' }}>{parseFloat(itemAnalysisData.kr20) >= 0.70 ? '✅ ثبات عالي وموثوق' : '⚠️ ثبات متوسط'}</div>
+                <div style={{ fontSize: '11px', color: '#166534', fontWeight: 'bold' }}>
+                  {parseFloat(itemAnalysisData.kr20) >= 0.70 ? '✅ ثبات عالي وموثوق' : parseFloat(itemAnalysisData.kr20) >= 0.50 ? '⚠️ ثبات متوسط ومقبول' : '❌ ثبات منخفض بحاجة لمراجعة'}
+                </div>
               </div>
 
               <div style={{ background: '#f0fdfa', padding: '16px', borderRadius: '10px', border: '1px solid #99f6e4', textAlign: 'center' }}>
                 <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#0f766e' }}>معامل الصدق الذاتي</div>
                 <div style={{ fontSize: '26px', fontWeight: '900', color: '#0d9488', margin: '4px 0' }}>{itemAnalysisData.validity}</div>
-                <div style={{ fontSize: '11px', color: '#0f766e' }}>جذر معامل الثبات (√KR-20)</div>
+                <div style={{ fontSize: '11px', color: '#0f766e' }}>جذر معامل الثبات (√{itemAnalysisData.formulaUsed || (isPaperExam ? 'KR-21' : 'KR-20')})</div>
               </div>
 
               <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>متوسط صعوبة الاختبار</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>متوسط صعوبة الاختبار (P)</div>
                 <div style={{ fontSize: '26px', fontWeight: '900', color: '#0284c7', margin: '4px 0' }}>{itemAnalysisData.meanDifficulty}</div>
                 <div style={{ fontSize: '11px', color: '#64748b' }}>المعدل المثالي (0.40 - 0.75)</div>
               </div>
@@ -1619,6 +1674,56 @@ export default function TeacherExams() {
                 <div style={{ fontSize: '11px', color: '#92400e' }}>دقة تقدير الدرجة الحقيقية</div>
               </div>
             </div>
+
+            {/* VISUAL PSYCHOMETRIC CHARTS */}
+            <PsychometricCharts psychometrics={itemAnalysisData} printMode={false} />
+
+            {/* Kelly's 27% Upper vs Lower Groups Analysis */}
+            {itemAnalysisData.kellyAnalysis && (
+              <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #e2e8f0' }}>
+                <h3 style={{ margin: '0 0 16px 0', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TrendingUp size={20} color="#0e7490" /> تحليل الفئات الطرفية (طريقة كيلي 27% للمقارنة والتمييز)
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                  <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+                    <div style={{ fontWeight: 'bold', color: '#166534', marginBottom: '8px' }}>🟢 الفئة العليا (الأعلى 27%)</div>
+                    <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div>عدد الطلاب: <strong>{itemAnalysisData.kellyAnalysis.upperCount} طالب</strong></div>
+                      <div>متوسط درجات الفئة العليا: <strong style={{ color: '#16a34a' }}>{itemAnalysisData.kellyAnalysis.upperMean}%</strong></div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#fef2f2', padding: '16px', borderRadius: '10px', border: '1px solid #fecaca' }}>
+                    <div style={{ fontWeight: 'bold', color: '#991b1b', marginBottom: '8px' }}>🔴 الفئة الدنيا (الأدنى 27%)</div>
+                    <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div>عدد الطلاب: <strong>{itemAnalysisData.kellyAnalysis.lowerCount} طالب</strong></div>
+                      <div>متوسط درجات الفئة الدنيا: <strong style={{ color: '#dc2626' }}>{itemAnalysisData.kellyAnalysis.lowerMean}%</strong></div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#f0f9ff', padding: '16px', borderRadius: '10px', border: '1px solid #bae6fd' }}>
+                    <div style={{ fontWeight: 'bold', color: '#0369a1', marginBottom: '8px' }}>⚖️ القوة التمييزية للاختبار</div>
+                    <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div>الفرق بين الفئتين: <strong>{itemAnalysisData.kellyAnalysis.diffScore}%</strong></div>
+                      <div>التقييم: <strong style={{ color: '#0284c7' }}>{itemAnalysisData.kellyAnalysis.discriminationQuality}</strong></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quartiles */}
+                {itemAnalysisData.quartiles && (
+                  <div style={{ display: 'flex', gap: '20px', marginTop: '16px', padding: '12px 16px', background: '#f8fafc', borderRadius: '8px', fontSize: '13px', flexWrap: 'wrap' }}>
+                    <div>الربيع الأول (Q1): <strong>{itemAnalysisData.quartiles.q1}%</strong></div>
+                    <div>•</div>
+                    <div>الوسيط (Q2 / Median): <strong>{itemAnalysisData.quartiles.median}%</strong></div>
+                    <div>•</div>
+                    <div>الربيع الثالث (Q3): <strong>{itemAnalysisData.quartiles.q3}%</strong></div>
+                    <div>•</div>
+                    <div>المدى الربيعي (IQR): <strong>{itemAnalysisData.quartiles.iqr}%</strong></div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Questions Detailed Analysis Table & Cards */}
             {itemAnalysisData.questionsAnalysis && itemAnalysisData.questionsAnalysis.length > 0 ? (
@@ -1688,10 +1793,58 @@ export default function TeacherExams() {
                 </div>
               </div>
             ) : (
-              <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center', color: '#64748b' }}>
-                <p>تم رصد درجات هذا الاختبار كدرجة إجمالية مباشرة (اختبار ورقي/خارجي). يمكنك استعراض كافة المؤشرات والتحليلات الإحصائية للفصل والطلاب عبر زر "تحليل نتائج الاختبار".</p>
+              <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#0f172a' }}>📝 تقرير الاختبار الورقي / التحريري المباشر</h4>
+                <p style={{ margin: 0, color: '#475569', fontSize: '13px', lineHeight: '1.7' }}>
+                  تم احتساب مؤشرات القياس والتقويم بناءً على نظرية القياس الكلاسيكية ومعادلة كودر-ريتشاردسون (KR-21) لدرجات الاختبار الإجمالية المباشرة، مع احتساب معامل الصدق الذاتي والانحراف المعياري وخطأ القياس. الاختبار يحقق ثباتاً بمقدار <strong>({itemAnalysisData.kr20})</strong> وصدقاً ذاتياً بمقدار <strong>({itemAnalysisData.validity})</strong>.
+                </p>
               </div>
             )}
+
+            {/* Official Signatures Section for Teacher, Supervisor, Principal */}
+            <div style={{ 
+              marginTop: '30px', 
+              padding: '24px 20px', 
+              background: 'white', 
+              borderRadius: '12px', 
+              border: '1.5px solid #cbd5e1' 
+            }}>
+              <div style={{ textAlign: 'center', marginBottom: '20px', fontWeight: 'bold', color: '#1e293b', fontSize: '15px' }}>
+                الاعتماد والمصادقة الرسمية على تقرير التحليل السيكومتري وموثوقية الاختبار
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', textAlign: 'center' }}>
+                {/* 1. Teacher */}
+                <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0e7490', marginBottom: '6px' }}>معلم المادة</div>
+                  <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>{currentExam.teacherName || userData?.name || 'معلم المادة'}</div>
+                  <div style={{ marginTop: '30px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                    التوقيع: .......................................
+                  </div>
+                </div>
+
+                {/* 2. Supervisor */}
+                <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0284c7', marginBottom: '6px' }}>المشرف التربوي</div>
+                  <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>{currentExam.supervisorName || 'المشرف التربوي المعتمد'}</div>
+                  <div style={{ marginTop: '30px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                    التوقيع: .......................................
+                  </div>
+                </div>
+
+                {/* 3. Principal */}
+                <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#166534', marginBottom: '6px' }}>مدير المدرسة</div>
+                  <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>{currentExam.principalName || userData?.schoolPrincipal || 'مدير المدرسة'}</div>
+                  <div style={{ marginTop: '30px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                    الختم والتوقيع: .......................................
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '11px', color: '#94a3b8' }}>
+                تم استخراج وتوثيق تقرير التحليل السيكومتري عبر منظومة التعلم والإدارة المدرسية الذكية • {new Date().toLocaleDateString('ar-SA')}
+              </div>
+            </div>
 
           </div>
         )}
@@ -1853,19 +2006,37 @@ export default function TeacherExams() {
             {analyticsTab === 'student' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 
-                {/* Search Bar */}
+                {/* Search & Sort Bar */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                  <div style={{ position: 'relative', width: '300px' }}>
-                    <Search size={16} color="#94a3b8" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="بحث باسم الطالب..."
-                      value={studentSearchQuery}
-                      onChange={e => setStudentSearchQuery(e.target.value)}
-                      style={{ paddingRight: '36px', marginBottom: 0 }}
-                    />
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', width: '280px' }}>
+                      <Search size={16} color="#94a3b8" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="بحث باسم الطالب..."
+                        value={studentSearchQuery}
+                        onChange={e => setStudentSearchQuery(e.target.value)}
+                        style={{ paddingRight: '36px', marginBottom: 0 }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <ArrowUpDown size={15} color="#0e7490" />
+                      <select
+                        value={analyticsStudentSortBy}
+                        onChange={e => setAnalyticsStudentSortBy(e.target.value)}
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: 'white' }}
+                      >
+                        <option value="default">الترتيب: الافتراضي (الرتبة والدرجة)</option>
+                        <option value="name_asc">الاسم أبجدياً (أ - ي)</option>
+                        <option value="name_desc">الاسم عكسياً (ي - أ)</option>
+                        <option value="score_desc">الدرجة الأعلى أولاً</option>
+                        <option value="score_asc">الدرجة الأقل أولاً</option>
+                      </select>
+                    </div>
                   </div>
+
                   <div style={{ fontSize: '13px', color: '#64748b' }}>
                     إجمالي الطلاب: <strong>{data.studentRows.length}</strong> | متوسط الفصل: <strong>{data.average}%</strong>
                   </div>
@@ -1877,8 +2048,20 @@ export default function TeacherExams() {
                     <thead style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                       <tr>
                         <th style={{ padding: '12px 14px', fontSize: '13px', width: '50px' }}>الرتبة</th>
-                        <th style={{ padding: '12px 14px', fontSize: '13px' }}>اسم الطالب</th>
-                        <th style={{ padding: '12px 14px', fontSize: '13px', textAlign: 'center' }}>الدرجة</th>
+                        <th 
+                          style={{ padding: '12px 14px', fontSize: '13px', cursor: 'pointer', userSelect: 'none' }}
+                          onClick={() => setAnalyticsStudentSortBy(prev => prev === 'name_asc' ? 'name_desc' : 'name_asc')}
+                          title="انقر للفرز أبجدياً"
+                        >
+                          اسم الطالب {analyticsStudentSortBy === 'name_asc' ? '▲' : analyticsStudentSortBy === 'name_desc' ? '▼' : '⇅'}
+                        </th>
+                        <th 
+                          style={{ padding: '12px 14px', fontSize: '13px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                          onClick={() => setAnalyticsStudentSortBy(prev => prev === 'score_desc' ? 'score_asc' : 'score_desc')}
+                          title="انقر لفرز الدرجات"
+                        >
+                          الدرجة {analyticsStudentSortBy === 'score_desc' ? '▼' : analyticsStudentSortBy === 'score_asc' ? '▲' : '⇅'}
+                        </th>
                         <th style={{ padding: '12px 14px', fontSize: '13px', textAlign: 'center' }}>النسبة</th>
                         <th style={{ padding: '12px 14px', fontSize: '13px', textAlign: 'center' }}>المستوى بالنسبة للمتوسط</th>
                         {currentExam.questions?.length > 0 && (
@@ -1888,9 +2071,18 @@ export default function TeacherExams() {
                       </tr>
                     </thead>
                     <tbody>
-                      {data.studentRows
-                        .filter(s => !studentSearchQuery || s.studentName.toLowerCase().includes(studentSearchQuery.toLowerCase()))
-                        .map((student, idx) => (
+                      {(() => {
+                        let rows = data.studentRows.filter(s => !studentSearchQuery || s.studentName.toLowerCase().includes(studentSearchQuery.toLowerCase()));
+                        if (analyticsStudentSortBy === 'name_asc') {
+                          rows = [...rows].sort((a, b) => (a.studentName || '').localeCompare(b.studentName || '', 'ar', { sensitivity: 'base' }));
+                        } else if (analyticsStudentSortBy === 'name_desc') {
+                          rows = [...rows].sort((a, b) => (b.studentName || '').localeCompare(a.studentName || '', 'ar', { sensitivity: 'base' }));
+                        } else if (analyticsStudentSortBy === 'score_asc') {
+                          rows = [...rows].sort((a, b) => a.percentage - b.percentage);
+                        } else if (analyticsStudentSortBy === 'score_desc') {
+                          rows = [...rows].sort((a, b) => b.percentage - a.percentage);
+                        }
+                        return rows.map((student, idx) => (
                           <tr key={student.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? 'white' : '#fafafa' }}>
                             <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 'bold' }}>
                               {student.rank === 1 ? '🥇 1' : student.rank === 2 ? '🥈 2' : student.rank === 3 ? '🥉 3' : student.rank}
@@ -1948,7 +2140,8 @@ export default function TeacherExams() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        ));
+                      })()}
                     </tbody>
                   </table>
                 </div>
