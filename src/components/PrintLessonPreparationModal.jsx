@@ -253,28 +253,22 @@ export default function PrintLessonPreparationModal({ prep, onClose }) {
           {/* Signatures & Approvals Box */}
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'space-around',
             marginTop: '36px',
             paddingTop: '20px',
             borderTop: '2px dashed #cbd5e1',
             pageBreakInside: 'avoid'
           }}>
-            <div style={{ textAlign: 'center', minWidth: '150px' }}>
+            <div style={{ textAlign: 'center', minWidth: '160px' }}>
               <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>معلم المادة</div>
               <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '14px' }}>{prep.teacherName || userData?.name}</div>
-              <div style={{ height: '35px', borderBottom: '1px solid #94a3b8', margin: '4px auto', width: '120px' }}></div>
+              <div style={{ height: '35px', borderBottom: '1px solid #94a3b8', margin: '4px auto', width: '140px' }}></div>
             </div>
 
-            <div style={{ textAlign: 'center', minWidth: '150px' }}>
-              <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>المشرف التعليمي</div>
-              <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '14px' }}>الاعتماد الإشرافي</div>
-              <div style={{ height: '35px', borderBottom: '1px solid #94a3b8', margin: '4px auto', width: '120px' }}></div>
-            </div>
-
-            <div style={{ textAlign: 'center', minWidth: '150px' }}>
+            <div style={{ textAlign: 'center', minWidth: '160px' }}>
               <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>مدير المدرسة</div>
               <div style={{ fontWeight: 'bold', color: '#0e7490', fontSize: '14px' }}>{principalName}</div>
-              <div style={{ height: '35px', borderBottom: '1px solid #94a3b8', margin: '4px auto', width: '120px' }}></div>
+              <div style={{ height: '35px', borderBottom: '1px solid #94a3b8', margin: '4px auto', width: '140px' }}></div>
             </div>
           </div>
 

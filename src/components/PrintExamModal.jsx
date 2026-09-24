@@ -510,16 +510,6 @@ export default function PrintExamModal({
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <label style={{ color: '#475569', fontWeight: 'bold' }}>المشرف التربوي:</label>
-            <input
-              type="text"
-              value={supervisorName}
-              onChange={e => setSupervisorName(e.target.value)}
-              placeholder="اسم المشرف"
-              style={{ padding: '4px 10px', fontSize: '12px', width: '160px', borderRadius: '6px' }}
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <label style={{ color: '#475569', fontWeight: 'bold' }}>مدير المدرسة:</label>
             <input
               type="text"
@@ -810,11 +800,6 @@ export default function PrintExamModal({
                       </div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
-                      <div>المشرف التربوي</div>
-                      <div style={{ marginTop: '14px', fontWeight: 'bold', color: '#0f172a' }}>{supervisorName}</div>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>التوقيع: .....................</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
                       <div>مدير المدرسة</div>
                       <div style={{ marginTop: '14px', fontWeight: 'bold', color: '#0f172a' }}>{principalName}</div>
                       <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>الختم والتوقيع: .....................</div>
@@ -962,16 +947,7 @@ export default function PrintExamModal({
                 }}>
                   <div style={{ textAlign: 'center' }}>
                     <div>معلم المادة</div>
-                    <div style={{ marginTop: '30px' }}>{teacherName}</div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div>المشرف التربوي</div>
-                    <div style={{ marginTop: '14px', fontWeight: 'bold', color: '#0f172a' }}>{supervisorName}</div>
-                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>التوقيع: .....................</div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div>وكيل الشؤون التعليمية</div>
-                    <div style={{ marginTop: '14px', fontWeight: 'bold', color: '#0f172a' }}>وكيل الشؤون التعليمية</div>
+                    <div style={{ marginTop: '14px', fontWeight: 'bold', color: '#0f172a' }}>{teacherName}</div>
                     <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>التوقيع: .....................</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>

@@ -1593,7 +1593,7 @@ export default function AdminExamsManagement() {
                     <div style={{ textAlign: 'center', marginBottom: '20px', fontWeight: 'bold', color: '#1e293b', fontSize: '15px' }}>
                       الاعتماد والمصادقة الرسمية على تقرير التحليل السيكومتري وموثوقية الاختبار
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', textAlign: 'center' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px', textAlign: 'center' }}>
                       {/* 1. Teacher / Coordinator */}
                       <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
                         <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0e7490', marginBottom: '6px' }}>معلم المادة / المنسق</div>
@@ -1605,31 +1605,7 @@ export default function AdminExamsManagement() {
                         </div>
                       </div>
 
-                      {/* 2. Supervisor */}
-                      <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0284c7', marginBottom: '6px' }}>المشرف التربوي</div>
-                        <input
-                          type="text"
-                          defaultValue={userData?.role === 'supervisor' ? userData.name : 'أ. أحمد المقدم'}
-                          style={{
-                            fontSize: '15px',
-                            fontWeight: 'bold',
-                            color: '#0f172a',
-                            textAlign: 'center',
-                            background: 'transparent',
-                            border: 'none',
-                            borderBottom: '1px dashed #cbd5e1',
-                            width: '90%',
-                            padding: '4px'
-                          }}
-                          title="انقر لتعديل اسم المشرف"
-                        />
-                        <div style={{ marginTop: '20px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
-                          التوقيع: .......................................
-                        </div>
-                      </div>
-
-                      {/* 3. Principal */}
+                      {/* 2. Principal */}
                       <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
                         <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#166534', marginBottom: '6px' }}>مدير المدرسة</div>
                         <input

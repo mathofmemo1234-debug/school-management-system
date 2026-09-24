@@ -786,19 +786,14 @@ export default function PrintPortfolioModal({
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '0.8rem' }}>
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '8px', borderInlineEnd: '1px solid #e2e8f0', width: '33.33%' }}>صاحب ملف الإنجاز</th>
-                      <th style={{ padding: '8px', borderInlineEnd: '1px solid #e2e8f0', width: '33.33%' }}>المشرف التربوي / رئيس القسم</th>
-                      <th style={{ padding: '8px', width: '33.33%' }}>مدير مجمع المدارس</th>
+                      <th style={{ padding: '8px', borderInlineEnd: '1px solid #e2e8f0', width: '50%' }}>صاحب ملف الإنجاز</th>
+                      <th style={{ padding: '8px', width: '50%' }}>مدير مجمع المدارس</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
                       <td style={{ padding: '14px 8px', borderInlineEnd: '1px solid #e2e8f0', verticalAlign: 'top' }}>
                         <strong style={{ display: 'block', color: '#0f172a', marginBottom: '4px' }}>{personName}</strong>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>التوقيع: .....................</span>
-                      </td>
-                      <td style={{ padding: '14px 8px', borderInlineEnd: '1px solid #e2e8f0', verticalAlign: 'top' }}>
-                        <strong style={{ display: 'block', color: '#0f172a', marginBottom: '4px' }}>{supervisorName}</strong>
                         <span style={{ fontSize: '0.75rem', color: '#64748b' }}>التوقيع: .....................</span>
                       </td>
                       <td style={{ padding: '14px 8px', verticalAlign: 'top' }}>
