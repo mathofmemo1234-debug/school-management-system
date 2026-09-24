@@ -50,7 +50,7 @@ export default function QiyasPlatformModal({ isLoginPage = false }) {
       {/* Attractive Floating Action Button (Far from the bottom-left About Us button) */}
       <button
         type="button"
-        className={`floating-qiyas-btn ${isLoginPage ? 'floating-qiyas-login' : ''}`}
+        className={`floating-qiyas-btn no-print ${isLoginPage ? 'floating-qiyas-login' : ''}`}
         onClick={() => setIsOpen(true)}
         title="منصة نَبِـيــهْ للقدرات العامة | تدريب تفاعلي ومحاكاة حقيقية لقياس"
       >

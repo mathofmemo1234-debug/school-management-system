@@ -24,7 +24,7 @@ export default function Layout({ role, title, children }) {
       {/* Global Floating Action Button: من نحن (فلاش يومض) */}
       <button
         type="button"
-        className="floating-about-btn"
+        className="floating-about-btn no-print"
         onClick={() => setShowAboutModal(true)}
         title="عن المدرسة والمنظومة التعليمية - من نحن"
       >
@@ -35,15 +35,19 @@ export default function Layout({ role, title, children }) {
       </button>
 
       {/* Global About School Modal */}
-      <AboutSchoolModal 
-        isOpen={showAboutModal} 
-        onClose={() => setShowAboutModal(false)} 
-      />
+      <div className="no-print">
+        <AboutSchoolModal 
+          isOpen={showAboutModal} 
+          onClose={() => setShowAboutModal(false)} 
+        />
+      </div>
 
       {/* Global Floating Action Button & Modal: منصة نبيه للقدرات (في الجهة اليمنى بعيداً عن زر من نحن) */}
-      <QiyasPlatformModal />
+      <div className="no-print">
+        <QiyasPlatformModal />
+      </div>
 
-      <div style={{
+      <div className="designer-footer no-print" style={{
         position: 'fixed',
         bottom: '10px',
         left: '15px',

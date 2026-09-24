@@ -65,6 +65,7 @@ import { sortStudentList, STUDENT_SORT_OPTIONS } from '../utils/studentSorting';
 import { parseBatchGrades } from '../utils/batchGradesParser';
 import { formatArabicTime } from '../utils/dateTimeUtils';
 import { useNavigate } from 'react-router-dom';
+import ExamCorrelationModal from '../components/ExamCorrelationModal';
 
 export default function TeacherExams() {
   const navigate = useNavigate();
@@ -122,6 +123,11 @@ export default function TeacherExams() {
   const [formsExportExam, setFormsExportExam] = useState(null);
   const [formsExportPlatform, setFormsExportPlatform] = useState('google');
   const [previewExamData, setPreviewExamData] = useState(null);
+  
+  // Dual Exam Correlation State
+  const [showCorrelationModal, setShowCorrelationModal] = useState(false);
+  const [correlationExam1, setCorrelationExam1] = useState(null);
+  const [correlationExam2, setCorrelationExam2] = useState(null);
 
   // Leadership Role Check & Filter States (Admin, Supervisor, Staff / Vice Principal)
   const isLeadership = userData?.role === 'admin' || userData?.role === 'supervisor' || userData?.role === 'staff' || userData?.role === 'superadmin';
@@ -923,10 +929,19 @@ export default function TeacherExams() {
 
     const total = examResults.length;
     let sumScores = 0;
+    let sumRawScores = 0;
     let passed = 0;
-    let highest = 0;
-    let lowest = 100;
-    const maxPoss = currentExam.maxScore || currentExam.totalQuestions || 20;
+    let presentCount = 0;
+    let absentCount = 0;
+    let highestPct = 0;
+    let lowestPct = 100;
+    let highestRaw = 0;
+    let lowestRaw = 1000;
+
+    // Get true maximum score of the exam
+    const examMaxScore = parseFloat(currentExam.maxScore) || 
+                         (currentExam.questions?.length && currentExam.questions.length > 1 ? currentExam.questions.length : 0) || 
+                         parseFloat(examResults[0]?.maxScore) || 20;
 
     const bands = {
       excellent: { label: 'ممتاز (90% - 100%)', count: 0, color: '#16a34a', bg: '#dcfce7' },
@@ -937,18 +952,38 @@ export default function TeacherExams() {
     };
 
     const studentRows = examResults.map(res => {
-      const denom = res.totalQuestions || res.maxScore || maxPoss;
-      const pct = Math.round((res.score / denom) * 100);
-      sumScores += pct;
-      if (pct >= 50) passed++;
-      if (pct > highest) highest = pct;
-      if (pct < lowest) lowest = pct;
+      const isAbsent = res.isAbsent === true || res.score === 'غ' || res.score === 'غائب';
+      const rawScore = isAbsent ? 0 : (parseFloat(res.score) || 0);
+      const studentMax = parseFloat(res.maxScore) || examMaxScore;
 
-      if (pct >= 90) bands.excellent.count++;
-      else if (pct >= 80) bands.veryGood.count++;
-      else if (pct >= 70) bands.good.count++;
-      else if (pct >= 60) bands.pass.count++;
-      else bands.fail.count++;
+      // Calculate percentage cleanly (clamped between 0 and 100)
+      let pct = 0;
+      if (!isAbsent && studentMax > 0) {
+        if (res.percentage !== undefined && !isNaN(res.percentage) && Number(res.percentage) <= 100) {
+          pct = Math.round(Number(res.percentage));
+        } else {
+          pct = Math.min(100, Math.max(0, Math.round((rawScore / studentMax) * 100)));
+        }
+      }
+
+      if (isAbsent) {
+        absentCount++;
+      } else {
+        presentCount++;
+        sumScores += pct;
+        sumRawScores += rawScore;
+        if (pct >= 50) passed++;
+        if (pct > highestPct) highestPct = pct;
+        if (pct < lowestPct) lowestPct = pct;
+        if (rawScore > highestRaw) highestRaw = rawScore;
+        if (rawScore < lowestRaw) lowestRaw = rawScore;
+
+        if (pct >= 90) bands.excellent.count++;
+        else if (pct >= 80) bands.veryGood.count++;
+        else if (pct >= 70) bands.good.count++;
+        else if (pct >= 60) bands.pass.count++;
+        else bands.fail.count++;
+      }
 
       const correctIndices = [];
       const incorrectIndices = [];
@@ -967,11 +1002,13 @@ export default function TeacherExams() {
         id: res.id,
         studentId: res.studentId,
         studentName: res.studentName || studentsCache[res.studentId] || 'طالب',
-        score: res.score,
-        totalQuestions: denom,
+        score: rawScore,
+        maxScore: studentMax,
+        totalQuestions: studentMax,
         percentage: pct,
-        isPass: pct >= 50,
-        note: res.note || '',
+        isAbsent,
+        isPass: !isAbsent && pct >= 50,
+        note: isAbsent ? 'غائب عن الاختبار' : (res.note || ''),
         correctIndices,
         incorrectIndices,
         rawResult: res,
@@ -979,23 +1016,35 @@ export default function TeacherExams() {
       };
     });
 
-    const average = Math.round(sumScores / total);
-    const passRate = Math.round((passed / total) * 100);
+    const activeCount = presentCount > 0 ? presentCount : 1;
+    const average = Math.round(sumScores / activeCount);
+    const averageRawScore = Math.round((sumRawScores / activeCount) * 10) / 10;
+    const passRate = Math.round((passed / activeCount) * 100);
+
+    if (lowestRaw === 1000) lowestRaw = 0;
+    if (lowestPct === 100 && presentCount === 0) lowestPct = 0;
 
     studentRows.sort((a, b) => b.percentage - a.percentage);
     studentRows.forEach((s, idx) => {
       s.rank = idx + 1;
-      if (s.percentage > average + 5) s.comparison = 'فوق المتوسط 🚀';
+      if (s.isAbsent) s.comparison = 'غائب';
+      else if (s.percentage > average + 5) s.comparison = 'فوق المتوسط 🚀';
       else if (s.percentage >= average - 5) s.comparison = 'في مستوى المتوسط ⚖️';
       else s.comparison = 'دون المتوسط (يحتاج دعم) ⚠️';
     });
 
     return {
       total,
+      presentCount,
+      absentCount,
       average,
+      averageRawScore,
+      maxScore: examMaxScore,
       passRate,
-      highest,
-      lowest,
+      highest: highestPct,
+      highestRaw,
+      lowest: lowestPct,
+      lowestRaw,
       bands,
       studentRows
     };
@@ -1613,6 +1662,27 @@ export default function TeacherExams() {
             >
               <Printer size={16} /> طباعة تقرير التحليل والاعتماد (PDF)
             </button>
+            <button 
+              className="btn" 
+              style={{
+                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                color: 'white',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: 'bold',
+                padding: '8px 14px'
+              }}
+              onClick={() => {
+                setCorrelationExam1(currentExam);
+                setCorrelationExam2(null);
+                setShowCorrelationModal(true);
+              }}
+              title="مقارنة وحساب معامل الارتباط ونماء التعلم بين هذا الاختبار واختبار آخر"
+            >
+              <TrendingUp size={16} /> 📈 معامل الارتباط باختبار آخر
+            </button>
             <button className="btn btn-outline" onClick={resetForm}>
               <ArrowRight size={16} /> العودة للاختبارات
             </button>
@@ -1639,21 +1709,35 @@ export default function TeacherExams() {
             </div>
 
             {/* Overall Psychometric Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px' }}>
-              <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '10px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
+              <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '10px', border: '1.5px solid #86efac', textAlign: 'center' }}>
                 <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534' }}>
                   معامل الثبات ({itemAnalysisData.formulaUsed || (isPaperExam ? 'KR-21' : 'KR-20')})
                 </div>
-                <div style={{ fontSize: '26px', fontWeight: '900', color: '#15803d', margin: '4px 0' }}>{itemAnalysisData.kr20}</div>
+                <div style={{ fontSize: '11px', color: '#15803d', background: '#dcfce7', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', margin: '4px 0', fontWeight: 'bold' }}>
+                  🎯 المدى المناسب: (0.70 - 0.90)
+                </div>
+                <div style={{ fontSize: '26px', fontWeight: '900', color: '#15803d', margin: '2px 0' }}>{itemAnalysisData.kr20}</div>
                 <div style={{ fontSize: '11px', color: '#166534', fontWeight: 'bold' }}>
-                  {parseFloat(itemAnalysisData.kr20) >= 0.70 ? '✅ ثبات عالي وموثوق' : parseFloat(itemAnalysisData.kr20) >= 0.50 ? '⚠️ ثبات متوسط ومقبول' : '❌ ثبات منخفض بحاجة لمراجعة'}
+                  {parseFloat(itemAnalysisData.kr20) >= 0.85 ? '🌟 ثبات ممتاز وموثوق جداً' : parseFloat(itemAnalysisData.kr20) >= 0.70 ? '✅ ثبات جيد ومناسب للتقويم' : parseFloat(itemAnalysisData.kr20) >= 0.60 ? '⚠️ ثبات مقبول' : '❌ ثبات ضعيف يتطلب مراجعة الأسئلة'}
+                </div>
+                <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px', lineHeight: '1.4' }}>
+                  يقيس دقة درجات الاختبار واتساقها واستقرارها
                 </div>
               </div>
 
-              <div style={{ background: '#f0fdfa', padding: '16px', borderRadius: '10px', border: '1px solid #99f6e4', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#0f766e' }}>معامل الصدق الذاتي</div>
-                <div style={{ fontSize: '26px', fontWeight: '900', color: '#0d9488', margin: '4px 0' }}>{itemAnalysisData.validity}</div>
-                <div style={{ fontSize: '11px', color: '#0f766e' }}>جذر معامل الثبات (√{itemAnalysisData.formulaUsed || (isPaperExam ? 'KR-21' : 'KR-20')})</div>
+              <div style={{ background: '#f0fdfa', padding: '16px', borderRadius: '10px', border: '1.5px solid #5eead4', textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#0f766e' }}>معامل الصدق الذاتي (Index of Validity)</div>
+                <div style={{ fontSize: '11px', color: '#0f766e', background: '#ccfbf1', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', margin: '4px 0', fontWeight: 'bold' }}>
+                  🎯 المدى المناسب: (0.84 - 0.95)
+                </div>
+                <div style={{ fontSize: '26px', fontWeight: '900', color: '#0d9488', margin: '2px 0' }}>{itemAnalysisData.validity}</div>
+                <div style={{ fontSize: '11px', color: '#0f766e', fontWeight: 'bold' }}>
+                  {parseFloat(itemAnalysisData.validity) >= 0.85 ? '🌟 صدق ذاتي ممتاز وعالٍ' : parseFloat(itemAnalysisData.validity) >= 0.70 ? '✅ صدق مناسب ومقبول تربوياً' : '⚠️ صدق منخفض بحاجة لدعم'}
+                </div>
+                <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px', lineHeight: '1.4' }}>
+                  يقيس مدى صلاحية الاختبار لقياس المهارات المقررة فعلياً
+                </div>
               </div>
 
               <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
@@ -1672,6 +1756,33 @@ export default function TeacherExams() {
                 <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#92400e' }}>خطأ القياس المعياري (SEM)</div>
                 <div style={{ fontSize: '26px', fontWeight: '900', color: '#b45309', margin: '4px 0' }}>{itemAnalysisData.sem}</div>
                 <div style={{ fontSize: '11px', color: '#92400e' }}>دقة تقدير الدرجة الحقيقية</div>
+              </div>
+            </div>
+
+
+            {/* الدليل الإرشادي والتفسير التربوي لمعاملات الصدق والثبات */}
+            <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+              <div style={{ fontWeight: 'bold', color: '#0f172a', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                <Sparkles size={18} color="#0e7490" />
+                <span>الدليل التربوي لتفسير موثوقية وجودة الاختبار (الصدق والثبات والصعوبة):</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', fontSize: '12px', lineHeight: '1.6', color: '#334155' }}>
+                <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderRight: '3px solid #16a34a' }}>
+                  <strong style={{ color: '#166534', display: 'block', marginBottom: '2px' }}>🔒 ما هو ثبات الاختبار (Reliability)؟</strong>
+                  يقيس اتساق واستقرار نتائج الطلاب وخلوها من أخطاء القياس العشوائية. الاختبار الموثوق يعطي نفس النتيجة تقريباً إذا تكرر في نفس الظروف. المدى المقبول للاختبارات التحصيلية يبدأ من <strong>0.70</strong> فأكثر.
+                </div>
+                <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderRight: '3px solid #0d9488' }}>
+                  <strong style={{ color: '#0f766e', display: 'block', marginBottom: '2px' }}>🎯 ما هو صدق الاختبار (Validity)؟</strong>
+                  يقيس مدى قدرة ومطابقة أسئلة الاختبار للأهداف ونواتج التعلم المستهدفة دون تشويش. ويمثل الصدق الذاتي (جذر الثبات) الحد الأقصى لصلاحية أداة التقويم، والمدى الممتاز هو <strong>0.84 فأكثر</strong>.
+                </div>
+                <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderRight: '3px solid #0284c7' }}>
+                  <strong style={{ color: '#0369a1', display: 'block', marginBottom: '2px' }}>⚖️ متوسط الصعوبة المتوازن (Difficulty P):</strong>
+                  النطاق المثالي علمياً بين <strong>0.40 و 0.75</strong>، حيث يتيح التمييز العادل بين الفئات المتباينة دون أن يكون تعجيزياً أو شديد السهولة.
+                </div>
+                <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderRight: '3px solid #b45309' }}>
+                  <strong style={{ color: '#b45309', display: 'block', marginBottom: '2px' }}>📏 خطأ القياس المعياري (SEM):</strong>
+                  هامش التذبذب النظري حول الدرجة الحقيقية للطالب. كلما كان أصغر دل على دقة استثنائية لأداة القياس.
+                </div>
               </div>
             </div>
 
@@ -1825,8 +1936,23 @@ export default function TeacherExams() {
                 {/* 2. Supervisor */}
                 <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
                   <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0284c7', marginBottom: '6px' }}>المشرف التربوي</div>
-                  <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>{currentExam.supervisorName || 'المشرف التربوي المعتمد'}</div>
-                  <div style={{ marginTop: '30px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                  <input
+                    type="text"
+                    defaultValue={currentExam.supervisorName || userData?.supervisorName || 'أ. أحمد المقدم'}
+                    style={{
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      color: '#0f172a',
+                      textAlign: 'center',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: '1px dashed #cbd5e1',
+                      width: '90%',
+                      padding: '4px'
+                    }}
+                    title="انقر لتعديل اسم المشرف التربوي"
+                  />
+                  <div style={{ marginTop: '20px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
                     التوقيع: .......................................
                   </div>
                 </div>
@@ -1834,8 +1960,23 @@ export default function TeacherExams() {
                 {/* 3. Principal */}
                 <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
                   <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#166534', marginBottom: '6px' }}>مدير المدرسة</div>
-                  <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>{currentExam.principalName || userData?.schoolPrincipal || 'مدير المدرسة'}</div>
-                  <div style={{ marginTop: '30px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                  <input
+                    type="text"
+                    defaultValue={currentExam.principalName || userData?.principalName || userData?.schoolPrincipal || 'أ. أنس الجهني'}
+                    style={{
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      color: '#0f172a',
+                      textAlign: 'center',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: '1px dashed #cbd5e1',
+                      width: '90%',
+                      padding: '4px'
+                    }}
+                    title="انقر لتعديل اسم مدير المدرسة"
+                  />
+                  <div style={{ marginTop: '20px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
                     الختم والتوقيع: .......................................
                   </div>
                 </div>
@@ -1877,6 +2018,27 @@ export default function TeacherExams() {
               onClick={() => setPrintingResultsData({ exam: currentExam, results: examResults })}
             >
               <Printer size={16} /> طباعة وتصدير كشف النتائج (Word/PDF)
+            </button>
+            <button 
+              className="btn" 
+              style={{
+                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                color: 'white',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: 'bold',
+                padding: '8px 14px'
+              }}
+              onClick={() => {
+                setCorrelationExam1(currentExam);
+                setCorrelationExam2(null);
+                setShowCorrelationModal(true);
+              }}
+              title="مقارنة وحساب معامل الارتباط ونماء التعلم بين هذا الاختبار واختبار آخر"
+            >
+              <TrendingUp size={16} /> 📈 معامل الارتباط باختبار آخر
             </button>
             <button className="btn btn-outline" onClick={resetForm}>
               <ArrowRight size={16} /> العودة للاختبارات
@@ -1942,12 +2104,24 @@ export default function TeacherExams() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px' }}>
                   <div style={{ background: 'white', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
                     <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>عدد المختبرين</div>
-                    <div style={{ fontSize: '26px', fontWeight: '900', color: '#0284c7', marginTop: '4px' }}>{data.total} طالب</div>
+                    <div style={{ fontSize: '26px', fontWeight: '900', color: '#0284c7', marginTop: '4px' }}>
+                      {data.presentCount || data.total} طالب
+                    </div>
+                    {data.absentCount > 0 && (
+                      <div style={{ fontSize: '11px', color: '#dc2626', fontWeight: 'bold', marginTop: '2px' }}>
+                        ({data.absentCount} غائب)
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ background: 'white', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
                     <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>متوسط الفصل</div>
-                    <div style={{ fontSize: '26px', fontWeight: '900', color: data.average >= 50 ? '#16a34a' : '#dc2626', marginTop: '4px' }}>{data.average}%</div>
+                    <div style={{ fontSize: '26px', fontWeight: '900', color: data.average >= 50 ? '#16a34a' : '#dc2626', marginTop: '4px' }}>
+                      {data.average}%
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                      ({data.averageRawScore} من {data.maxScore})
+                    </div>
                   </div>
 
                   <div style={{ background: 'white', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
@@ -1957,12 +2131,22 @@ export default function TeacherExams() {
 
                   <div style={{ background: 'white', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
                     <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>أعلى درجة</div>
-                    <div style={{ fontSize: '26px', fontWeight: '900', color: '#16a34a', marginTop: '4px' }}>{data.highest}%</div>
+                    <div style={{ fontSize: '26px', fontWeight: '900', color: '#16a34a', marginTop: '4px' }}>
+                      {data.highestRaw} من {data.maxScore}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold', marginTop: '2px' }}>
+                      ({data.highest}%)
+                    </div>
                   </div>
 
                   <div style={{ background: 'white', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
                     <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>أدنى درجة</div>
-                    <div style={{ fontSize: '26px', fontWeight: '900', color: '#dc2626', marginTop: '4px' }}>{data.lowest}%</div>
+                    <div style={{ fontSize: '26px', fontWeight: '900', color: '#dc2626', marginTop: '4px' }}>
+                      {data.lowestRaw} من {data.maxScore}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#dc2626', fontWeight: 'bold', marginTop: '2px' }}>
+                      ({data.lowest}%)
+                    </div>
                   </div>
                 </div>
 
@@ -2619,6 +2803,30 @@ export default function TeacherExams() {
             >
               <FileSpreadsheet size={18} /> 📥 رصد / استيراد اختبار ورقي (خارج المنصة)
             </button>
+
+            {/* Button 3: Correlation & Comparative Analysis between 2 exams */}
+            <button 
+              className="btn" 
+              onClick={() => {
+                setCorrelationExam1(null);
+                setCorrelationExam2(null);
+                setShowCorrelationModal(true);
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                color: 'white',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 18px',
+                fontWeight: 'bold',
+                boxShadow: '0 3px 10px rgba(79, 70, 229, 0.3)'
+              }}
+              title="حساب معامل الارتباط (بيرسون وسبيرمان) والصدق التلازمي ونماء التعلم بين اختبارين"
+            >
+              <TrendingUp size={18} color="#a5b4fc" /> 📈 معامل الارتباط بين اختبارين
+            </button>
           </div>
         </div>
 
@@ -2800,6 +3008,32 @@ export default function TeacherExams() {
                         <BarChart2 size={15} /> تحليل النتائج
                       </button>
                     </div>
+
+                    {/* Button 3: Dual Exam Correlation & Growth */}
+                    <button 
+                      className="btn" 
+                      style={{
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: '6px', 
+                        fontSize: '12px', 
+                        padding: '6px 10px', 
+                        background: '#eef2ff',
+                        color: '#4338ca',
+                        border: '1px solid #c7d2fe',
+                        borderRadius: '8px',
+                        fontWeight: 'bold'
+                      }} 
+                      onClick={() => {
+                        setCorrelationExam1(exam);
+                        setCorrelationExam2(null);
+                        setShowCorrelationModal(true);
+                      }}
+                      title="مقارنة وحساب معامل الارتباط ونماء التعلم بين هذا الاختبار واختبار آخر"
+                    >
+                      <TrendingUp size={14} color="#6366f1" /> 📈 معامل الارتباط باختبار آخر
+                    </button>
 
                     {/* Programmatic Forms Export: Google Forms & Microsoft Forms */}
                     {!exam.isExternal && (
@@ -3286,6 +3520,21 @@ export default function TeacherExams() {
           exam={previewExamData}
           onClose={() => setPreviewExamData(null)}
           onOpenPrint={(ex) => setPrintingExamData(ex)}
+        />
+      )}
+
+      {/* Dual Exam Correlation & Growth Modal */}
+      {showCorrelationModal && (
+        <ExamCorrelationModal
+          isOpen={showCorrelationModal}
+          onClose={() => {
+            setShowCorrelationModal(false);
+            setCorrelationExam1(null);
+            setCorrelationExam2(null);
+          }}
+          allExams={exams}
+          initialExam1={correlationExam1}
+          initialExam2={correlationExam2}
         />
       )}
     </div>

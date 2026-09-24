@@ -153,8 +153,8 @@ export default function PrintPortfolioModal({
     livePortfolioData?.profile?.fullName || 
     'عضو الكادر التعليمي'
   );
-  const [principalName, setPrincipalName] = useState(userData?.principalName || 'إدارة المدرسة');
-  const [supervisorName, setSupervisorName] = useState('المشرف التربوي المعتمد');
+  const [principalName, setPrincipalName] = useState(userData?.principalName || 'أ. أنس الجهني');
+  const [supervisorName, setSupervisorName] = useState(userData?.supervisorName || 'أ. أحمد المقدم');
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'settings'
 
   // Update name if loaded asynchronously

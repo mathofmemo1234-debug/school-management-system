@@ -44,6 +44,7 @@ import {
 import { computePsychometrics } from '../utils/psychometricsEngine';
 import PsychometricCharts from '../components/PsychometricCharts';
 import { sortStudentList, STUDENT_SORT_OPTIONS } from '../utils/studentSorting';
+import ExamCorrelationModal from '../components/ExamCorrelationModal';
 
 export default function AdminExamsManagement() {
   const { userData } = useAuth();
@@ -55,6 +56,11 @@ export default function AdminExamsManagement() {
   // Exams list from Firestore
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Dual Exam Correlation State
+  const [showCorrelationModal, setShowCorrelationModal] = useState(false);
+  const [correlationExam1, setCorrelationExam1] = useState(null);
+  const [correlationExam2, setCorrelationExam2] = useState(null);
 
   // Remedial Matrix state
   const [remedialMatrix, setRemedialMatrix] = useState(ACADEMIC_LEVELS);
@@ -516,7 +522,34 @@ export default function AdminExamsManagement() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button 
+              onClick={() => {
+                setCorrelationExam1(null);
+                setCorrelationExam2(null);
+                setShowCorrelationModal(true);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 18px',
+                background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                fontSize: '14px',
+                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                transition: 'all 0.2s'
+              }}
+              title="حساب معامل الارتباط (بيرسون وسبيرمان) والصدق التلازمي ونماء التعلم بين اختبارين"
+            >
+              <TrendingUp size={18} color="#a5b4fc" />
+              <span>معامل الارتباط بين اختبارين</span>
+            </button>
+
             <button 
               onClick={handleOpenCreateModal}
               style={{
@@ -760,6 +793,19 @@ export default function AdminExamsManagement() {
                       بواسطة: {exam.createdBy || 'المدير'}
                     </span>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button 
+                        onClick={() => {
+                          setCorrelationExam1(exam);
+                          setCorrelationExam2(null);
+                          setShowCorrelationModal(true);
+                        }}
+                        style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="حساب معامل الارتباط ونماء التعلم مع اختبار آخر"
+                      >
+                        <TrendingUp size={14} color="#6366f1" />
+                        <span>معامل الارتباط</span>
+                      </button>
+
                       <button 
                         onClick={() => {
                           setAnalyticsExamFilter(exam.id);
@@ -1352,7 +1398,21 @@ export default function AdminExamsManagement() {
                   </p>
                 </div>
 
-                <div className="no-print">
+                <div className="no-print" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    className="btn"
+                    style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', padding: '8px 14px', borderRadius: '8px' }}
+                    onClick={() => {
+                      const currentExamObj = exams.find(e => e.id === analyticsExamFilter);
+                      setCorrelationExam1(currentExamObj || null);
+                      setCorrelationExam2(null);
+                      setShowCorrelationModal(true);
+                    }}
+                    title="حساب معامل الارتباط ونماء التعلم مع اختبار آخر"
+                  >
+                    <TrendingUp size={16} /> 📈 معامل الارتباط باختبار آخر
+                  </button>
+
                   <button
                     className="btn btn-primary"
                     style={{ background: 'linear-gradient(135deg, #0e7490, #0284c7)', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -1387,21 +1447,35 @@ export default function AdminExamsManagement() {
                   </div>
 
                   {/* Core Psychometric Indicator Cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px' }}>
-                    <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '10px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
+                    <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '10px', border: '1.5px solid #86efac', textAlign: 'center' }}>
                       <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534' }}>
                         معامل الثبات ({adminPsychometrics.formulaUsed || 'KR-21'})
                       </div>
-                      <div style={{ fontSize: '26px', fontWeight: '900', color: '#15803d', margin: '4px 0' }}>{adminPsychometrics.kr20}</div>
+                      <div style={{ fontSize: '11px', color: '#15803d', background: '#dcfce7', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', margin: '4px 0', fontWeight: 'bold' }}>
+                        🎯 المدى المناسب: (0.70 - 0.90)
+                      </div>
+                      <div style={{ fontSize: '26px', fontWeight: '900', color: '#15803d', margin: '2px 0' }}>{adminPsychometrics.kr20}</div>
                       <div style={{ fontSize: '11px', color: '#166534', fontWeight: 'bold' }}>
-                        {parseFloat(adminPsychometrics.kr20) >= 0.70 ? '✅ ثبات عالي وموثوق' : parseFloat(adminPsychometrics.kr20) >= 0.50 ? '⚠️ ثبات متوسط ومقبول' : '❌ ثبات منخفض بحاجة لمراجعة'}
+                        {parseFloat(adminPsychometrics.kr20) >= 0.85 ? '🌟 ثبات ممتاز وموثوق جداً' : parseFloat(adminPsychometrics.kr20) >= 0.70 ? '✅ ثبات جيد ومناسب للتقويم' : parseFloat(adminPsychometrics.kr20) >= 0.60 ? '⚠️ ثبات مقبول' : '❌ ثبات ضعيف يتطلب مراجعة'}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px', lineHeight: '1.4' }}>
+                        اتساق درجات الطلاب واستقرارها وخلوها من التشتت العشوائي
                       </div>
                     </div>
 
-                    <div style={{ background: '#f0fdfa', padding: '16px', borderRadius: '10px', border: '1px solid #99f6e4', textAlign: 'center' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#0f766e' }}>معامل الصدق الذاتي</div>
-                      <div style={{ fontSize: '26px', fontWeight: '900', color: '#0d9488', margin: '4px 0' }}>{adminPsychometrics.validity}</div>
-                      <div style={{ fontSize: '11px', color: '#0f766e' }}>جذر معامل الثبات (√{adminPsychometrics.formulaUsed || 'KR-21'})</div>
+                    <div style={{ background: '#f0fdfa', padding: '16px', borderRadius: '10px', border: '1.5px solid #5eead4', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#0f766e' }}>معامل الصدق الذاتي (Index of Validity)</div>
+                      <div style={{ fontSize: '11px', color: '#0f766e', background: '#ccfbf1', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', margin: '4px 0', fontWeight: 'bold' }}>
+                        🎯 المدى المناسب: (0.84 - 0.95)
+                      </div>
+                      <div style={{ fontSize: '26px', fontWeight: '900', color: '#0d9488', margin: '2px 0' }}>{adminPsychometrics.validity}</div>
+                      <div style={{ fontSize: '11px', color: '#0f766e', fontWeight: 'bold' }}>
+                        {parseFloat(adminPsychometrics.validity) >= 0.85 ? '🌟 صدق ذاتي ممتاز وعالٍ' : parseFloat(adminPsychometrics.validity) >= 0.70 ? '✅ صدق مناسب ومقبول تربوياً' : '⚠️ صدق منخفض'}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px', lineHeight: '1.4' }}>
+                        مدى قياس الاختبار للأهداف ونواتج التعلم المستهدفة
+                      </div>
                     </div>
 
                     <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
@@ -1420,6 +1494,33 @@ export default function AdminExamsManagement() {
                       <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#92400e' }}>خطأ القياس المعياري (SEM)</div>
                       <div style={{ fontSize: '26px', fontWeight: '900', color: '#b45309', margin: '4px 0' }}>{adminPsychometrics.sem}</div>
                       <div style={{ fontSize: '11px', color: '#92400e' }}>دقة تقدير الدرجة الحقيقية</div>
+                    </div>
+                  </div>
+
+
+                  {/* الدليل الإرشادي والتفسير التربوي لمعاملات الصدق والثبات */}
+                  <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                    <div style={{ fontWeight: 'bold', color: '#0f172a', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                      <Sparkles size={18} color="#0e7490" />
+                      <span>الدليل التربوي والقياسي لتفسير جودة وموثوقية الاختبارات المضافة:</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', fontSize: '12px', lineHeight: '1.6', color: '#334155' }}>
+                      <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderRight: '3px solid #16a34a' }}>
+                        <strong style={{ color: '#166534', display: 'block', marginBottom: '2px' }}>🔒 الثبات (Reliability):</strong>
+                        يقيس استقرار ودقة الاختبار. النطاق الموصى به من <strong>0.70 إلى 0.90</strong>.
+                      </div>
+                      <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderRight: '3px solid #0d9488' }}>
+                        <strong style={{ color: '#0f766e', display: 'block', marginBottom: '2px' }}>🎯 الصدق الذاتي (Validity):</strong>
+                        يقيس مطابقة الاختبار للأهداف التعليمية. النطاق الموصى به من <strong>0.84 إلى 0.95</strong>.
+                      </div>
+                      <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderRight: '3px solid #0284c7' }}>
+                        <strong style={{ color: '#0369a1', display: 'block', marginBottom: '2px' }}>⚖️ الصعوبة (Difficulty P):</strong>
+                        المدى المتوازن بين <strong>0.40 و 0.75</strong> لضمان عدالة قياس مستويات الطلاب.
+                      </div>
+                      <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', borderRight: '3px solid #b45309' }}>
+                        <strong style={{ color: '#b45309', display: 'block', marginBottom: '2px' }}>📏 الخطأ المعياري (SEM):</strong>
+                        هامش الخطأ المحتمل حول درجات الطلاب. كلما اقترب من الصفر دل على ثبات أعلى.
+                      </div>
                     </div>
                   </div>
 
@@ -1507,10 +1608,23 @@ export default function AdminExamsManagement() {
                       {/* 2. Supervisor */}
                       <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
                         <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0284c7', marginBottom: '6px' }}>المشرف التربوي</div>
-                        <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>
-                          {userData?.role === 'supervisor' ? userData.name : 'المشرف التربوي المكلف'}
-                        </div>
-                        <div style={{ marginTop: '30px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                        <input
+                          type="text"
+                          defaultValue={userData?.role === 'supervisor' ? userData.name : 'أ. أحمد المقدم'}
+                          style={{
+                            fontSize: '15px',
+                            fontWeight: 'bold',
+                            color: '#0f172a',
+                            textAlign: 'center',
+                            background: 'transparent',
+                            border: 'none',
+                            borderBottom: '1px dashed #cbd5e1',
+                            width: '90%',
+                            padding: '4px'
+                          }}
+                          title="انقر لتعديل اسم المشرف"
+                        />
+                        <div style={{ marginTop: '20px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
                           التوقيع: .......................................
                         </div>
                       </div>
@@ -1518,10 +1632,23 @@ export default function AdminExamsManagement() {
                       {/* 3. Principal */}
                       <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: '#f8fafc' }}>
                         <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#166534', marginBottom: '6px' }}>مدير المدرسة</div>
-                        <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>
-                          {userData?.role === 'admin' ? userData.name : (userData?.schoolPrincipal || 'مدير المدرسة')}
-                        </div>
-                        <div style={{ marginTop: '30px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                        <input
+                          type="text"
+                          defaultValue={userData?.role === 'admin' ? userData.name : (userData?.principalName || 'أ. أنس الجهني')}
+                          style={{
+                            fontSize: '15px',
+                            fontWeight: 'bold',
+                            color: '#0f172a',
+                            textAlign: 'center',
+                            background: 'transparent',
+                            border: 'none',
+                            borderBottom: '1px dashed #cbd5e1',
+                            width: '90%',
+                            padding: '4px'
+                          }}
+                          title="انقر لتعديل اسم مدير المدرسة"
+                        />
+                        <div style={{ marginTop: '20px', borderTop: '1px dashed #94a3b8', paddingTop: '8px', fontSize: '12px', color: '#64748b' }}>
                           الختم والتوقيع: .......................................
                         </div>
                       </div>
@@ -2192,6 +2319,21 @@ export default function AdminExamsManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Dual Exam Correlation & Growth Modal */}
+      {showCorrelationModal && (
+        <ExamCorrelationModal
+          isOpen={showCorrelationModal}
+          onClose={() => {
+            setShowCorrelationModal(false);
+            setCorrelationExam1(null);
+            setCorrelationExam2(null);
+          }}
+          allExams={exams}
+          initialExam1={correlationExam1}
+          initialExam2={correlationExam2}
+        />
       )}
 
     </div>

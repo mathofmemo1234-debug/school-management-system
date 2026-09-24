@@ -768,4 +768,49 @@ body {
   transform: translateY(-2px);
 }
 
+/* ==========================================================================
+   GLOBAL PRINT STYLES - إخفاء كافة العناصر العائمة وروابط المواقع عند الطباعة
+   ========================================================================== */
+@media print {
+  /* منع ظهور المواقع والأزرار العائمة والمودالات وكافة العناصر الثابتة في جميع الملفات المطبوعة */
+  .floating-about-btn,
+  .floating-qiyas-btn,
+  .floating-qiyas-login,
+  .qiyas-pulse-ring,
+  .qiyas-pulse-dot,
+  .flash-dot-indicator,
+  .designer-footer,
+  .no-print,
+  aside.sidebar,
+  .sidebar,
+  header.main-header,
+  .main-header,
+  .top-navbar,
+  .navigation-bar,
+  [class*="floating-"],
+  [class*="qiyas-btn"],
+  div[style*="position: fixed"],
+  button[style*="position: fixed"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+
 

@@ -239,8 +239,8 @@ export default function PsychometricCharts({ psychometrics, printMode = false })
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {/* Reliability Meter */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                <span><strong>معامل الثبات ({formulaUsed}):</strong> {kr20}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px', flexWrap: 'wrap', gap: '4px' }}>
+                <span><strong>معامل الثبات ({formulaUsed}):</strong> {kr20} <span style={{ fontSize: '11px', color: '#16a34a', background: '#dcfce7', padding: '1px 6px', borderRadius: '8px', marginInlineStart: '4px' }}>المدى المناسب: (0.70 - 0.90)</span></span>
                 <span style={{ fontWeight: 'bold', color: reliabilityColor }}>{reliabilityAssessment}</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
@@ -255,10 +255,10 @@ export default function PsychometricCharts({ psychometrics, printMode = false })
 
             {/* Validity Meter */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                <span><strong>معامل الصدق الذاتي (√r):</strong> {validity}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px', flexWrap: 'wrap', gap: '4px' }}>
+                <span><strong>معامل الصدق الذاتي (√r):</strong> {validity} <span style={{ fontSize: '11px', color: '#0f766e', background: '#ccfbf1', padding: '1px 6px', borderRadius: '8px', marginInlineStart: '4px' }}>المدى المناسب: (0.84 - 0.95)</span></span>
                 <span style={{ fontSize: '11px', color: '#0d9488', fontWeight: 'bold' }}>
-                  {numericValidity >= 0.70 ? 'صدق مرتفع ✅' : 'صدق متوسط'}
+                  {numericValidity >= 0.85 ? 'صدق ممتاز 🌟' : numericValidity >= 0.70 ? 'صدق مناسب ✅' : 'صدق منخفض'}
                 </span>
               </div>
               <div style={{ width: '100%', height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
