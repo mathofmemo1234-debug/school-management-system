@@ -769,10 +769,10 @@ body {
 }
 
 /* ==========================================================================
-   GLOBAL PRINT STYLES - إخفاء كافة العناصر العائمة وروابط المواقع عند الطباعة
+   GLOBAL PRINT STYLES - إخفاء الروابط والأزرار العائمة للمواقع المرفقة عند الطباعة
    ========================================================================== */
 @media print {
-  /* منع ظهور المواقع والأزرار العائمة والمودالات وكافة العناصر الثابتة في جميع الملفات المطبوعة */
+  /* منع ظهور المواقع المرفقة والأزرار العائمة ومصمم الموقع وشريط التنقل عند الطباعة فقط */
   .floating-about-btn,
   .floating-qiyas-btn,
   .floating-qiyas-login,
@@ -780,17 +780,17 @@ body {
   .qiyas-pulse-dot,
   .flash-dot-indicator,
   .designer-footer,
+  .qiyas-modal-overlay,
+  .qiyas-modal-container,
+  .about-school-modal-overlay,
   .no-print,
+  .no-print *,
   aside.sidebar,
   .sidebar,
   header.main-header,
   .main-header,
   .top-navbar,
-  .navigation-bar,
-  [class*="floating-"],
-  [class*="qiyas-btn"],
-  div[style*="position: fixed"],
-  button[style*="position: fixed"] {
+  .navigation-bar {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;

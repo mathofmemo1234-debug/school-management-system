@@ -142,7 +142,7 @@ export default function ExamCorrelationModal({
   };
 
   return (
-    <div style={{
+    <div className="correlation-modal-root" style={{
       position: 'fixed',
       top: 0,
       left: 0,
@@ -157,7 +157,52 @@ export default function ExamCorrelationModal({
       direction: 'rtl',
       padding: '20px'
     }}>
-      <div style={{
+      <style>{`
+        @media print {
+          *, *:before, *:after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          html, body {
+            height: auto !important;
+            min-height: 100% !important;
+            overflow: visible !important;
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          body > *:not(.correlation-modal-root) {
+            display: none !important;
+          }
+          .correlation-modal-root,
+          .correlation-modal-dialog,
+          .correlation-modal-scroll-area {
+            position: static !important;
+            inset: auto !important;
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            min-height: auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
+            display: block !important;
+            backdrop-filter: none !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 12mm 12mm 12mm 12mm;
+          }
+        }
+      `}</style>
+      <div className="correlation-modal-dialog" style={{
         background: '#ffffff',
         width: '100%',
         maxWidth: '1100px',
@@ -230,7 +275,7 @@ export default function ExamCorrelationModal({
         </div>
 
         {/* Scrollable Content Container */}
-        <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '22px' }}>
+        <div className="correlation-modal-scroll-area" style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '22px' }}>
           
           {/* Exam Selection Bar (Hidden on print) */}
           <div className="no-print" style={{

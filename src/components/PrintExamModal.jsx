@@ -250,12 +250,14 @@ export default function PrintExamModal({
             display: none !important;
           }
           .exam-modal-root,
-          .exam-modal-dialog {
+          .exam-modal-dialog,
+          .exam-modal-scroll-area {
             position: static !important;
             inset: auto !important;
             overflow: visible !important;
             height: auto !important;
             max-height: none !important;
+            min-height: auto !important;
             width: 100% !important;
             max-width: 100% !important;
             padding: 0 !important;
@@ -265,6 +267,8 @@ export default function PrintExamModal({
             border: none !important;
             display: block !important;
             backdrop-filter: none !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
           #exam-printable-document,
           #exam-printable-document * {
@@ -522,7 +526,7 @@ export default function PrintExamModal({
         </div>
 
         {/* Scrollable Printable Document Container */}
-        <div style={{
+        <div className="exam-modal-scroll-area" style={{
           padding: '24px',
           overflowY: 'auto',
           flex: 1,
