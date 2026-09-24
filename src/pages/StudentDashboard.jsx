@@ -1153,7 +1153,8 @@ function StudentPortfolio() {
     // Map Exams
     examResults.forEach(er => {
       const examMeta = examsMap[er.examId] || {};
-      const pct = er.totalQuestions > 0 ? Math.round((er.score / er.totalQuestions) * 100) : 0;
+      const maxQ = Math.max(parseFloat(er.maxScore) || 0, parseFloat(examMeta.maxScore) || 0, (parseFloat(er.totalQuestions) > 1 ? parseFloat(er.totalQuestions) : 0), parseFloat(er.score) || 0, 1);
+      const pct = Math.min(100, Math.round(((parseFloat(er.score) || 0) / maxQ) * 100));
       const dateStr = er.timestamp?.toDate ? er.timestamp.toDate().toISOString().split('T')[0] : (examMeta.examDate || '—');
       
       combined.push({
@@ -1163,7 +1164,7 @@ function StudentPortfolio() {
         title: examMeta.title || 'اختبار إلكتروني',
         subject: examMeta.subject || 'عام',
         score: er.score,
-        totalQuestions: er.totalQuestions,
+        totalQuestions: maxQ,
         percentage: pct,
         date: dateStr,
         isLate: false,
@@ -1376,8 +1377,8 @@ function StudentPortfolio() {
                       </span>
                     </td>
                     <td style={{ padding: '12px 14px', color: '#475569' }}>{r.subject}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 'bold' }}>
-                      {r.score} / {r.totalQuestions}
+                    <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 'bold', color: '#0e7490' }}>
+                      <span dir="ltr">{r.score} / {r.totalQuestions}</span>
                     </td>
                     <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 'bold', color: isPass ? '#166534' : '#991b1b' }}>
                       {r.percentage}%

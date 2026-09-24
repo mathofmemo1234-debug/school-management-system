@@ -1897,14 +1897,18 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                      {selectedStudentForDossier.electronicExams.results.map((res, rIdx) => (
-                        <div key={rIdx} style={{ fontSize: '12px', display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                          <span style={{ fontWeight: 600 }}>اختبار {rIdx + 1}</span>
-                          <span style={{ fontWeight: 700, color: '#9333ea' }}>
-                            {res.score} / {res.totalQuestions || 20} ({Math.round((res.score / (res.totalQuestions || 20)) * 100)}%)
-                          </span>
-                        </div>
-                      ))}
+                      {selectedStudentForDossier.electronicExams.results.map((res, rIdx) => {
+                        const eMax = Math.max(parseFloat(res.maxScore) || 0, (parseFloat(res.totalQuestions) > 1 ? parseFloat(res.totalQuestions) : 0), parseFloat(res.score) || 0, 20);
+                        const pct = Math.min(100, Math.round(((parseFloat(res.score) || 0) / eMax) * 100));
+                        return (
+                          <div key={rIdx} style={{ fontSize: '12px', display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                            <span style={{ fontWeight: 600 }}>اختبار {rIdx + 1}</span>
+                            <span style={{ fontWeight: 700, color: '#9333ea' }}>
+                              <span dir="ltr">{res.score} / {eMax}</span> ({pct}%)
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

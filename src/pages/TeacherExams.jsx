@@ -2282,8 +2282,8 @@ export default function TeacherExams() {
                                 />
                               </div>
                             </td>
-                            <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 'bold' }}>
-                              {student.score} / {student.totalQuestions}
+                            <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 'bold', color: '#0e7490' }}>
+                              <span dir="ltr">{student.score} / {student.maxScore || student.totalQuestions}</span>
                             </td>
                             <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 'bold', color: student.isPass ? '#16a34a' : '#dc2626' }}>
                               {student.percentage}%

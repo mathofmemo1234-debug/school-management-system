@@ -28,13 +28,33 @@ export default function PrintExamModal({
 
   // Statistics calculation for results
   const totalStudents = results.length;
-  const totalScorePossible = exam?.questions?.length || (results[0]?.totalQuestions || 1);
-  const scoresArray = results.map(r => Number(r.score) || 0);
-  const highestScore = totalStudents > 0 ? Math.max(...scoresArray) : 0;
-  const lowestScore = totalStudents > 0 ? Math.min(...scoresArray) : 0;
-  const avgScore = totalStudents > 0 ? (scoresArray.reduce((a, b) => a + b, 0) / totalStudents).toFixed(1) : 0;
-  const passCount = results.filter(r => (r.score / (r.totalQuestions || totalScorePossible)) >= 0.5).length;
-  const passRate = totalStudents > 0 ? Math.round((passCount / totalStudents) * 100) : 0;
+  const rawScores = results.map(r => {
+    const isAbs = r.isAbsent === true || r.score === 'غ' || r.score === 'غائب';
+    return isAbs ? 0 : (parseFloat(r.score) || 0);
+  });
+  const maxObservedScore = rawScores.length > 0 ? Math.max(...rawScores) : 20;
+
+  // Determine true maximum score possible for the exam
+  const totalScorePossible = Math.max(
+    parseFloat(exam?.maxScore) || 0,
+    parseFloat(results.find(r => parseFloat(r.maxScore) > 0)?.maxScore) || 0,
+    (exam?.questions?.length && exam.questions.length > 1 ? exam.questions.length : 0),
+    (parseFloat(results.find(r => parseFloat(r.totalQuestions) > 1)?.totalQuestions) || 0),
+    maxObservedScore,
+    20
+  );
+
+  const presentResults = results.filter(r => !(r.isAbsent === true || r.score === 'غ' || r.score === 'غائب'));
+  const presentCount = presentResults.length;
+  const scoresArray = presentResults.map(r => Number(r.score) || 0);
+  const highestScore = presentCount > 0 ? Math.max(...scoresArray) : 0;
+  const lowestScore = presentCount > 0 ? Math.min(...scoresArray) : 0;
+  const avgScore = presentCount > 0 ? (scoresArray.reduce((a, b) => a + b, 0) / presentCount).toFixed(1) : 0;
+  const passCount = presentResults.filter(r => {
+    const sMax = Math.max(parseFloat(r.maxScore) || 0, totalScorePossible, Number(r.score) || 0);
+    return (Number(r.score) / (sMax || 1)) >= 0.5;
+  }).length;
+  const passRate = presentCount > 0 ? Math.round((passCount / presentCount) * 100) : 0;
 
   const handlePrint = () => {
     const originalTitle = document.title;
@@ -155,15 +175,30 @@ export default function PrintExamModal({
     let csvContent = 'م,اسم الطالب,الصف/الفصل,الدرجة المحصلة,الدرجة الكلية,النسبة المئوية,التقدير,تاريخ التسليم\n';
 
     results.forEach((r, idx) => {
-      const studentName = (studentsCache[r.studentId] || 'طالب').replace(/,/g, ' ');
+      const isAbsent = r.isAbsent === true || r.score === 'غ' || r.score === 'غائب';
+      const studentName = (studentsCache[r.studentId] || r.studentName || 'طالب').replace(/,/g, ' ');
       const sClass = (r.studentClass || exam?.targetClass || '').replace(/,/g, ' ');
-      const score = r.score || 0;
-      const total = r.totalQuestions || totalScorePossible;
-      const pct = Math.round((score / total) * 100);
-      const grade = pct >= 90 ? 'ممتاز' : pct >= 80 ? 'جيد جداً' : pct >= 70 ? 'جيد' : pct >= 50 ? 'مقبول' : 'غير مجتاز';
+      const score = isAbsent ? 0 : (Number(r.score) || 0);
+      const studentMax = Math.max(
+        parseFloat(r.maxScore) || 0,
+        parseFloat(exam?.maxScore) || 0,
+        (parseFloat(r.totalQuestions) > 1 ? parseFloat(r.totalQuestions) : 0),
+        totalScorePossible,
+        score
+      );
+      let pct = 0;
+      if (!isAbsent && studentMax > 0) {
+        if (r.percentage !== undefined && !isNaN(r.percentage) && Number(r.percentage) <= 100 && Number(r.percentage) >= 0) {
+          pct = Math.round(Number(r.percentage));
+        } else {
+          pct = Math.min(100, Math.max(0, Math.round((score / studentMax) * 100)));
+        }
+      }
+      const grade = isAbsent ? 'غائب' : pct >= 90 ? 'ممتاز' : pct >= 80 ? 'جيد جداً' : pct >= 70 ? 'جيد' : pct >= 50 ? 'مقبول' : 'غير مجتاز';
+      const scoreDisplay = isAbsent ? 'غائب' : score;
       const dateStr = r.timestamp?.toDate ? r.timestamp.toDate().toLocaleDateString('ar-SA') : '';
 
-      csvContent += `${idx + 1},${studentName},${sClass},${score},${total},${pct}%,${grade},${dateStr}\n`;
+      csvContent += `${idx + 1},${studentName},${sClass},${scoreDisplay},${studentMax},${isAbsent ? '—' : `${pct}%`},${grade},${dateStr}\n`;
     });
 
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -812,7 +847,7 @@ export default function PrintExamModal({
                   </div>
                   <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <div style={{ fontSize: '11px', color: '#64748b' }}>متوسط الدرجات</div>
-                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#334155' }}>{avgScore} / {totalScorePossible}</div>
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#334155' }}><span dir="ltr">{avgScore} / {totalScorePossible}</span></div>
                   </div>
                   <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <div style={{ fontSize: '11px', color: '#64748b' }}>أعلى درجة</div>
@@ -852,12 +887,26 @@ export default function PrintExamModal({
                       </tr>
                     ) : (
                       results.map((r, idx) => {
-                        const studentName = studentsCache[r.studentId] || 'طالب';
-                        const score = Number(r.score) || 0;
-                        const total = Number(r.totalQuestions) || totalScorePossible;
-                        const pct = Math.round((score / total) * 100);
-                        const isPass = pct >= 50;
-                        const grade = pct >= 90 ? 'ممتاز' : pct >= 80 ? 'جيد جداً' : pct >= 70 ? 'جيد' : pct >= 50 ? 'مقبول' : 'غير مجتاز';
+                        const isAbsent = r.isAbsent === true || r.score === 'غ' || r.score === 'غائب';
+                        const studentName = studentsCache[r.studentId] || r.studentName || 'طالب';
+                        const score = isAbsent ? 0 : (Number(r.score) || 0);
+                        const studentMax = Math.max(
+                          parseFloat(r.maxScore) || 0,
+                          parseFloat(exam?.maxScore) || 0,
+                          (parseFloat(r.totalQuestions) > 1 ? parseFloat(r.totalQuestions) : 0),
+                          totalScorePossible,
+                          score
+                        );
+                        let pct = 0;
+                        if (!isAbsent && studentMax > 0) {
+                          if (r.percentage !== undefined && !isNaN(r.percentage) && Number(r.percentage) <= 100 && Number(r.percentage) >= 0) {
+                            pct = Math.round(Number(r.percentage));
+                          } else {
+                            pct = Math.min(100, Math.max(0, Math.round((score / studentMax) * 100)));
+                          }
+                        }
+                        const isPass = !isAbsent && pct >= 50;
+                        const grade = isAbsent ? 'غائب' : pct >= 90 ? 'ممتاز' : pct >= 80 ? 'جيد جداً' : pct >= 70 ? 'جيد' : pct >= 50 ? 'مقبول' : 'غير مجتاز';
 
                         return (
                           <tr key={r.id || idx} style={{
@@ -868,10 +917,14 @@ export default function PrintExamModal({
                             <td style={{ padding: '8px', border: '1px solid #e2e8f0', fontWeight: '600' }}>{studentName}</td>
                             <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #e2e8f0' }}>{r.studentClass || exam?.targetClass || '-'}</td>
                             <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #e2e8f0', fontWeight: 'bold', color: '#0e7490' }}>
-                              {score} / {total}
+                              {isAbsent ? (
+                                <span style={{ color: '#dc2626' }}>غائب</span>
+                              ) : (
+                                <span dir="ltr">{score} / {studentMax}</span>
+                              )}
                             </td>
-                            <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #e2e8f0', fontWeight: 'bold' }}>
-                              {pct}%
+                            <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #e2e8f0', fontWeight: 'bold', color: isAbsent ? '#94a3b8' : (isPass ? '#16a34a' : '#dc2626') }}>
+                              {isAbsent ? '—' : `${pct}%`}
                             </td>
                             <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #e2e8f0', fontWeight: 'bold' }}>
                               {grade}
@@ -882,10 +935,10 @@ export default function PrintExamModal({
                                 borderRadius: '6px',
                                 fontSize: '11px',
                                 fontWeight: 'bold',
-                                background: isPass ? '#dcfce7' : '#fee2e2',
-                                color: isPass ? '#166534' : '#991b1b'
+                                background: isAbsent ? '#f1f5f9' : isPass ? '#dcfce7' : '#fee2e2',
+                                color: isAbsent ? '#64748b' : isPass ? '#166534' : '#991b1b'
                               }}>
-                                {isPass ? 'ناجح' : 'راسب'}
+                                {isAbsent ? 'غائب' : isPass ? 'ناجح' : 'راسب'}
                               </span>
                             </td>
                           </tr>

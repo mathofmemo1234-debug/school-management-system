@@ -1227,7 +1227,8 @@ function Assignments() {
                   </thead>
                   <tbody>
                     {assignmentResults.map((res, idx) => {
-                      const pct = Math.round((res.score / res.totalQuestions) * 100);
+                      const totalQ = Math.max(parseFloat(res.maxScore) || 0, (parseFloat(res.totalQuestions) > 1 ? parseFloat(res.totalQuestions) : 0), parseFloat(res.score) || 0, 1);
+                      const pct = Math.min(100, Math.round(((parseFloat(res.score) || 0) / totalQ) * 100));
                       const isPass = pct >= 50;
                       const dateStr = res.timestamp?.toDate ? res.timestamp.toDate().toLocaleString('ar-SA') : (res.timestamp ? new Date(res.timestamp).toLocaleString('ar-SA') : '—');
                       
@@ -1244,8 +1245,8 @@ function Assignments() {
                               />
                             </div>
                           </td>
-                          <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 'bold' }}>
-                            {res.score} / {res.totalQuestions}
+                          <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 'bold', color: '#0e7490' }}>
+                            <span dir="ltr">{res.score} / {totalQ}</span>
                           </td>
                           <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 'bold', color: isPass ? '#166534' : '#991b1b' }}>
                             {pct}%
