@@ -205,6 +205,37 @@ export default function TeacherExams() {
     });
   }, [isLeadership, userData?.schoolId]);
 
+  // Fetch school exams for leadership correlation
+  const [schoolExams, setSchoolExams] = useState([]);
+  useEffect(() => {
+    if (!isLeadership) return;
+    const schoolId = userData?.schoolId || 'default_school_1';
+    const qS = schoolId === 'ALL'
+      ? collection(db, 'school_exams')
+      : query(collection(db, 'school_exams'), where('schoolId', '==', schoolId));
+
+    getDocs(qS).then(snap => {
+      setSchoolExams(snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        teacherName: d.data().teacherName || 'إدارة المدرسة (مركزي)',
+        source: 'school'
+      })));
+    }).catch(err => console.warn('Could not fetch school exams:', err));
+  }, [isLeadership, userData?.schoolId]);
+
+  const allCombinedExamsForCorrelation = useMemo(() => {
+    return [...exams, ...schoolExams];
+  }, [exams, schoolExams]);
+
+  const allAvailableSubjects = useMemo(() => {
+    const set = new Set();
+    exams.forEach(e => { if (e.subject) set.add(e.subject); });
+    schoolExams.forEach(e => { if (e.subject) set.add(e.subject); });
+    subjectsList.forEach(s => set.add(s));
+    return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [exams, schoolExams, subjectsList]);
+
   // Fetch exams (teacher sees their own, leadership sees all school exams)
   useEffect(() => {
     const schoolId = userData?.schoolId || 'default_school_1';
@@ -2799,9 +2830,9 @@ export default function TeacherExams() {
                 fontWeight: 'bold',
                 boxShadow: '0 3px 10px rgba(79, 70, 229, 0.3)'
               }}
-              title="حساب معامل الارتباط (بيرسون وسبيرمان) والصدق التلازمي ونماء التعلم بين اختبارين"
+              title="مقارنة أي اختبارين لأي معلمين مختلفين أو نفس المعلم وحساب الفروق الإحصائية"
             >
-              <TrendingUp size={18} color="#a5b4fc" /> 📈 معامل الارتباط بين اختبارين
+              <TrendingUp size={18} color="#a5b4fc" /> 📈 مقارنة أي اختبارين (معلمين مختلفين / نفس المعلم)
             </button>
           </div>
         </div>
@@ -2846,7 +2877,7 @@ export default function TeacherExams() {
               onChange={e => setFilterSubject(e.target.value)}
             >
               <option value="all">كل المواد</option>
-              {subjectsList.map(s => (
+              {allAvailableSubjects.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -3508,7 +3539,7 @@ export default function TeacherExams() {
             setCorrelationExam1(null);
             setCorrelationExam2(null);
           }}
-          allExams={exams}
+          allExams={allCombinedExamsForCorrelation}
           initialExam1={correlationExam1}
           initialExam2={correlationExam2}
         />

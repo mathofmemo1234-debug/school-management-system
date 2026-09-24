@@ -111,8 +111,16 @@ export default function AdminExamsManagement() {
   // Analytics State
   const [allGrades, setAllGrades] = useState([]);
   const [analyticsExamFilter, setAnalyticsExamFilter] = useState('all');
+  const [analyticsSourceFilter, setAnalyticsSourceFilter] = useState('all'); // 'all' | 'teacher' | 'school'
+  const [analyticsTeacherFilter, setAnalyticsTeacherFilter] = useState('all');
+  const [analyticsSubjectFilter, setAnalyticsSubjectFilter] = useState('all');
 
-  // Realtime Listener for Exams
+  // Teacher Exams, Teachers & Results State for comprehensive admin analysis
+  const [teacherExams, setTeacherExams] = useState([]);
+  const [teachersList, setTeachersList] = useState([]);
+  const [allTeacherResults, setAllTeacherResults] = useState([]);
+
+  // Realtime Listener for School Exams
   useEffect(() => {
     const qExams = schoolId === 'ALL'
       ? collection(db, 'school_exams')
@@ -130,6 +138,82 @@ export default function AdminExamsManagement() {
 
     return () => unsub();
   }, [schoolId]);
+
+  // Realtime Listener for Teacher Exams (بنوك اختبارات المعلمين)
+  useEffect(() => {
+    const qTExams = schoolId === 'ALL'
+      ? collection(db, 'exams')
+      : query(collection(db, 'exams'), where('schoolId', '==', schoolId));
+
+    const unsub = onSnapshot(qTExams, snap => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => new Date(`${b.examDate || ''}T${b.startTime || '00:00'}`) - new Date(`${a.examDate || ''}T${a.startTime || '00:00'}`));
+      setTeacherExams(list);
+    }, err => {
+      console.warn('Teacher exams listener notice:', err);
+    });
+
+    return () => unsub();
+  }, [schoolId]);
+
+  // Fetch Teachers List
+  useEffect(() => {
+    const qT = schoolId === 'ALL'
+      ? collection(db, 'teachers')
+      : query(collection(db, 'teachers'), where('schoolId', '==', schoolId));
+    getDocs(qT).then(snap => {
+      setTeachersList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }).catch(err => {
+      console.warn('Could not load teachers list:', err);
+    });
+  }, [schoolId]);
+
+  // Realtime Listener for Teacher Exam Results
+  useEffect(() => {
+    const qResults = schoolId === 'ALL'
+      ? collection(db, 'exam_results')
+      : query(collection(db, 'exam_results'), where('schoolId', '==', schoolId));
+
+    const unsub = onSnapshot(qResults, snap => {
+      const list = snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          studentId: data.studentId || d.id,
+          studentName: data.studentName,
+          nationalId: data.studentNationalId || data.nationalId || '',
+          score: data.totalScore !== undefined ? Number(data.totalScore) : (Number(data.score) || 0),
+          totalScore: data.totalScore !== undefined ? Number(data.totalScore) : (Number(data.score) || 0),
+          maxScore: data.maxScore || 20,
+          isAbsent: Boolean(data.isAbsent || data.status === 'غائب' || data.score === 'غ' || data.score === 'غائب'),
+          examId: data.examId,
+          ...data
+        };
+      });
+      setAllTeacherResults(list);
+    }, err => {
+      console.warn('Teacher exam results listener notice:', err);
+    });
+
+    return () => unsub();
+  }, [schoolId]);
+
+  // Combined exams (School + Teacher)
+  const combinedExams = useMemo(() => {
+    const sExams = exams.map(e => ({
+      ...e,
+      source: 'school',
+      sourceType: 'الاختبارات المدرسية الموحدة',
+      teacherName: e.teacherName || 'إدارة المدرسة'
+    }));
+    const tExams = teacherExams.map(e => ({
+      ...e,
+      source: 'teacher',
+      sourceType: 'اختبارات المعلمين',
+      teacherName: e.teacherName || 'معلم'
+    }));
+    return [...sExams, ...tExams];
+  }, [exams, teacherExams]);
 
   // Realtime Listener for Custom Remedial Matrix and Permissions
   useEffect(() => {
@@ -426,11 +510,42 @@ export default function AdminExamsManagement() {
     }
   };
 
+  // Available subjects for analytics filter
+  const availableSubjects = useMemo(() => {
+    const set = new Set();
+    combinedExams.forEach(e => { if (e.subject) set.add(e.subject); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [combinedExams]);
+
+  // Filtered displayed exams list for analytics
+  const displayedAnalyticsExams = useMemo(() => {
+    return combinedExams.filter(e => {
+      if (analyticsSourceFilter !== 'all' && e.source !== analyticsSourceFilter) return false;
+      if (analyticsTeacherFilter !== 'all' && (e.teacherId !== analyticsTeacherFilter && e.teacherName !== analyticsTeacherFilter)) return false;
+      if (analyticsSubjectFilter !== 'all' && e.subject !== analyticsSubjectFilter) return false;
+      return true;
+    });
+  }, [combinedExams, analyticsSourceFilter, analyticsTeacherFilter, analyticsSubjectFilter]);
+
+  // Currently selected exam object in analytics
+  const activeAnalyticsExam = useMemo(() => {
+    if (analyticsExamFilter === 'all') return null;
+    return combinedExams.find(e => e.id === analyticsExamFilter) || null;
+  }, [combinedExams, analyticsExamFilter]);
+
   // Filtered Grades for Analytics
   const filteredGrades = useMemo(() => {
-    if (analyticsExamFilter === 'all') return allGrades;
+    if (analyticsExamFilter === 'all') {
+      if (analyticsSourceFilter === 'teacher') return allTeacherResults;
+      if (analyticsSourceFilter === 'school') return allGrades;
+      return [...allGrades, ...allTeacherResults];
+    }
+    const isTeacher = activeAnalyticsExam?.source === 'teacher';
+    if (isTeacher) {
+      return allTeacherResults.filter(g => g.examId === analyticsExamFilter);
+    }
     return allGrades.filter(g => g.examId === analyticsExamFilter);
-  }, [allGrades, analyticsExamFilter]);
+  }, [analyticsExamFilter, activeAnalyticsExam, analyticsSourceFilter, allGrades, allTeacherResults]);
 
   // Overall Stats
   const analyticsStats = useMemo(() => {
@@ -442,38 +557,38 @@ export default function AdminExamsManagement() {
   const [studentSortBy, setStudentSortBy] = useState('default');
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
 
-  // Computed Psychometrics for Selected Exam or All Exams
+  // Computed Psychometrics for Selected Exam or All Exams (يعمل لأي اختبار لأي معلم أو مدرسة)
   const adminPsychometrics = useMemo(() => {
     if (!filteredGrades || filteredGrades.length === 0) return null;
 
-    const activeExam = exams.find(e => e.id === analyticsExamFilter);
-    const maxScore = activeExam?.coreSubjectMaxScore || activeExam?.totalMaxScore || 20;
+    const maxScore = activeAnalyticsExam?.coreSubjectMaxScore || activeAnalyticsExam?.totalMaxScore || activeAnalyticsExam?.maxScore || 20;
 
     const results = filteredGrades.map(g => ({
       id: g.id,
       studentId: g.studentId || g.id,
       studentName: g.studentName,
-      nationalId: g.studentNationalId || '',
+      nationalId: g.studentNationalId || g.nationalId || '',
       score: g.totalScore !== undefined ? Number(g.totalScore) : Number(g.score) || 0,
       maxScore: g.maxScore || maxScore,
       percentage: g.percentage !== undefined ? Number(g.percentage) : 0,
-      isAbsent: Boolean(g.isAbsent || g.status === 'غائب' || g.totalScore === 'غائب' || g.totalScore === 'غ'),
+      isAbsent: Boolean(g.isAbsent || g.status === 'غائب' || g.totalScore === 'غائب' || g.totalScore === 'غ' || g.score === 'غائب' || g.score === 'غ'),
       status: g.status,
       answers: g.answers || null
     }));
 
     return computePsychometrics({
       exam: {
-        title: activeExam?.title || 'الاختبارات المدرسية الشاملة',
-        subject: activeExam?.subject || 'جميع المواد',
-        targetClass: activeExam?.className || 'جميع الفصول',
+        title: activeAnalyticsExam?.title || 'الاختبارات المدرسية الشاملة',
+        subject: activeAnalyticsExam?.subject || 'جميع المواد',
+        targetClass: activeAnalyticsExam?.className || activeAnalyticsExam?.targetClass || 'جميع الفصول',
+        teacherName: activeAnalyticsExam?.teacherName || 'إدارة المدرسة',
         maxScore: maxScore,
-        totalQuestions: activeExam?.totalQuestions || activeExam?.questions?.length || 10,
-        questions: activeExam?.questions || []
+        totalQuestions: activeAnalyticsExam?.totalQuestions || activeAnalyticsExam?.questions?.length || 10,
+        questions: activeAnalyticsExam?.questions || []
       },
       results
     });
-  }, [filteredGrades, analyticsExamFilter, exams]);
+  }, [filteredGrades, activeAnalyticsExam]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', direction: 'rtl' }}>
@@ -517,7 +632,7 @@ export default function AdminExamsManagement() {
                 </span>
               </div>
               <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#94a3b8', lineHeight: '1.5' }}>
-                إعداد الاختبارات المدرسية، تخصيص أعمدة الدرجات المرنة، التصنيف التلقائي إلى 8 مستويات أكاديمية، وتوليد الخطط العلاجية والإثرائية الذكية.
+                تحليل أي اختبار لأي معلم، إجراء المقارنات الإحصائية بين المعلمين والفصول، والتصنيف التلقائي للطلاب مع الخطط العلاجية.
               </p>
             </div>
           </div>
@@ -544,10 +659,10 @@ export default function AdminExamsManagement() {
                 boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
                 transition: 'all 0.2s'
               }}
-              title="حساب معامل الارتباط (بيرسون وسبيرمان) والصدق التلازمي ونماء التعلم بين اختبارين"
+              title="مقارنة أي اختبارين لأي معلمين مختلفين أو نفس المعلم وحساب الفروق الإحصائية"
             >
               <TrendingUp size={18} color="#a5b4fc" />
-              <span>معامل الارتباط بين اختبارين</span>
+              <span>مقارنة أي اختبارين (معلمين مختلفين / نفس المعلم)</span>
             </button>
 
             <button 
@@ -1130,22 +1245,82 @@ export default function AdminExamsManagement() {
           
           {/* Filters Bar */}
           <div className="glass-panel" style={{ padding: '16px 20px', borderRadius: '14px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>تصفية حسب الاختبار:</span>
-              <select 
-                value={analyticsExamFilter}
-                onChange={(e) => setAnalyticsExamFilter(e.target.value)}
-                style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', minWidth: '220px' }}
-              >
-                <option value="all">جميع الاختبارات المدرسية</option>
-                {exams.map(e => (
-                  <option key={e.id} value={e.id}>{e.title}</option>
-                ))}
-              </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              
+              {/* Source Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>المصدر:</span>
+                <select
+                  value={analyticsSourceFilter}
+                  onChange={e => {
+                    setAnalyticsSourceFilter(e.target.value);
+                    setAnalyticsExamFilter('all');
+                  }}
+                  style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', background: 'white' }}
+                >
+                  <option value="all">كل المصادر (المعلم + الإدارة)</option>
+                  <option value="teacher">👨‍🏫 بنك اختبارات المعلمين</option>
+                  <option value="school">🏛️ الاختبارات المدرسية الموحدة</option>
+                </select>
+              </div>
+
+              {/* Teacher Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>المعلم:</span>
+                <select
+                  value={analyticsTeacherFilter}
+                  onChange={e => {
+                    setAnalyticsTeacherFilter(e.target.value);
+                    setAnalyticsExamFilter('all');
+                  }}
+                  style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', background: 'white', maxWidth: '180px' }}
+                >
+                  <option value="all">كل المعلمين</option>
+                  {teachersList.map(t => (
+                    <option key={t.id} value={t.id}>{t.name || t.email}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Subject Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569' }}>المادة:</span>
+                <select
+                  value={analyticsSubjectFilter}
+                  onChange={e => {
+                    setAnalyticsSubjectFilter(e.target.value);
+                    setAnalyticsExamFilter('all');
+                  }}
+                  style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', background: 'white' }}
+                >
+                  <option value="all">كل المواد</option>
+                  {availableSubjects.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Exam Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#1e3a8a' }}>الاختبار المستهدف:</span>
+                <select 
+                  value={analyticsExamFilter}
+                  onChange={(e) => setAnalyticsExamFilter(e.target.value)}
+                  style={{ padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #0284c7', fontSize: '12px', fontWeight: 'bold', minWidth: '240px', background: '#f0f9ff' }}
+                >
+                  <option value="all">كافة الاختبارات المجمعة</option>
+                  {displayedAnalyticsExams.map(e => (
+                    <option key={e.id} value={e.id}>
+                      [{e.teacherName || 'معلم'}] • {e.title} • {e.subject} ({e.targetClass || e.className || 'عام'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
             </div>
 
-            <div style={{ fontSize: '13px', color: '#64748b' }}>
-              إجمالي السجلات المرصودة المعروضة: <strong>{filteredGrades.length} سجل</strong>
+            <div style={{ fontSize: '12px', color: '#64748b' }}>
+              السجلات المرصودة المعروضة: <strong style={{ color: '#0f172a' }}>{filteredGrades.length} سجل</strong>
             </div>
           </div>
 
@@ -1394,23 +1569,22 @@ export default function AdminExamsManagement() {
                     <Activity size={26} color="#0e7490" /> تقرير التحليل السيكومتري وموثوقية الاختبارات
                   </h2>
                   <p style={{ margin: 0, color: '#475569', fontSize: '13px' }}>
-                    الاختبار المستهدف: <strong>{exams.find(e => e.id === analyticsExamFilter)?.title || 'كافة الاختبارات المدرسية المجمعة'}</strong> | إجمالي السجلات: <strong>{filteredGrades.length} طالب</strong>
+                    الاختبار المستهدف: <strong>{activeAnalyticsExam ? `${activeAnalyticsExam.title} (المعلم: ${activeAnalyticsExam.teacherName || 'إدارة المدرسة'})` : 'كافة الاختبارات المدرسية المجمعة'}</strong> | إجمالي السجلات: <strong>{filteredGrades.length} طالب</strong>
                   </p>
                 </div>
 
                 <div className="no-print" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <button
                     className="btn"
-                    style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', padding: '8px 14px', borderRadius: '8px' }}
+                    style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer' }}
                     onClick={() => {
-                      const currentExamObj = exams.find(e => e.id === analyticsExamFilter);
-                      setCorrelationExam1(currentExamObj || null);
+                      setCorrelationExam1(activeAnalyticsExam || null);
                       setCorrelationExam2(null);
                       setShowCorrelationModal(true);
                     }}
-                    title="حساب معامل الارتباط ونماء التعلم مع اختبار آخر"
+                    title="مقارنة هذا الاختبار باختبار آخر لنفس المعلم أو معلم آخر"
                   >
-                    <TrendingUp size={16} /> 📈 معامل الارتباط باختبار آخر
+                    <TrendingUp size={16} /> 📈 إجراء مقارنة مع اختبار آخر
                   </button>
 
                   <button
@@ -2306,7 +2480,7 @@ export default function AdminExamsManagement() {
             setCorrelationExam1(null);
             setCorrelationExam2(null);
           }}
-          allExams={exams}
+          allExams={combinedExams}
           initialExam1={correlationExam1}
           initialExam2={correlationExam2}
         />

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext';
 import { Routes, Route, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers, Send, ArrowLeftRight, CheckCircle2, AlertCircle, Sparkles, Check, Archive, Undo2, Eye, EyeOff, FileSpreadsheet, Search, ArrowUpDown } from 'lucide-react';
+import { Users, BookOpen, UserPlus, X, Edit, Trash2, ShieldCheck, UserCheck, Printer, FileText, Globe, Award, ClipboardList, Building2, Layers, Send, ArrowLeftRight, CheckCircle2, AlertCircle, Sparkles, Check, Archive, Undo2, Eye, EyeOff, FileSpreadsheet, Search, ArrowUpDown, TrendingUp } from 'lucide-react';
 import ManageSchedules from './ManageSchedules';
 import { db, createSecondaryAuthUser } from '../firebase';
 import { collection, addDoc, setDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
@@ -1129,6 +1129,21 @@ function AdminHome({ schoolId }) {
           }}
         >
           <FileSpreadsheet size={18} /> إدارة الاختبارات ورصد الدرجات والبرامج العلاجية
+        </Link>
+        <Link 
+          to="/admin/teacher-exams" 
+          className="btn btn-primary"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            textDecoration: 'none',
+            background: 'linear-gradient(135deg, #4338ca 0%, #6366f1 100%)',
+            boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+            fontWeight: 'bold'
+          }}
+        >
+          <TrendingUp size={18} /> تحليل ومقارنة بنك اختبارات المعلمين
         </Link>
         <Link 
           to="/admin/resources" 
