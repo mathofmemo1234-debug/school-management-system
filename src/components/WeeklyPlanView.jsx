@@ -2,12 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Printer, LayoutGrid, Table as TableIcon, BookOpen, Calendar, MessageCircle } from 'lucide-react';
+import { Printer, LayoutGrid, Table as TableIcon, BookOpen, Calendar, MessageCircle, Sparkles } from 'lucide-react';
+import LessonWorksheetModal from './LessonWorksheetModal';
 
 export default function WeeklyPlanView({ studentClass = null, schoolId }) {
   const { t } = useLanguage();
   const [plans, setPlans] = useState([]);
   const [weeklyPlansList, setWeeklyPlansList] = useState([]);
+  const [publishedWorksheets, setPublishedWorksheets] = useState({});
+  const [activeWorksheet, setActiveWorksheet] = useState(null);
+  const [activePrepData, setActivePrepData] = useState(null);
   const [scheduleData, setScheduleData] = useState({});
   const [teachers, setTeachers] = useState({});
   
@@ -116,9 +120,30 @@ export default function WeeklyPlanView({ studentClass = null, schoolId }) {
       setWeeklyPlansList(wData);
     });
 
+    // 2c. Fetch Published Worksheets
+    const qWs = query(
+      collection(db, 'worksheets'),
+      where('status', '==', 'published')
+    );
+    const unsubWs = onSnapshot(qWs, (snapshot) => {
+      const wsMap = {};
+      snapshot.forEach(docSnap => {
+        const d = { id: docSnap.id, ...docSnap.data() };
+        const dCls = (d.className || '').trim();
+        const matchesClass = !dCls || dCls === clsName || clsName.includes(dCls) || dCls.includes(clsName);
+        if (matchesClass) {
+          if (d.prepId) wsMap[d.prepId] = d;
+          const k1 = `${(d.subject || '').trim()}_${(d.lessonTitle || '').trim()}`;
+          wsMap[k1] = d;
+        }
+      });
+      setPublishedWorksheets(wsMap);
+    });
+
     return () => {
       unsubPrep();
       unsubWeekly();
+      unsubWs();
     };
   }, [selectedClassName, selectedWeek, schoolId]);
 
@@ -178,9 +203,13 @@ export default function WeeklyPlanView({ studentClass = null, schoolId }) {
     const teacherWeeklyDoc = weeklyPlansList.find(w => w.teacherId === cell.teacherId);
     const dayWeeklyPlan = teacherWeeklyDoc?.plan?.[dayKey] || {};
 
-    const topic = dayWeeklyPlan.topic || dayPrep.title || dayPrep.topic || '';
+    const topic = dayWeeklyPlan.topic || dayPrep.title || dayPrep.topic || dayPrep.lessonTitle || '';
     const homework = dayWeeklyPlan.homework || dayWeeklyPlan.goals || dayPrep.homework || dayPrep.goals || '';
     const notes = dayWeeklyPlan.notes || dayWeeklyPlan.extraTasks || dayPrep.notes || dayPrep.extraTasks || dayPrep.content || '';
+
+    const effectivePrepId = dayPrep.id || dayPrep.worksheetId;
+    const normKey = `${(cell.subject || '').trim()}_${(topic || dayPrep.lessonTitle || '').trim()}`;
+    const worksheet = publishedWorksheets[effectivePrepId] || publishedWorksheets[normKey] || null;
 
     return {
       subject: cell.subject,
@@ -189,7 +218,9 @@ export default function WeeklyPlanView({ studentClass = null, schoolId }) {
       whatsapp: teachers[cell.teacherId]?.whatsapp,
       topic,
       homework,
-      notes
+      notes,
+      worksheet,
+      prepData: dayPrep
     };
   };
 
@@ -213,7 +244,7 @@ export default function WeeklyPlanView({ studentClass = null, schoolId }) {
       });
     });
     return rows;
-  }, [scheduleData, plans, weeklyPlansList, teachers, DAYS]);
+  }, [scheduleData, plans, weeklyPlansList, teachers, DAYS, publishedWorksheets]);
 
   const handlePrint = () => {
     window.print();
@@ -404,7 +435,41 @@ export default function WeeklyPlanView({ studentClass = null, schoolId }) {
                         </a>
                       )}
                     </td>
-                    <td style={{ color: '#334155' }}>{r.topic || '-'}</td>
+                    <td style={{ color: '#334155' }}>
+                      <div style={{ fontWeight: 500 }}>{r.topic || '-'}</div>
+                      {r.worksheet && (
+                        <button
+                          type="button"
+                          className="no-print"
+                          onClick={() => {
+                            setActiveWorksheet(r.worksheet);
+                            setActivePrepData({
+                              lessonTitle: r.worksheet.lessonTitle || r.topic,
+                              subject: r.subject,
+                              className: selectedClassName,
+                              teacherName: r.teacherName
+                            });
+                          }}
+                          style={{
+                            marginTop: '6px',
+                            background: 'linear-gradient(135deg, #0e7490, #63B2C6)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '3px 8px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            boxShadow: '0 2px 6px rgba(14, 116, 144, 0.2)'
+                          }}
+                        >
+                          <Sparkles size={12} /> 📄 ورقة العمل
+                        </button>
+                      )}
+                    </td>
                     <td style={{ background: '#f0fdf4', color: '#166534', fontWeight: 500 }}>
                       {r.homework ? (
                         <span>{r.homework}</span>
@@ -502,8 +567,41 @@ export default function WeeklyPlanView({ studentClass = null, schoolId }) {
                           <div style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
                             {planData.topic && (
                               <div style={{ background: '#ffffff', padding: '5px 7px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.06)' }}>
-                                <strong style={{ color: '#0e7490', display: 'block', fontSize: '11px' }}>📖 {t('weeklyPlan.lessonTopic') || 'موضوع الدرس'}:</strong>
-                                <span style={{ color: '#334155' }}>{planData.topic}</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                  <strong style={{ color: '#0e7490', fontSize: '11px' }}>📖 {t('weeklyPlan.lessonTopic') || 'موضوع الدرس'}:</strong>
+                                  {planData.worksheet && (
+                                    <button
+                                      type="button"
+                                      className="no-print"
+                                      onClick={() => {
+                                        setActiveWorksheet(planData.worksheet);
+                                        setActivePrepData({
+                                          lessonTitle: planData.worksheet.lessonTitle || planData.topic,
+                                          subject: cell.subject,
+                                          className: selectedClassName,
+                                          teacherName: planData.teacherName
+                                        });
+                                      }}
+                                      style={{
+                                        padding: '2px 6px',
+                                        background: 'linear-gradient(135deg, #0e7490, #63B2C6)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontSize: '10px',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px'
+                                      }}
+                                      title="استعراض ورقة عمل الدرس المعتمدة"
+                                    >
+                                      <Sparkles size={10} /> 📄 ورقة العمل
+                                    </button>
+                                  )}
+                                </div>
+                                <span style={{ color: '#334155', display: 'block', marginTop: '2px' }}>{planData.topic}</span>
                               </div>
                             )}
                             
@@ -538,6 +636,21 @@ export default function WeeklyPlanView({ studentClass = null, schoolId }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Lesson Worksheet Modal for Parents / Students */}
+      {activeWorksheet && (
+        <LessonWorksheetModal
+          isOpen={Boolean(activeWorksheet)}
+          onClose={() => {
+            setActiveWorksheet(null);
+            setActivePrepData(null);
+          }}
+          prepData={activePrepData}
+          existingWorksheet={activeWorksheet}
+          readOnly={true}
+          userRole="parent"
+        />
       )}
 
       {/* Print Styles */}

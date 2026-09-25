@@ -10,6 +10,7 @@ import SchoolMessagingHub from './SchoolMessagingHub';
 import WeeklyPlanView from '../components/WeeklyPlanView';
 import MarkdownViewer from '../components/MarkdownViewer';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
+import LessonWorksheetModal from '../components/LessonWorksheetModal';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import GamificationBadge from '../components/GamificationBadge';
@@ -1475,6 +1476,9 @@ function StudentPreparations() {
   const studentClass = useStudentClass();
   const [preparations, setPreparations] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState('');
+  const [publishedWorksheets, setPublishedWorksheets] = useState({});
+  const [activeWorksheet, setActiveWorksheet] = useState(null);
+  const [activePrepData, setActivePrepData] = useState(null);
 
   useEffect(() => {
     if (!studentClass) return;
@@ -1484,7 +1488,28 @@ function StudentPreparations() {
       snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() }));
       setPreparations(data);
     });
-    return () => unsub();
+
+    // Query published worksheets for this class
+    const qWs = query(
+      collection(db, 'worksheets'),
+      where('className', '==', studentClass),
+      where('status', '==', 'published')
+    );
+    const unsubWs = onSnapshot(qWs, (snapshot) => {
+      const map = {};
+      snapshot.forEach((docSnap) => {
+        const wsData = { id: docSnap.id, ...docSnap.data() };
+        if (wsData.prepId) map[wsData.prepId] = wsData;
+        const normKey = `${(wsData.subject || '').trim()}_${(wsData.lessonTitle || '').trim()}`;
+        map[normKey] = wsData;
+      });
+      setPublishedWorksheets(map);
+    });
+
+    return () => {
+      unsub();
+      unsubWs();
+    };
   }, [studentClass]);
 
   if (!studentClass) {
@@ -1524,53 +1549,107 @@ function StudentPreparations() {
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {filtered.map(p => (
-            <div key={p.id} style={{ background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <div style={{ borderBottom: '2px solid #f1f5f9', paddingBottom: '16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <h3 style={{ margin: 0, color: 'var(--color-primary-dark)' }}>{t('studentDashboard.subjectLabel')} {p.subject}</h3>
-                  <div style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginTop: '4px' }}>{t('studentDashboard.teacherLabel')} {p.teacherEmail}</div>
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 'bold', color: 'var(--color-secondary)' }}>{p.week || `${t('studentDashboard.week')} 1`}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{t('studentDashboard.date')} {p.date || '-'}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{t('studentDashboard.period')} {p.period || '-'}</div>
-                </div>
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {p.fileUrl && (
-                  <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px 16px', borderRadius: '8px' }}>
-                    <strong>{t('studentDashboard.attachedFile')}</strong> <a href={p.fileUrl} target="_blank" rel="noreferrer" style={{ color: '#0369a1', textDecoration: 'underline' }}>{p.fileName}</a>
-                  </div>
-                )}
+          {filtered.map(p => {
+            const normKey = `${(p.subject || '').trim()}_${(p.lessonTitle || '').trim()}`;
+            const ws = publishedWorksheets[p.id] || publishedWorksheets[p.worksheetId] || publishedWorksheets[normKey];
 
-                {['goals', 'portfolio', 'warmup', 'strategy', 'content', 'resources', 'formativeEval', 'summativeEval', 'homework'].map(field => {
-                  const titles = {
-                    goals: t('lessonPreparation.behavioralGoals'),
-                    portfolio: t('lessonPreparation.portfolio'),
-                    warmup: t('lessonPreparation.warmup'),
-                    strategy: t('lessonPreparation.teachingStrategies'),
-                    content: t('lessonPreparation.lessonContent'),
-                    resources: t('lessonPreparation.resources'),
-                    formativeEval: t('lessonPreparation.formativeEval'),
-                    summativeEval: t('lessonPreparation.summativeEval'),
-                    homework: t('lessonPreparation.homework')
-                  };
-                  if (!p[field]) return null;
-                  return (
-                    <div key={field}>
-                      <h4 style={{ color: 'var(--color-secondary-dark)', margin: '0 0 8px 0' }}>{titles[field]}:</h4>
-                      <div style={{ padding: '16px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-                        <MarkdownViewer content={p[field]} />
-                      </div>
+            return (
+              <div key={p.id} style={{ background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ borderBottom: '2px solid #f1f5f9', paddingBottom: '16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '18px' }}>
+                      {p.lessonTitle ? `${p.lessonTitle} - ` : ''}{t('studentDashboard.subjectLabel')} {p.subject}
+                    </h3>
+                    <div style={{ color: 'var(--color-text-muted)', fontSize: '13px', marginTop: '4px' }}>
+                      {t('studentDashboard.teacherLabel')} {p.teacherName || p.teacherEmail}
                     </div>
-                  );
-                })}
+
+                    {/* Published Worksheet Button for Student */}
+                    {ws && (
+                      <div style={{ marginTop: '10px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveWorksheet(ws);
+                            setActivePrepData(p);
+                          }}
+                          style={{
+                            background: 'linear-gradient(135deg, #0e7490, #63B2C6)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '6px 14px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 2px 8px rgba(14, 116, 144, 0.25)'
+                          }}
+                        >
+                          <Sparkles size={14} /> 📄 ورقة عمل الدرس (معتمدة للحل والطباعة)
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 'bold', color: 'var(--color-secondary)' }}>{p.week || `${t('studentDashboard.week')} 1`}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{t('studentDashboard.date')} {p.date || '-'}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{t('studentDashboard.period')} {p.period || '-'}</div>
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {p.fileUrl && (
+                    <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px 16px', borderRadius: '8px' }}>
+                      <strong>{t('studentDashboard.attachedFile')}</strong> <a href={p.fileUrl} target="_blank" rel="noreferrer" style={{ color: '#0369a1', textDecoration: 'underline' }}>{p.fileName}</a>
+                    </div>
+                  )}
+
+                  {['goals', 'portfolio', 'warmup', 'strategy', 'content', 'resources', 'formativeEval', 'summativeEval', 'homework'].map(field => {
+                    const titles = {
+                      goals: t('lessonPreparation.behavioralGoals'),
+                      portfolio: t('lessonPreparation.portfolio'),
+                      warmup: t('lessonPreparation.warmup'),
+                      strategy: t('lessonPreparation.teachingStrategies'),
+                      content: t('lessonPreparation.lessonContent'),
+                      resources: t('lessonPreparation.resources'),
+                      formativeEval: t('lessonPreparation.formativeEval'),
+                      summativeEval: t('lessonPreparation.summativeEval'),
+                      homework: t('lessonPreparation.homework')
+                    };
+                    if (!p[field]) return null;
+                    return (
+                      <div key={field}>
+                        <h4 style={{ color: 'var(--color-secondary-dark)', margin: '0 0 8px 0' }}>{titles[field]}:</h4>
+                        <div style={{ padding: '16px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                          <MarkdownViewer content={p[field]} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+      )}
+
+      {/* Student Worksheet Modal */}
+      {activeWorksheet && (
+        <LessonWorksheetModal
+          isOpen={Boolean(activeWorksheet)}
+          onClose={() => {
+            setActiveWorksheet(null);
+            setActivePrepData(null);
+          }}
+          prepData={activePrepData}
+          existingWorksheet={activeWorksheet}
+          readOnly={true}
+          userRole="student"
+        />
       )}
     </div>
   );

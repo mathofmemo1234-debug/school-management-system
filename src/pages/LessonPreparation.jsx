@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import MarkdownInput from '../components/MarkdownInput';
 import { useLanguage } from '../contexts/LanguageContext';
 import PrintLessonPreparationModal from '../components/PrintLessonPreparationModal';
+import LessonWorksheetModal from '../components/LessonWorksheetModal';
 import { 
   SEMESTERS, 
   CURRICULUM_TYPES, 
@@ -56,6 +57,9 @@ export default function LessonPreparation() {
   const [allPreparations, setAllPreparations] = useState([]);
   const [previewPrep, setPreviewPrep] = useState(null);
   const [printingPrep, setPrintingPrep] = useState(null);
+  const [worksheetModalOpen, setWorksheetModalOpen] = useState(false);
+  const [selectedWorksheetPrep, setSelectedWorksheetPrep] = useState(null);
+  const [existingWorksheetData, setExistingWorksheetData] = useState(null);
 
   // Step 1: Semester (2 Semesters only)
   const [selectedSemester, setSelectedSemester] = useState(SEMESTERS[0]);
@@ -725,6 +729,61 @@ export default function LessonPreparation() {
     setActiveTab('form');
   };
 
+  // Open Worksheet Modal for current preparation or specific prep
+  const handleOpenWorksheet = async (prep = null) => {
+    const effLesson = isCustomLesson 
+      ? customLessonTitle.trim() 
+      : (selectedLesson || customLessonTitle || '');
+
+    const targetPrep = prep || {
+      id: prepDocId,
+      lessonTitle: effLesson,
+      subject: selectedSubject,
+      className: selectedClass,
+      stage: selectedStage,
+      semester: selectedSemester,
+      selectedObjectives,
+      customObjectives,
+      goals,
+      date: selectedDate,
+      period: selectedPeriod,
+      week: selectedWeek,
+      schoolId: userData?.schoolId || 'default_school_1'
+    };
+
+    if (!targetPrep.lessonTitle) {
+      alert('يرجى اختيار أو كتابة اسم الدرس أولاً لإنشاء ورقة العمل');
+      return;
+    }
+
+    setSelectedWorksheetPrep(targetPrep);
+
+    try {
+      let qWs = null;
+      if (targetPrep.id) {
+        qWs = query(collection(db, 'worksheets'), where('prepId', '==', targetPrep.id));
+      } else {
+        qWs = query(
+          collection(db, 'worksheets'),
+          where('lessonTitle', '==', targetPrep.lessonTitle),
+          where('subject', '==', targetPrep.subject || ''),
+          where('className', '==', targetPrep.className || '')
+        );
+      }
+      const snap = await getDocs(qWs);
+      if (!snap.empty) {
+        setExistingWorksheetData({ id: snap.docs[0].id, ...snap.docs[0].data() });
+      } else {
+        setExistingWorksheetData(null);
+      }
+    } catch (err) {
+      console.error('Error fetching existing worksheet:', err);
+      setExistingWorksheetData(null);
+    }
+
+    setWorksheetModalOpen(true);
+  };
+
   const availableStages = curriculumType === CURRICULUM_TYPES.AMERICAN
     ? [AMERICAN_STAGES.ELEMENTARY, AMERICAN_STAGES.MIDDLE, AMERICAN_STAGES.HIGH]
     : [SAUDI_STAGES.PRIMARY, SAUDI_STAGES.INTERMEDIATE, SAUDI_STAGES.SECONDARY];
@@ -1147,6 +1206,58 @@ export default function LessonPreparation() {
                     />
                   </div>
                 )}
+
+                {/* AI Worksheet Instant Button (Activated upon lesson selection or entry) */}
+                <div style={{
+                  marginTop: '14px',
+                  padding: '12px 16px',
+                  background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.05) 0%, rgba(14, 116, 144, 0.05) 100%)',
+                  border: '1px solid rgba(124, 58, 237, 0.2)',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Sparkles size={18} color="#7c3aed" />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0f172a' }}>
+                        ورقة عمل الدرس التفاعلية (AI)
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                        {(selectedLesson || customLessonTitle) 
+                          ? `جاهز لتوليد ورقة عمل لـ: ${isCustomLesson ? customLessonTitle : (selectedLesson || customLessonTitle)}`
+                          : 'اكتب اسم الدرس أو اختره لتوليد ورقة عمل ذكية متطابقة مع أهدافك'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenWorksheet()}
+                    disabled={!(selectedLesson || customLessonTitle)}
+                    style={{
+                      background: (selectedLesson || customLessonTitle) 
+                        ? 'linear-gradient(135deg, #7c3aed, #9333ea)' 
+                        : '#cbd5e1',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 18px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      cursor: (selectedLesson || customLessonTitle) ? 'pointer' : 'not-allowed',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: (selectedLesson || customLessonTitle) ? '0 4px 12px rgba(124, 58, 237, 0.25)' : 'none'
+                    }}
+                  >
+                    <Sparkles size={16} /> ✨ إنشاء ورقة عمل للدرس (AI)
+                  </button>
+                </div>
               </div>
 
               {/* STEP 4: Objectives Selection & Manual Addition */}
@@ -1258,6 +1369,45 @@ export default function LessonPreparation() {
                     <Plus size={16} /> إضافة الهدف
                   </button>
                 </form>
+
+                {/* AI Worksheet Generation based on objectives */}
+                <div style={{
+                  marginTop: '16px',
+                  paddingTop: '14px',
+                  borderTop: '1px dashed #e2e8f0',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '10px'
+                }}>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    💡 الأهداف المحددة حالياً: <strong>{selectedObjectives.length + customObjectives.length} أهداف</strong> (سيقوم الذكاء الاصطناعي بربط الأسئلة بها مباشرة)
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenWorksheet()}
+                    disabled={!(selectedLesson || customLessonTitle)}
+                    style={{
+                      background: (selectedLesson || customLessonTitle) 
+                        ? 'linear-gradient(135deg, #0e7490, #63B2C6)' 
+                        : '#cbd5e1',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 18px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      cursor: (selectedLesson || customLessonTitle) ? 'pointer' : 'not-allowed',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: (selectedLesson || customLessonTitle) ? '0 4px 12px rgba(14, 116, 144, 0.25)' : 'none'
+                    }}
+                  >
+                    <Sparkles size={16} /> ✨ توليد ورقة عمل بالذكاء الاصطناعي مبنية على هذه الأهداف
+                  </button>
+                </div>
               </div>
 
               {/* STEP 5: Teaching Strategies (Popular List + Manual Addition) */}
@@ -1642,6 +1792,24 @@ export default function LessonPreparation() {
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button 
+                      className="btn" 
+                      style={{ 
+                        padding: '8px 14px', 
+                        background: p.hasWorksheet ? '#ecfdf5' : '#f5f3ff', 
+                        color: p.hasWorksheet ? '#047857' : '#7c3aed', 
+                        border: `1px solid ${p.hasWorksheet ? '#a7f3d0' : '#ddd6fe'}`,
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        fontSize: '12px', 
+                        fontWeight: 'bold' 
+                      }} 
+                      onClick={() => handleOpenWorksheet(p)} 
+                      title="ورقة عمل الدرس (AI)"
+                    >
+                      <Sparkles size={15} /> {p.hasWorksheet ? '📄 ورقة العمل' : '✨ ورقة عمل'}
+                    </button>
                     <button className="btn" style={{ padding: '8px 14px', background: '#0e7490', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 'bold' }} onClick={() => setPrintingPrep(p)} title="طباعة التحضير (PDF)">
                       <Printer size={16} /> طباعة (PDF)
                     </button>
@@ -1677,6 +1845,23 @@ export default function LessonPreparation() {
                 معاينة بطاقة تحضير {previewPrep.lessonTitle ? `[${previewPrep.lessonTitle}] - ` : ''}{previewPrep.subject} - {previewPrep.className}
               </h2>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button
+                  className="btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    fontSize: '13px',
+                    background: '#f5f3ff',
+                    color: '#7c3aed',
+                    border: '1px solid #ddd6fe',
+                    fontWeight: 'bold'
+                  }}
+                  onClick={() => handleOpenWorksheet(previewPrep)}
+                >
+                  <Sparkles size={16} /> 📄 ورقة عمل الدرس
+                </button>
                 <button
                   className="btn btn-primary"
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', fontSize: '13px', background: 'linear-gradient(135deg, #0e7490, #63B2C6)' }}
@@ -1737,6 +1922,20 @@ export default function LessonPreparation() {
       {/* Print Modal */}
       {printingPrep && (
         <PrintLessonPreparationModal prep={printingPrep} onClose={() => setPrintingPrep(null)} />
+      )}
+
+      {/* Lesson Worksheet Modal */}
+      {worksheetModalOpen && (
+        <LessonWorksheetModal
+          isOpen={worksheetModalOpen}
+          onClose={() => setWorksheetModalOpen(false)}
+          prepData={selectedWorksheetPrep}
+          existingWorksheet={existingWorksheetData}
+          userRole="teacher"
+          onSaveSuccess={(savedWs) => {
+            setExistingWorksheetData(savedWs);
+          }}
+        />
       )}
     </div>
   );

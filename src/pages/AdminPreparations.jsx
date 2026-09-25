@@ -3,8 +3,9 @@ import { db } from '../firebase';
 import { collection, onSnapshot, query, where, getDocs } from 'firebase/firestore';
 import MarkdownViewer from '../components/MarkdownViewer';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Printer, Search, BookOpen, User, Calendar, Sparkles, Filter, RefreshCw, CheckCircle2, Layers } from 'lucide-react';
+import { Printer, Search, BookOpen, User, Calendar, Sparkles, Filter, RefreshCw, CheckCircle2, Layers, Globe, Lock } from 'lucide-react';
 import PrintLessonPreparationModal from '../components/PrintLessonPreparationModal';
+import LessonWorksheetModal from '../components/LessonWorksheetModal';
 
 export default function AdminPreparations({ schoolId }) {
   const { t } = useLanguage();
@@ -17,6 +18,9 @@ export default function AdminPreparations({ schoolId }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [printingPrep, setPrintingPrep] = useState(null);
   const [isLiveConnected, setIsLiveConnected] = useState(true);
+  const [worksheetsMap, setWorksheetsMap] = useState({});
+  const [activeWorksheet, setActiveWorksheet] = useState(null);
+  const [activePrepData, setActivePrepData] = useState(null);
 
   const targetSchoolId = schoolId || 'default_school_1';
 
@@ -116,6 +120,29 @@ export default function AdminPreparations({ schoolId }) {
     });
 
     return () => unsubPreps();
+  }, [schoolId, targetSchoolId]);
+
+  // 4. Fetch worksheets in real-time
+  useEffect(() => {
+    const qWs = schoolId === 'ALL'
+      ? collection(db, 'worksheets')
+      : query(collection(db, 'worksheets'), where('schoolId', '==', targetSchoolId));
+
+    const unsubWs = onSnapshot(qWs, (snap) => {
+      const map = {};
+      snap.docs.forEach(d => {
+        const data = { id: d.id, ...d.data() };
+        if (data.prepId) map[data.prepId] = data;
+        const normKey = `${(data.subject || '').trim()}_${(data.lessonTitle || '').trim()}_${(data.className || '').trim()}`;
+        map[normKey] = data;
+        const shortKey = `${(data.subject || '').trim()}_${(data.lessonTitle || '').trim()}`;
+        if (!map[shortKey]) map[shortKey] = data;
+        map[d.id] = data;
+      });
+      setWorksheetsMap(map);
+    });
+
+    return () => unsubWs();
   }, [schoolId, targetSchoolId]);
 
   // Dynamic Filtering Logic
@@ -305,61 +332,110 @@ export default function AdminPreparations({ schoolId }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {filtered.map(p => (
-            <div key={p.id} style={{ background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
-              <div style={{ borderBottom: '2px solid #f1f5f9', paddingBottom: '16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-                <div>
-                  <h3 style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '18px' }}>
-                    {p.lessonTitle ? `${p.lessonTitle} - ` : ''}{t('adminPreparations.classPrefix')} {p.className || p.class} - {t('adminPreparations.subjectPrefix')} {p.subject}
-                  </h3>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap' }}>
-                    {p.semester && (
-                      <span style={{ background: '#f0f9ff', color: '#0e7490', border: '1px solid #bae6fd', padding: '3px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}>
-                        {p.semester}
-                      </span>
-                    )}
-                    {p.stage && (
-                      <span style={{ background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', padding: '3px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}>
-                        {p.stage}
-                      </span>
-                    )}
-                    <span style={{ color: '#475569', fontSize: '13px', background: '#f8fafc', padding: '3px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                      👤 {t('adminPreparations.teacherPrefix')} <strong>{p.teacherName || teachersList[p.teacherId] || teachersList[p.teacherNationalId] || p.teacherEmail || 'معلم'}</strong>
-                    </span>
-                  </div>
-                </div>
+          {filtered.map(p => {
+            const normKey = `${(p.subject || '').trim()}_${(p.lessonTitle || '').trim()}_${(p.className || p.class || '').trim()}`;
+            const shortKey = `${(p.subject || '').trim()}_${(p.lessonTitle || '').trim()}`;
+            const ws = worksheetsMap[p.id] || worksheetsMap[p.worksheetId] || worksheetsMap[normKey] || worksheetsMap[shortKey];
 
-                <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                  <button
-                    onClick={() => setPrintingPrep(p)}
-                    className="btn btn-primary"
-                    style={{
-                      padding: '8px 16px',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      background: 'linear-gradient(135deg, #0e7490, #63B2C6)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(14, 116, 144, 0.25)'
-                    }}
-                  >
-                    <Printer size={16} /> طباعة التحضير (PDF)
-                  </button>
-                  <div style={{ fontWeight: 'bold', color: 'var(--color-secondary)', fontSize: '14px' }}>
-                    {p.week || t('adminPreparations.week1')} • {p.period || '-'}
+            return (
+              <div key={p.id} style={{ background: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                <div style={{ borderBottom: '2px solid #f1f5f9', paddingBottom: '16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '18px' }}>
+                      {p.lessonTitle ? `${p.lessonTitle} - ` : ''}{t('adminPreparations.classPrefix')} {p.className || p.class} - {t('adminPreparations.subjectPrefix')} {p.subject}
+                    </h3>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap' }}>
+                      {p.semester && (
+                        <span style={{ background: '#f0f9ff', color: '#0e7490', border: '1px solid #bae6fd', padding: '3px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}>
+                          {p.semester}
+                        </span>
+                      )}
+                      {p.stage && (
+                        <span style={{ background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', padding: '3px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}>
+                          {p.stage}
+                        </span>
+                      )}
+                      <span style={{ color: '#475569', fontSize: '13px', background: '#f8fafc', padding: '3px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                        👤 {t('adminPreparations.teacherPrefix')} <strong>{p.teacherName || teachersList[p.teacherId] || teachersList[p.teacherNationalId] || p.teacherEmail || 'معلم'}</strong>
+                      </span>
+                      {ws && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          background: ws.status === 'published' ? '#ecfdf5' : '#fffbeb',
+                          color: ws.status === 'published' ? '#047857' : '#b45309',
+                          border: `1px solid ${ws.status === 'published' ? '#a7f3d0' : '#fde68a'}`,
+                          padding: '3px 10px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}>
+                          {ws.status === 'published' ? <Globe size={13} /> : <Lock size={13} />}
+                          <span>{ws.status === 'published' ? 'ورقة عمل معتمدة ومنشورة' : 'ورقة عمل (مسودة خاصة بالمعلم)'}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '12px', color: '#64748b' }}>
-                    📅 {t('adminPreparations.datePrefix')} {p.date || '-'}
-                  </div>
-                  <div style={{ color: '#94a3b8', fontSize: '11px' }}>
-                    {t('adminPreparations.updatedPrefix')} {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('ar-EG') : '-'}
+
+                  <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <button
+                        onClick={() => {
+                          setActiveWorksheet(ws || null);
+                          setActivePrepData(p);
+                        }}
+                        style={{
+                          padding: '8px 14px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          background: ws ? (ws.status === 'published' ? '#ecfdf5' : '#fffbeb') : '#f5f3ff',
+                          color: ws ? (ws.status === 'published' ? '#047857' : '#b45309') : '#7c3aed',
+                          border: `1.5px solid ${ws ? (ws.status === 'published' ? '#a7f3d0' : '#fde68a') : '#ddd6fe'}`,
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                        }}
+                        title={ws ? 'استعراض ورقة العمل ودليل الحل النموذجي' : 'توليد ورقة عمل بالذكاء الاصطناعي'}
+                      >
+                        <Sparkles size={14} /> {ws ? (ws.status === 'published' ? '📄 ورقة العمل (معتمدة)' : '📄 مسودة ورقة العمل') : '✨ توليد ورقة عمل (AI)'}
+                      </button>
+
+                      <button
+                        onClick={() => setPrintingPrep(p)}
+                        className="btn btn-primary"
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          background: 'linear-gradient(135deg, #0e7490, #63B2C6)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(14, 116, 144, 0.25)'
+                        }}
+                      >
+                        <Printer size={16} /> طباعة التحضير (PDF)
+                      </button>
+                    </div>
+
+                    <div style={{ fontWeight: 'bold', color: 'var(--color-secondary)', fontSize: '14px' }}>
+                      {p.week || t('adminPreparations.week1')} • {p.period || '-'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                      📅 {t('adminPreparations.datePrefix')} {p.date || '-'}
+                    </div>
+                    <div style={{ color: '#94a3b8', fontSize: '11px' }}>
+                      {t('adminPreparations.updatedPrefix')} {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('ar-EG') : '-'}
+                    </div>
                   </div>
                 </div>
-              </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {p.fileUrl && (
@@ -393,12 +469,28 @@ export default function AdminPreparations({ schoolId }) {
                 })}
               </div>
             </div>
-          ))}
+          );
+        })}
         </div>
       )}
 
       {printingPrep && (
         <PrintLessonPreparationModal prep={printingPrep} onClose={() => setPrintingPrep(null)} />
+      )}
+
+      {/* Lesson Worksheet Modal for Admin / Supervisor / Staff */}
+      {activePrepData && (
+        <LessonWorksheetModal
+          isOpen={Boolean(activePrepData)}
+          onClose={() => {
+            setActiveWorksheet(null);
+            setActivePrepData(null);
+          }}
+          prepData={activePrepData}
+          existingWorksheet={activeWorksheet}
+          readOnly={false}
+          userRole="admin"
+        />
       )}
     </div>
   );
