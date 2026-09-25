@@ -63,6 +63,7 @@ import { computePsychometrics } from '../utils/psychometricsEngine';
 import PsychometricCharts from '../components/PsychometricCharts';
 import { sortStudentList, STUDENT_SORT_OPTIONS } from '../utils/studentSorting';
 import { parseBatchGrades } from '../utils/batchGradesParser';
+import { compressImageToDataUrl } from '../utils/imageCompressor';
 import { formatArabicTime } from '../utils/dateTimeUtils';
 import { useNavigate } from 'react-router-dom';
 import ExamCorrelationModal from '../components/ExamCorrelationModal';
@@ -574,7 +575,7 @@ export default function TeacherExams() {
     }
   };
 
-  // Helper to convert external image URLs to Base64 (saving images directly without external links)
+  // Helper to convert external image URLs to Base64 (saving images directly without external links, with ultra-light compression)
   const convertExternalImageUrlsToBase64 = async (text) => {
     if (!text || typeof text !== 'string') return text;
     const imgRegex = /!\[(.*?)\]\((https?:\/\/[^\s\)]+|blob:[^\s\)]+)\)/g;
@@ -589,12 +590,19 @@ export default function TeacherExams() {
       try {
         const response = await fetch(item.url, { mode: 'cors' });
         const blob = await response.blob();
-        const base64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = () => resolve(null);
-          reader.readAsDataURL(blob);
+        let base64 = await compressImageToDataUrl(blob, {
+          maxWidth: 1000,
+          maxHeight: 1000,
+          quality: 0.78
         });
+        if (!base64) {
+          base64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        }
         if (base64) {
           updatedText = updatedText.replace(item.full, `![${item.alt}](${base64})`);
         }
