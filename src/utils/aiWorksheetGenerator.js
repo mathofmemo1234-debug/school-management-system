@@ -18,6 +18,7 @@ export const QUESTION_TYPES = {
   MCQ: { id: 'mcq', label: 'اختيار من متعدد', icon: 'CheckCircle2' },
   TRUE_FALSE: { id: 'true_false', label: 'صح أو خطأ', icon: 'CheckSquare' },
   FILL_BLANK: { id: 'fill_blank', label: 'إكمال الفراغ والمصطلحات', icon: 'Edit3' },
+  MATCHING: { id: 'matching', label: 'المزاوجة والربط (صل بين أ و ب)', icon: 'ArrowLeftRight' },
   PROBLEM_SOLVING: { id: 'problem_solving', label: 'مسائل وتفكير ناقد (مقالي)', icon: 'HelpCircle' }
 };
 
@@ -119,6 +120,41 @@ const SUBJECT_GENERATION_MATRICES = {
             : 'The y-intercept represents the value of y when x = 0.',
           points: 1
         };
+      } else if (type === 'matching') {
+        return {
+          question: isAr
+            ? `زاوج بين كل مفهوم رياضي في العمود (أ) وما يطابقه من تعريف أو صيغة في العمود (ب) [تحقيقاً للهدف: ${objective}]:`
+            : `Match each mathematical concept in Column (A) with its corresponding definition in Column (B) [Objective: ${objective}]:`,
+          columnA: isAr ? [
+            { id: '1', num: '١', text: `ميل المستقيم (${varX}، ${varY})` },
+            { id: '2', num: '٢', text: `المعادلة الخطية` },
+            { id: '3', num: '٣', text: `المقطع الصادي (${varY})` },
+            { id: '4', num: '٤', text: `المستوى الإحداثي` }
+          ] : [
+            { id: '1', num: '1', text: `Slope of a line (m)` },
+            { id: '2', num: '2', text: `Linear Equation` },
+            { id: '3', num: '3', text: `y-intercept (${varY})` },
+            { id: '4', num: '4', text: `Coordinate Plane` }
+          ],
+          columnB: isAr ? [
+            { id: 'a', label: 'أ', text: `قيمة (${varY}) عند نقطة التقاطع عندما تكون ${varX} = ٠.` },
+            { id: 'b', label: 'ب', text: `نسبة التغير الرأسي (دلتا ${varY}) إلى التغير الأفقي (دلتا ${varX}).` },
+            { id: 'c', label: 'جـ', text: `نظام يتكون من تقاطع مستقيمين متعامدين (محور ${varX} ومحور ${varY}).` },
+            { id: 'd', label: 'د', text: `معادلة جبرية من الدرجة الأولى تُمثَّل بيانياً بمستقيم.` }
+          ] : [
+            { id: 'a', label: 'A', text: `The value of ${varY} at intersection when ${varX} = 0.` },
+            { id: 'b', label: 'B', text: `Ratio of vertical change (Δ${varY}) to horizontal change (Δ${varX}).` },
+            { id: 'c', label: 'C', text: `Grid formed by two perpendicular axes (${varX} and ${varY}).` },
+            { id: 'd', label: 'D', text: `An algebraic equation of degree one that graphs as a straight line.` }
+          ],
+          correctAnswer: isAr
+            ? 'دليل المزاوجة الصحيح:\n(١ ➔ ب)، (٢ ➔ د)، (٣ ➔ أ)، (٤ ➔ جـ)'
+            : 'Matching Key:\n(1 ➔ B), (2 ➔ D), (3 ➔ A), (4 ➔ C)',
+          explanation: isAr
+            ? `الميل = التغير الرأسي/الأفقي، المعادلة الخطية تمثل بمستقيم، المقطع الصادي قيمة ${varY} عند ${varX} = ٠.`
+            : `Slope = Δ${varY}/Δ${varX}, linear equation graphs as line, y-intercept is value at ${varX}=0.`,
+          points: 2
+        };
       } else {
         // Problem Solving
         return {
@@ -203,6 +239,41 @@ const SUBJECT_GENERATION_MATRICES = {
             : 'Acceleration = Delta v / Delta t.',
           points: 1
         };
+      } else if (type === 'matching') {
+        return {
+          question: isAr
+            ? `صل بين كل مفهوم علمي في العمود (أ) وما يناسبه من دلالة أو وحدة قياس في العمود (ب) [تحقيقاً للهدف: ${objective}]:`
+            : `Match each scientific concept in Column (A) with its description or SI unit in Column (B) [Objective: ${objective}]:`,
+          columnA: isAr ? [
+            { id: '1', num: '١', text: 'السرعة المتجهة' },
+            { id: '2', num: '٢', text: 'التسارع (العجلة)' },
+            { id: '3', num: '٣', text: 'قانون حفظ الكتلة' },
+            { id: '4', num: '٤', text: 'الطاقة الحركية' }
+          ] : [
+            { id: '1', num: '1', text: 'Velocity' },
+            { id: '2', num: '2', text: 'Acceleration' },
+            { id: '3', num: '3', text: 'Conservation of Mass' },
+            { id: '4', num: '4', text: 'Kinetic Energy' }
+          ],
+          columnB: isAr ? [
+            { id: 'a', label: 'أ', text: 'معدل التغير في السرعة المتجهة مقسوماً على زمن التغير (م/ث²).' },
+            { id: 'b', label: 'ب', text: 'الطاقة التي يمتلكها الجسم بسبب حركته (تعتمد على كتلته وسرعته).' },
+            { id: 'c', label: 'جـ', text: 'الإزاحة المقطوعة خلال وحدة الزمن في اتجاه محدد (م/ث).' },
+            { id: 'd', label: 'د', text: 'المادة لا تفنى ولا تستحدث في التفاعل الكيميائي بل تتحول.' }
+          ] : [
+            { id: 'a', label: 'A', text: 'Rate of change of velocity per unit time (m/s²).' },
+            { id: 'b', label: 'B', text: 'Energy possessed by an object due to its motion.' },
+            { id: 'c', label: 'C', text: 'Displacement per unit time in a specified direction (m/s).' },
+            { id: 'd', label: 'D', text: 'Mass is neither created nor destroyed during chemical reaction.' }
+          ],
+          correctAnswer: isAr
+            ? 'دليل المزاوجة الصحيح:\n(١ ➔ جـ)، (٢ ➔ أ)، (٣ ➔ د)، (٤ ➔ ب)'
+            : 'Matching Key:\n(1 ➔ C), (2 ➔ A), (3 ➔ D), (4 ➔ B)',
+          explanation: isAr
+            ? 'السرعة المتجهة تقاس بـ م/ث، والتسارع بـ م/ث²، وحفظ الكتلة ثبات كتلة المواد، والطاقة الحركية ط = ١/٢ ك ع².'
+            : 'Velocity is m/s, Acceleration is m/s², mass is conserved, Kinetic Energy is 1/2mv².',
+          points: 2
+        };
       } else {
         return {
           question: isAr
@@ -248,12 +319,38 @@ const SUBJECT_GENERATION_MATRICES = {
             explanation: 'In English, attributive adjectives typically precede the noun they modify (e.g., "a brilliant student").',
             points: 1
           };
-        } else {
+        } else if (type === 'fill_blank') {
           return {
             question: `Fill in the blank with the appropriate transition word [Objective: ${objective}]:\n"The weather was stormy; ...................., the school continued its interactive digital classes without interruption."`,
             correctAnswer: 'However / Nevertheless',
             explanation: 'Shows contrast between two independent clauses.',
             points: 1
+          };
+        } else if (type === 'matching') {
+          return {
+            question: `Match each part of speech in Column (A) with its correct syntactic role in Column (B) [Objective: ${objective}]:`,
+            columnA: [
+              { id: '1', num: '1', text: 'Noun' },
+              { id: '2', num: '2', text: 'Verb' },
+              { id: '3', num: '3', text: 'Adjective' },
+              { id: '4', num: '4', text: 'Preposition' }
+            ],
+            columnB: [
+              { id: 'a', label: 'A', text: 'Expresses an action, state, or event in a predicate.' },
+              { id: 'b', label: 'B', text: 'Modifies or attributes qualities to a noun or pronoun.' },
+              { id: 'c', label: 'C', text: 'Identifies a person, place, object, or concept.' },
+              { id: 'd', label: 'D', text: 'Links nouns to indicate temporal, spatial, or logical relations.' }
+            ],
+            correctAnswer: 'Matching Key:\n(1 ➔ C), (2 ➔ A), (3 ➔ B), (4 ➔ D)',
+            explanation: 'Accurate classification of fundamental English parts of speech and roles.',
+            points: 2
+          };
+        } else {
+          return {
+            question: `Language Application and Writing [Objective: ${objective}]:\nConstruct two complete, grammatically accurate sentences that demonstrate the core concept of the lesson.`,
+            correctAnswer: 'Teacher evaluates grammar accuracy, lexical variety, and semantic clarity.',
+            explanation: 'Assesses written communicative competence and syntactic mastery.',
+            points: 3
           };
         }
       } else {
@@ -292,6 +389,25 @@ const SUBJECT_GENERATION_MATRICES = {
             correctAnswer: 'مفتوح (أو مضموم)',
             explanation: 'قاعدة قوة الحركات في الهمزة المتوسطة (الكسرة ثم الضمة ثم الفتحة ثم السكون).',
             points: 1
+          };
+        } else if (type === 'matching') {
+          return {
+            question: `صل بين المصطلح النحوي في العمود (أ) وما يطابقه من حكم أو وظيفة إعرابية في العمود (ب) [تحقيقاً للهدف: ${objective}]:`,
+            columnA: [
+              { id: '1', num: '١', text: 'الفاعل' },
+              { id: '2', num: '٢', text: 'المفعول به' },
+              { id: '3', num: '٣', text: 'كان وأخواتها' },
+              { id: '4', num: '٤', text: 'حروف الجر' }
+            ],
+            columnB: [
+              { id: 'a', label: 'أ', text: 'أفعال ناسخة تدخل على الجملة الاسمية فترفع المبتدأ وتنصب الخبر.' },
+              { id: 'b', label: 'ب', text: 'اسم منصوب وقع عليه فعل الفاعل في الجملة الفعلية.' },
+              { id: 'c', label: 'جـ', text: 'حروف تدخل على الأسماء فتجرها بالكسرة أو الياء.' },
+              { id: 'd', label: 'د', text: 'اسم مرفوع يدل على من قام بالفعل أو اتصف به.' }
+            ],
+            correctAnswer: 'دليل المزاوجة الصحيح:\n(١ ➔ د)، (٢ ➔ ب)، (٣ ➔ أ)، (٤ ➔ جـ)',
+            explanation: 'الفاعل مرفوع، المفعول به منصوب، كان ترفع المبتدأ وتنصب الخبر، حروف الجر تجر ما بعدها.',
+            points: 2
           };
         } else {
           return {
@@ -338,6 +454,25 @@ const SUBJECT_GENERATION_MATRICES = {
           explanation: 'حديث صحيح رواه مسلم، يحث على فضل طلب العلم الشرعي والنافع.',
           points: 1
         };
+      } else if (type === 'matching') {
+        return {
+          question: `صل بين المصطلح الشرعي في العمود (أ) وما يناسبه من تعريف فقهي في العمود (ب) [تحقيقاً للهدف: ${objective}]:`,
+          columnA: [
+            { id: '1', num: '١', text: 'الركن' },
+            { id: '2', num: '٢', text: 'الشرط' },
+            { id: '3', num: '٣', text: 'الواجب' },
+            { id: '4', num: '٤', text: 'السنة (المستحب)' }
+          ],
+          columnB: [
+            { id: 'a', label: 'أ', text: 'ما يثاب فاعله امتثالاً ولا يعاقب تاركه، ويجبر النقص في العمل.' },
+            { id: 'b', label: 'ب', text: 'جزء لا يتجزأ من حقيقة العبادة وتبطل بتركه عمداً أو سهواً.' },
+            { id: 'c', label: 'جـ', text: 'ما يلزم من عدمه العدم ويكون سابقاً للعبادة وخارجاً عنها كالطهارة.' },
+            { id: 'd', label: 'د', text: 'ما أمر به الشارع حتماً وتبطل بتركه عمداً ويجبر بسجود السهو إن نسي.' }
+          ],
+          correctAnswer: 'دليل المزاوجة الصحيح:\n(١ ➔ ب)، (٢ ➔ جـ)، (٣ ➔ د)، (٤ ➔ أ)',
+          explanation: 'الركن داخل الماهية ويبطل العبادة سهواً، والشرط خارجها، والواجب يجبر بالسجود، والسنة مستحبة.',
+          points: 2
+        };
       } else {
         return {
           question: `سؤال الاستنباط والتطبيق القيمي [تحقيقاً للهدف: ${objective}]:\nبين كيف يطبق الطالب المسلم هذا الهدي النبوي في حياته اليومية وتعاملاته المدرسية والأسرية؟`,
@@ -374,6 +509,32 @@ const SUBJECT_GENERATION_MATRICES = {
           correctAnswer: 'صح',
           explanation: 'الموقع الجغرافي الاستراتيجي للمملكة العربية السعودية.',
           points: 1
+        };
+      } else if (type === 'fill_blank') {
+        return {
+          question: `أكمل الفراغ بالمعلومة الجغرافية أو التاريخية الدقيقة [الهدف: ${objective}]:\nتعتبر عاصمة المملكة العربية السعودية ومركز ثقلها السياسي والاقتصادي هي مدينة .................... .`,
+          correctAnswer: 'الرياض',
+          explanation: 'مدينة الرياض هي عاصمة المملكة العربية السعودية ومقر الحكم والوزارات.',
+          points: 1
+        };
+      } else if (type === 'matching') {
+        return {
+          question: `زاوج بين المفاهيم الجغرافية في العمود (أ) وما يطابقها من دلالات في العمود (ب) [تحقيقاً للهدف: ${objective}]:`,
+          columnA: [
+            { id: '1', num: '١', text: 'خط الاستواء' },
+            { id: '2', num: '٢', text: 'خط غرينتش' },
+            { id: '3', num: '٣', text: 'شبه الجزيرة العربية' },
+            { id: '4', num: '٤', text: 'التضاريس' }
+          ],
+          columnB: [
+            { id: 'a', label: 'أ', text: 'خط الطول الرئيسي ودرجته صفر، ويقسم الأرض إلى نصفين شرقي وغربي.' },
+            { id: 'b', label: 'ب', text: 'أكبر شبه جزيرة في العالم وتقع في الركن الجنوبي الغربي لقارة آسيا.' },
+            { id: 'c', label: 'جـ', text: 'الأشكال السطحية المختلفة لليابسة من جبال وهضاب وأودية وسهول.' },
+            { id: 'd', label: 'د', text: 'دائرة العرض الرئيسية ودرجتها صفر، وتقسم الأرض لنصفين شمالي وجنوبي.' }
+          ],
+          correctAnswer: 'دليل المزاوجة الصحيح:\n(١ ➔ د)، (٢ ➔ أ)، (٣ ➔ ب)، (٤ ➔ جـ)',
+          explanation: 'خط الاستواء دائرة عرض رئيسية (صفر)، خط غرينتش خط طول رئيسي (صفر)، التضاريس أشكال السطح.',
+          points: 2
         };
       } else {
         return {
@@ -419,7 +580,7 @@ export async function generateWorksheetAI({
   questionCount = 5,
   cognitiveDistribution = 'balanced', // 'balanced' | 'remember' | 'understand' | 'apply' | 'analyze'
   symbolLanguage = 'ar', // 'ar' (س، ص، ١، ٢) | 'en' (x, y, 1, 2)
-  questionTypes = ['mcq', 'true_false', 'fill_blank', 'problem_solving'],
+  questionTypes = ['mcq', 'true_false', 'fill_blank', 'matching', 'problem_solving'],
   customInstructions = ''
 }) {
   // 1. تنقية وتجهيز الأهداف
@@ -439,7 +600,7 @@ export async function generateWorksheetAI({
 
   const effectiveTypes = (questionTypes && questionTypes.length > 0)
     ? questionTypes
-    : ['mcq', 'true_false', 'fill_blank', 'problem_solving'];
+    : ['mcq', 'true_false', 'fill_blank', 'matching', 'problem_solving'];
 
   const categoryKey = detectSubjectCategory(subject);
   const generator = SUBJECT_GENERATION_MATRICES[categoryKey] || SUBJECT_GENERATION_MATRICES.science;
@@ -490,6 +651,8 @@ export async function generateWorksheetAI({
       question: qData.question,
       options: qData.options || null,
       correctOption: qData.correctOption !== undefined ? qData.correctOption : null,
+      columnA: qData.columnA || null,
+      columnB: qData.columnB || null,
       correctAnswer: qData.correctAnswer,
       explanation: qData.explanation,
       points: qData.points || 1

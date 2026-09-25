@@ -5,7 +5,8 @@ import { collection, doc, setDoc, addDoc, updateDoc, getDoc, getDocs, query, whe
 import { 
   Sparkles, Save, Printer, Download, Eye, Edit3, Trash2, Plus, 
   CheckCircle2, AlertCircle, Share2, Globe, Lock, BookOpen, Clock, 
-  CheckSquare, Square, X, Award, HelpCircle, Layers, ArrowRight, RefreshCw, FileText
+  CheckSquare, Square, X, Award, HelpCircle, Layers, ArrowRight, RefreshCw, FileText,
+  ArrowLeftRight
 } from 'lucide-react';
 import { generateWorksheetAI, formatNumberBySymbol, BLOOM_LEVELS } from '../utils/aiWorksheetGenerator';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,7 +38,7 @@ export default function LessonWorksheetModal({
   const [cognitiveDistribution, setCognitiveDistribution] = useState(existingWorksheet?.cognitiveDistribution || 'balanced');
   const [symbolLanguage, setSymbolLanguage] = useState(existingWorksheet?.symbolLanguage || 'ar');
   const [selectedTypes, setSelectedTypes] = useState(
-    existingWorksheet?.selectedTypes || ['mcq', 'true_false', 'fill_blank', 'problem_solving']
+    existingWorksheet?.selectedTypes || ['mcq', 'true_false', 'fill_blank', 'matching', 'problem_solving']
   );
 
   // Active View Tab: 'student' (Student Worksheet) | 'teacher' (Model Answer Key) | 'studio' (AI Editor)
@@ -162,20 +163,74 @@ export default function LessonWorksheetModal({
     });
   };
 
+  // Edit matching column item (for Matching questions)
+  const updateMatchingItem = (qIndex, colKey, itemIndex, value) => {
+    setQuestions(prev => {
+      const copy = [...prev];
+      const list = [...(copy[qIndex][colKey] || [])];
+      list[itemIndex] = { ...list[itemIndex], text: value };
+      copy[qIndex] = { ...copy[qIndex], [colKey]: list };
+      return copy;
+    });
+  };
+
   // Remove question
   const removeQuestion = (index) => {
     setQuestions(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Add new manual question
-  const addNewQuestion = () => {
+  // Add new manual question (supports 'mcq' or 'matching')
+  const addNewQuestion = (qType = 'mcq') => {
     const isAr = symbolLanguage === 'ar';
+    if (qType === 'matching') {
+      const newQ = {
+        id: `q_${Date.now()}_custom`,
+        number: questions.length + 1,
+        type: 'matching',
+        typeLabel: 'المزاوجة والربط (صل بين أ و ب)',
+        bloomLevel: isAr ? 'تحليل ومزاوجة' : 'Analyzing',
+        targetObjective: effectiveObjectives[0] || 'هدف تعليمي إضافي',
+        question: isAr 
+          ? 'زاوج بين المفاهيم في العمود (أ) وما يناسبها في العمود (ب) بوضع الرمز المناسب:' 
+          : 'Match concepts in Column (A) with corresponding definitions in Column (B):',
+        columnA: isAr ? [
+          { id: '1', num: '١', text: 'المفهوم أو المصطلح الأول' },
+          { id: '2', num: '٢', text: 'المفهوم أو المصطلح الثاني' },
+          { id: '3', num: '٣', text: 'المفهوم أو المصطلح الثالث' },
+          { id: '4', num: '٤', text: 'المفهوم أو المصطلح الرابع' }
+        ] : [
+          { id: '1', num: '1', text: 'First Concept or Term' },
+          { id: '2', num: '2', text: 'Second Concept or Term' },
+          { id: '3', num: '3', text: 'Third Concept or Term' },
+          { id: '4', num: '4', text: 'Fourth Concept or Term' }
+        ],
+        columnB: isAr ? [
+          { id: 'a', label: 'أ', text: 'التعريف المقابل للمصطلح الثاني' },
+          { id: 'b', label: 'ب', text: 'التعريف المقابل للمصطلح الأول' },
+          { id: 'c', label: 'جـ', text: 'التعريف المقابل للمصطلح الرابع' },
+          { id: 'd', label: 'د', text: 'التعريف المقابل للمصطلح الثالث' }
+        ] : [
+          { id: 'a', label: 'A', text: 'Definition matching second term' },
+          { id: 'b', label: 'B', text: 'Definition matching first term' },
+          { id: 'c', label: 'C', text: 'Definition matching fourth term' },
+          { id: 'd', label: 'D', text: 'Definition matching third term' }
+        ],
+        correctAnswer: isAr 
+          ? 'دليل المزاوجة الصحيح:\n(١ ➔ ب)، (٢ ➔ أ)، (٣ ➔ د)، (٤ ➔ جـ)' 
+          : 'Matching Key:\n(1 ➔ B), (2 ➔ A), (3 ➔ D), (4 ➔ C)',
+        explanation: isAr ? 'الربط المنهجي الدقيق بين المفاهيم وتعريفاتها.' : 'Accurate pairing between concepts and their definitions.',
+        points: 2
+      };
+      setQuestions(prev => [...prev, newQ]);
+      return;
+    }
+
     const newQ = {
       id: `q_${Date.now()}_custom`,
       number: questions.length + 1,
       type: 'mcq',
       typeLabel: 'اختيار من متعدد',
-      bloomLevel: 'تطبيق',
+      bloomLevel: isAr ? 'تطبيق' : 'Applying',
       targetObjective: effectiveObjectives[0] || 'هدف تعليمي إضافي',
       question: isAr ? 'اكتب نص السؤال الجديد هنا...' : 'Write new question text here...',
       options: isAr ? ['أ) خيار أول', 'ب) خيار ثانٍ', 'جـ) خيار ثالث', 'د) خيار رابع'] : ['A) First option', 'B) Second option', 'C) Third option', 'D) Fourth option'],
@@ -729,6 +784,7 @@ export default function LessonWorksheetModal({
                 { id: 'mcq', label: 'اختيار من متعدد' },
                 { id: 'true_false', label: 'صح أو خطأ' },
                 { id: 'fill_blank', label: 'أكمل الفراغ / مصطلح علمي' },
+                { id: 'matching', label: 'المزاوجة والربط (صل بين أ و ب)' },
                 { id: 'problem_solving', label: 'مسائل مقالية وتفكير ناقد' }
               ].map(tObj => {
                 const isSelected = selectedTypes.includes(tObj.id);
@@ -1069,6 +1125,177 @@ export default function LessonWorksheetModal({
                     </div>
                   )}
 
+                  {/* 5. Matching Question (المزاوجة والربط - صل بين أ و ب) */}
+                  {q.type === 'matching' && q.columnA && q.columnB && (
+                    <div style={{ marginRight: '34px', marginTop: '12px', overflowX: 'auto' }}>
+                      <table style={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        background: 'white',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        fontSize: '13px'
+                      }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                            <th style={{
+                              padding: '10px 14px',
+                              textAlign: symbolLanguage === 'ar' ? 'right' : 'left',
+                              color: '#0e7490',
+                              fontWeight: 'bold',
+                              width: '50%',
+                              borderRight: symbolLanguage === 'ar' ? 'none' : '1px solid #e2e8f0',
+                              borderLeft: symbolLanguage === 'ar' ? '1px solid #e2e8f0' : 'none'
+                            }}>
+                              📌 {symbolLanguage === 'ar' ? 'العمود (أ) - المفاهيم والعبارات' : 'Column (A) - Concepts'}
+                            </th>
+                            <th style={{
+                              padding: '10px 14px',
+                              textAlign: symbolLanguage === 'ar' ? 'right' : 'left',
+                              color: '#0e7490',
+                              fontWeight: 'bold',
+                              width: '50%'
+                            }}>
+                              🔍 {symbolLanguage === 'ar' ? 'العمود (ب) - التعريفات والخصائص' : 'Column (B) - Definitions'}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({ length: Math.max(q.columnA.length, q.columnB.length) }).map((_, rIdx) => {
+                            const itemA = q.columnA[rIdx];
+                            const itemB = q.columnB[rIdx];
+
+                            // Check teacher match key if in teacher tab
+                            let matchKey = null;
+                            if (activeTab === 'teacher' && itemA && q.correctAnswer) {
+                              const regex = new RegExp(`\\(${itemA.num}\\s*[➔->:]\\s*([^)]+)\\)`);
+                              const m = q.correctAnswer.match(regex);
+                              if (m) matchKey = m[1].trim();
+                            }
+
+                            return (
+                              <tr key={rIdx} style={{
+                                borderBottom: '1px solid #e2e8f0',
+                                background: rIdx % 2 === 0 ? '#ffffff' : '#fafafa'
+                              }}>
+                                {/* Column A cell */}
+                                <td style={{
+                                  padding: '8px 12px',
+                                  verticalAlign: 'middle',
+                                  borderRight: symbolLanguage === 'ar' ? 'none' : '1px solid #e2e8f0',
+                                  borderLeft: symbolLanguage === 'ar' ? '1px solid #e2e8f0' : 'none'
+                                }}>
+                                  {itemA ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      {/* Student answer bracket: (    ) */}
+                                      <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        minWidth: '40px',
+                                        height: '24px',
+                                        padding: '0 4px',
+                                        border: activeTab === 'teacher' && matchKey ? '1.5px solid #10b981' : '1.5px solid #94a3b8',
+                                        borderRadius: '6px',
+                                        background: activeTab === 'teacher' && matchKey ? '#ecfdf5' : '#ffffff',
+                                        fontWeight: 'bold',
+                                        fontSize: '12px',
+                                        color: activeTab === 'teacher' && matchKey ? '#059669' : '#64748b',
+                                        flexShrink: 0
+                                      }}>
+                                        (&nbsp;{matchKey || <span style={{ display: 'inline-block', width: '16px' }} />}&nbsp;)
+                                      </span>
+
+                                      {/* Item Number */}
+                                      <span style={{
+                                        fontWeight: 'bold',
+                                        color: '#0e7490',
+                                        fontSize: '13px',
+                                        flexShrink: 0
+                                      }}>
+                                        {itemA.num}-
+                                      </span>
+
+                                      {/* Item Text or Edit Input */}
+                                      {canEdit && activeTab === 'studio' ? (
+                                        <input
+                                          type="text"
+                                          value={itemA.text}
+                                          onChange={(e) => updateMatchingItem(idx, 'columnA', rIdx, e.target.value)}
+                                          style={{
+                                            flex: 1,
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '6px',
+                                            padding: '4px 8px',
+                                            fontSize: '13px'
+                                          }}
+                                        />
+                                      ) : (
+                                        <span style={{ color: '#1e293b', fontSize: '13px', lineHeight: '1.5' }}>
+                                          {itemA.text}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : null}
+                                </td>
+
+                                {/* Column B cell */}
+                                <td style={{
+                                  padding: '8px 12px',
+                                  verticalAlign: 'middle'
+                                }}>
+                                  {itemB ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      {/* Item Label Badge (أ, ب, جـ or A, B, C) */}
+                                      <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        minWidth: '24px',
+                                        height: '24px',
+                                        padding: '0 4px',
+                                        borderRadius: '6px',
+                                        background: '#f1f5f9',
+                                        border: '1px solid #cbd5e1',
+                                        fontWeight: 'bold',
+                                        fontSize: '12px',
+                                        color: '#0e7490',
+                                        flexShrink: 0
+                                      }}>
+                                        {itemB.label}
+                                      </span>
+
+                                      {/* Item Text or Edit Input */}
+                                      {canEdit && activeTab === 'studio' ? (
+                                        <input
+                                          type="text"
+                                          value={itemB.text}
+                                          onChange={(e) => updateMatchingItem(idx, 'columnB', rIdx, e.target.value)}
+                                          style={{
+                                            flex: 1,
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '6px',
+                                            padding: '4px 8px',
+                                            fontSize: '13px'
+                                          }}
+                                        />
+                                      ) : (
+                                        <span style={{ color: '#1e293b', fontSize: '13px', lineHeight: '1.5' }}>
+                                          {itemB.text}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : null}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
                   {/* Teacher Model Answer Box (Visible ONLY in Teacher / Admin view) */}
                   {activeTab === 'teacher' && (
                     <div style={{
@@ -1100,26 +1327,49 @@ export default function LessonWorksheetModal({
 
             {/* Add Question Button in Studio Mode */}
             {canEdit && activeTab === 'studio' && (
-              <button
-                type="button"
-                onClick={addNewQuestion}
-                style={{
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: '2px dashed #93c5fd',
-                  background: '#eff6ff',
-                  color: '#1d4ed8',
-                  fontWeight: 'bold',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                <Plus size={18} /> إضافة سؤال يدوي جديد إلى ورقة العمل
-              </button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => addNewQuestion('mcq')}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '2px dashed #93c5fd',
+                    background: '#eff6ff',
+                    color: '#1d4ed8',
+                    fontWeight: 'bold',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Plus size={18} /> إضافة سؤال اختيار من متعدد (MCQ)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => addNewQuestion('matching')}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '2px dashed #c084fc',
+                    background: '#faf5ff',
+                    color: '#7e22ce',
+                    fontWeight: 'bold',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <ArrowLeftRight size={18} /> إضافة سؤال مزاوجة وربط (صل بين أ و ب)
+                </button>
+              </div>
             )}
 
             {/* Bonus Challenge Question Box */}
