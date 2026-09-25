@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, Printer, TrendingUp, ArrowLeftRight, BarChart2, CheckCircle2, 
   Sparkles, Search, Award, HelpCircle, Users, 
@@ -30,6 +31,7 @@ export default function ExamCorrelationModal({
   const [studentSearch, setStudentSearch] = useState('');
   const [studentSort, setStudentSort] = useState('name_asc');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'improved' | 'stable' | 'declined'
+  const [printScope, setPrintScope] = useState('all'); // 'all' (تقرير شامل لكافة المحاور) | 'current' (التبويب المعروض فقط)
 
   const [supervisorName, setSupervisorName] = useState(userData?.supervisorName || 'أ. أحمد المقدم');
   const [principalName, setPrincipalName] = useState(userData?.principalName || 'أ. أنس الجهني');
@@ -218,7 +220,7 @@ export default function ExamCorrelationModal({
     return list;
   }, [analysis, studentSearch, statusFilter, studentSort]);
 
-  const handlePrint = () => {
+  const handlePrint = (scope = printScope) => {
     const origTitle = document.title;
     const t1Name = exam1?.teacherName || 'معلم1';
     const t2Name = exam2?.teacherName || 'معلم2';
@@ -231,7 +233,7 @@ export default function ExamCorrelationModal({
 
   if (!isOpen) return null;
 
-  return (
+  const modalJSX = (
     <div className="correlation-modal-root" style={{
       position: 'fixed',
       top: 0,
@@ -248,6 +250,9 @@ export default function ExamCorrelationModal({
       padding: '16px'
     }}>
       <style>{`
+        .print-only {
+          display: none !important;
+        }
         @media print {
           *, *:before, *:after {
             -webkit-print-color-adjust: exact !important;
@@ -261,9 +266,20 @@ export default function ExamCorrelationModal({
             background: #ffffff !important;
             margin: 0 !important;
             padding: 0 !important;
+            font-size: 11pt !important;
           }
+          /* Completely hide EVERYTHING under body except the correlation-modal-root so NO blank pages exist! */
           body > *:not(.correlation-modal-root) {
             display: none !important;
+          }
+          .no-print, .no-print * {
+            display: none !important;
+          }
+          .print-only {
+            display: block !important;
+          }
+          .print-only-flex {
+            display: flex !important;
           }
           .correlation-modal-root,
           .correlation-modal-dialog,
@@ -285,6 +301,25 @@ export default function ExamCorrelationModal({
             backdrop-filter: none !important;
             visibility: visible !important;
             opacity: 1 !important;
+          }
+          .print-avoid-break {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          .print-page-break {
+            page-break-before: always !important;
+            break-before: page !important;
+          }
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          thead {
+            display: table-header-group !important;
+          }
+          tr {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
           }
           @page {
             size: A4 portrait;
@@ -328,8 +363,28 @@ export default function ExamCorrelationModal({
           </div>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {analysis?.hasPaired && (
+              <select
+                value={printScope}
+                onChange={e => setPrintScope(e.target.value)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  color: 'white',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '8px',
+                  padding: '7px 10px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+                title="نطاق محتوى التقرير المطبوع"
+              >
+                <option value="all" style={{ color: '#0f172a' }}>📄 تقرير شامل (كافة المحاور)</option>
+                <option value="current" style={{ color: '#0f172a' }}>📑 التبويب المعروض فقط</option>
+              </select>
+            )}
             <button
-              onClick={handlePrint}
+              onClick={() => handlePrint(printScope)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -559,25 +614,26 @@ export default function ExamCorrelationModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
               {/* Printable Official Header (Only on print) */}
-              <div className="print-only" style={{ display: 'none', borderBottom: '2px solid #0f172a', paddingBottom: '12px', marginBottom: '16px' }}>
+              <div className="print-only" style={{ borderBottom: '2px solid #0f172a', paddingBottom: '12px', marginBottom: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <h3 style={{ margin: '0 0 4px 0', fontSize: '18px' }}>
+                    <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#0f172a', fontWeight: 'bold' }}>
                       تقرير المقارنة والتحليل الإحصائي بين الاختبارات المدرسية
                     </h3>
                     <p style={{ margin: 0, fontSize: '12px', color: '#475569' }}>
-                      المملكة العربية السعودية • وزارة التعليم • منظومة الإدارة والقياس والتقويم الذكي
+                      المملكة العربية السعودية • وزارة التعليم • {userData?.schoolName || 'منظومة الإدارة والقياس والتقويم الذكي'}
                     </p>
                   </div>
-                  <div style={{ textAlign: 'left', fontSize: '12px' }}>
-                    <div>التاريخ: {new Date().toLocaleDateString('ar-SA')}</div>
-                    <div>نوع المقارنة: {isSameTeacher ? 'نفس المعلم' : 'معلمان مختلفان'}</div>
+                  <div style={{ textAlign: 'left', fontSize: '12px', color: '#334155' }}>
+                    <div><strong>تاريخ التقرير:</strong> {new Date().toLocaleDateString('ar-SA')}</div>
+                    <div><strong>طبيعة المقارنة:</strong> {isSameTeacher ? 'نفس المعلم (فترات/فصول)' : 'معلمان مختلفان'}</div>
+                    <div><strong>نطاق التقرير:</strong> {printScope === 'all' && analysis.hasPaired ? 'تقرير شامل (كافة المحاور)' : (viewTab === 'cohort' ? 'مقارنة مؤشرات المعلمين والفصول' : 'التحليل التلازمي ونماء الطلاب')}</div>
                   </div>
                 </div>
               </div>
 
               {/* Comparison Header Banner */}
-              <div style={{
+              <div className="print-avoid-break" style={{
                 background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
                 padding: '18px 22px',
                 borderRadius: '14px',
@@ -708,11 +764,18 @@ export default function ExamCorrelationModal({
               {/* ─────────────────────────────────────────────────────────────
                   VIEW A: COHORT & TEACHER COMPARISON (مقارنة مؤشرات المعلمين)
               ───────────────────────────────────────────────────────────── */}
-              {viewTab === 'cohort' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {(viewTab === 'cohort' || printScope === 'all') && (
+                <div 
+                  className={`${printScope === 'all' && viewTab !== 'cohort' ? 'print-only-flex' : ''}`}
+                  style={{ 
+                    display: (printScope === 'all' && viewTab !== 'cohort') ? undefined : 'flex', 
+                    flexDirection: 'column', 
+                    gap: '20px' 
+                  }}
+                >
 
                   {/* 1. Side-by-Side KPI Metrics Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+                  <div className="print-avoid-break" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
                     
                     {/* Card 1: Mean Percentage */}
                     <div style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
@@ -897,7 +960,7 @@ export default function ExamCorrelationModal({
                   </div>
 
                   {/* 2. Statistical Significance Card (Welch's t-Test & Effect Size) */}
-                  <div style={{
+                  <div className="print-avoid-break" style={{
                     background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
                     borderRadius: '12px',
                     border: '1.5px solid #86efac',
@@ -938,7 +1001,7 @@ export default function ExamCorrelationModal({
                   </div>
 
                   {/* 3. Visual Side-by-Side Grade Distribution Bars */}
-                  <div style={{
+                  <div className="print-avoid-break" style={{
                     background: 'white',
                     borderRadius: '12px',
                     padding: '20px',
@@ -993,7 +1056,7 @@ export default function ExamCorrelationModal({
                   </div>
 
                   {/* 4. Smart Leadership Verdict & Pedagogical Insights for Principal */}
-                  <div style={{
+                  <div className="print-avoid-break" style={{
                     background: '#f8fafc',
                     borderRadius: '12px',
                     padding: '20px',
@@ -1046,11 +1109,18 @@ export default function ExamCorrelationModal({
               {/* ─────────────────────────────────────────────────────────────
                   VIEW B: PAIRED BIVARIATE CORRELATION & GROWTH (للطلاب المشتركين)
               ───────────────────────────────────────────────────────────── */}
-              {viewTab === 'paired' && analysis.hasPaired && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {analysis.hasPaired && (viewTab === 'paired' || printScope === 'all') && (
+                <div 
+                  className={`print-page-break ${printScope === 'all' && viewTab !== 'paired' ? 'print-only-flex' : ''}`}
+                  style={{ 
+                    display: (printScope === 'all' && viewTab !== 'paired') ? undefined : 'flex', 
+                    flexDirection: 'column', 
+                    gap: '20px' 
+                  }}
+                >
 
                   {/* 1. Core Correlation Metrics Cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
+                  <div className="print-avoid-break" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
                     
                     {/* Pearson r Card */}
                     <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '12px', border: '1.5px solid #86efac', textAlign: 'center' }}>
@@ -1131,7 +1201,7 @@ export default function ExamCorrelationModal({
                   </div>
 
                   {/* 2. Learning Gain & Growth Breakdown */}
-                  <div style={{
+                  <div className="print-avoid-break" style={{
                     background: 'white',
                     borderRadius: '12px',
                     padding: '20px',
@@ -1188,7 +1258,7 @@ export default function ExamCorrelationModal({
                   </div>
 
                   {/* 3. Interactive Scatter Plot & Regression Trendline */}
-                  <div style={{
+                  <div className="print-avoid-break" style={{
                     background: 'white',
                     borderRadius: '12px',
                     padding: '20px',
@@ -1281,7 +1351,7 @@ export default function ExamCorrelationModal({
                   </div>
 
                   {/* 4. Detailed Paired Students Table */}
-                  <div style={{
+                  <div className="print-avoid-break" style={{
                     background: 'white',
                     borderRadius: '12px',
                     padding: '20px',
@@ -1392,7 +1462,7 @@ export default function ExamCorrelationModal({
               )}
 
               {/* 5. Official Signatures Section for Teachers, Supervisor, Principal */}
-              <div style={{
+              <div className="print-avoid-break" style={{
                 marginTop: '10px',
                 padding: '24px 20px',
                 background: 'white',
@@ -1442,22 +1512,28 @@ export default function ExamCorrelationModal({
                     <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#0284c7', marginBottom: '4px' }}>
                       المشرف التربوي / وكيل الشؤون
                     </div>
-                    <input
-                      type="text"
-                      value={supervisorName}
-                      onChange={e => setSupervisorName(e.target.value)}
-                      style={{
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        color: '#0f172a',
-                        textAlign: 'center',
-                        background: 'transparent',
-                        border: 'none',
-                        borderBottom: '1px dashed #cbd5e1',
-                        width: '90%',
-                        padding: '2px'
-                      }}
-                    />
+                    <div className="no-print">
+                      <input
+                        type="text"
+                        value={supervisorName}
+                        onChange={e => setSupervisorName(e.target.value)}
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          color: '#0f172a',
+                          textAlign: 'center',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: '1px dashed #cbd5e1',
+                          width: '90%',
+                          padding: '2px'
+                        }}
+                        title="انقر لتعديل اسم المشرف"
+                      />
+                    </div>
+                    <div className="print-only" style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a', textAlign: 'center', minHeight: '22px' }}>
+                      {supervisorName || '..........................'}
+                    </div>
                     <div style={{ marginTop: '16px', borderTop: '1px dashed #94a3b8', paddingTop: '6px', fontSize: '11px', color: '#64748b' }}>
                       التوقيع: ..........................
                     </div>
@@ -1466,23 +1542,28 @@ export default function ExamCorrelationModal({
                   {/* Principal */}
                   <div style={{ border: '1px solid #e2e8f0', padding: '14px', borderRadius: '8px', background: '#f8fafc' }}>
                     <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534', marginBottom: '4px' }}>مدير المدرسة</div>
-                    <input
-                      type="text"
-                      value={principalName}
-                      onChange={e => setPrincipalName(e.target.value)}
-                      style={{
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        color: '#0f172a',
-                        textAlign: 'center',
-                        background: 'transparent',
-                        border: 'none',
-                        borderBottom: '1px dashed #cbd5e1',
-                        width: '90%',
-                        padding: '2px'
-                      }}
-                      title="انقر لتعديل اسم مدير المدرسة"
-                    />
+                    <div className="no-print">
+                      <input
+                        type="text"
+                        value={principalName}
+                        onChange={e => setPrincipalName(e.target.value)}
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          color: '#0f172a',
+                          textAlign: 'center',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: '1px dashed #cbd5e1',
+                          width: '90%',
+                          padding: '2px'
+                        }}
+                        title="انقر لتعديل اسم مدير المدرسة"
+                      />
+                    </div>
+                    <div className="print-only" style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a', textAlign: 'center', minHeight: '22px' }}>
+                      {principalName || '..........................'}
+                    </div>
                     <div style={{ marginTop: '16px', borderTop: '1px dashed #94a3b8', paddingTop: '6px', fontSize: '11px', color: '#64748b' }}>
                       الختم والتوقيع: ..........................
                     </div>
@@ -1502,4 +1583,6 @@ export default function ExamCorrelationModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalJSX, document.body) : modalJSX;
 }
