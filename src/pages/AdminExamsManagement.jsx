@@ -10,7 +10,8 @@ import {
   updateDoc, 
   deleteDoc, 
   serverTimestamp, 
-  setDoc
+  setDoc,
+  getDocs
 } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -28,11 +29,8 @@ import {
   Printer,
   ArrowUpDown,
   TrendingUp,
-  HelpCircle,
   Sparkles,
-  CheckCircle2,
   AlertCircle,
-  Users,
   Search
 } from 'lucide-react';
 import { 
