@@ -11,6 +11,8 @@ import WeeklyPlanView from '../components/WeeklyPlanView';
 import MarkdownViewer from '../components/MarkdownViewer';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
 import LessonWorksheetModal from '../components/LessonWorksheetModal';
+import StudentWorksheets from '../components/StudentWorksheets';
+import { isClassOrStageMatch } from '../utils/classMatcher';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import GamificationBadge from '../components/GamificationBadge';
@@ -48,6 +50,10 @@ function StudentHome() {
   const [examResults, setExamResults] = useState([]);
   const [attendanceDocs, setAttendanceDocs] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Worksheets State for Student Home
+  const [homeWorksheets, setHomeWorksheets] = useState([]);
+  const [selectedHomeWorksheet, setSelectedHomeWorksheet] = useState(null);
 
   // 1. Fetch Student doc id
   useEffect(() => {
@@ -122,6 +128,30 @@ function StudentHome() {
       };
     }
   }, [studentDocId, studentClass, userData]);
+
+  // 3. Fetch published worksheets for this student's class
+  useEffect(() => {
+    const schoolId = userData?.schoolId || 'default_school_1';
+    const effectiveClass = studentClass || userData?.class || userData?.className || '';
+    const q = query(
+      collection(db, 'worksheets'),
+      where('status', '==', 'published')
+    );
+
+    const unsub = onSnapshot(q, (snapshot) => {
+      const list = [];
+      snapshot.forEach((docSnap) => {
+        const ws = { id: docSnap.id, ...docSnap.data() };
+        if (isClassOrStageMatch(effectiveClass, ws.className, ws.stage, ws.schoolId, schoolId, ws.lessonTitle)) {
+          list.push(ws);
+        }
+      });
+      list.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+      setHomeWorksheets(list);
+    }, (err) => console.error('Error fetching home worksheets:', err));
+
+    return () => unsub();
+  }, [studentClass, userData]);
 
   // Compute activity & gamification stats
   const activity = useMemo(() => {
@@ -421,7 +451,225 @@ function StudentHome() {
           </Link>
         </div>
 
+        {/* Interactive Worksheets Card */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          padding: '20px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{
+              background: '#f3e8ff',
+              color: '#9333ea',
+              padding: '10px',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Sparkles size={22} />
+            </div>
+            <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#9333ea', background: '#faf5ff', padding: '3px 10px', borderRadius: '20px' }}>
+              {homeWorksheets.length} ورقة عمل متاحة
+            </span>
+          </div>
+
+          <div>
+            <h3 style={{ margin: '0 0 4px', fontSize: '1.1rem', color: '#0f172a' }}>أوراق العمل التفاعلية</h3>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+              أوراق عمل تفاعلية معدة للدروس لتعزيز وتثبيت المهارات وحل التمارين
+            </p>
+          </div>
+
+          <Link
+            to="/worksheets"
+            style={{
+              marginTop: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 12px',
+              background: '#f8fafc',
+              borderRadius: '8px',
+              color: '#9333ea',
+              textDecoration: 'none',
+              fontSize: '0.86rem',
+              fontWeight: 600
+            }}
+          >
+            <span>حل وتصفح أوراق العمل</span>
+            <ChevronLeft size={16} />
+          </Link>
+        </div>
+
       </div>
+
+      {/* Featured / Recent Worksheets Showcase */}
+      {homeWorksheets.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
+          borderRadius: '18px',
+          padding: '22px 24px',
+          border: '1.5px solid #e9d5ff',
+          boxShadow: '0 10px 25px -5px rgba(147, 51, 234, 0.08)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                background: '#9333ea',
+                color: 'white',
+                padding: '8px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#1e1b4b' }}>
+                  أوراق العمل التفاعلية المعتمدة لصفك 📝
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: '#6b21a8' }}>
+                  يمكنك الحل مباشرة إلكترونياً أو الطباعة والتصدير بجودة عالية
+                </p>
+              </div>
+            </div>
+
+            <Link
+              to="/worksheets"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: '10px',
+                background: '#f3e8ff',
+                color: '#7e22ce',
+                textDecoration: 'none',
+                fontSize: '0.86rem',
+                fontWeight: 700
+              }}
+            >
+              <span>عرض الكل ({homeWorksheets.length})</span>
+              <ChevronLeft size={16} />
+            </Link>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
+            {homeWorksheets.slice(0, 3).map((ws) => (
+              <div
+                key={ws.id}
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '14px',
+                  padding: '16px',
+                  border: '1px solid #e9d5ff',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '8px',
+                    background: '#f3e8ff',
+                    color: '#7e22ce'
+                  }}>
+                    {ws.subject || 'المادة الدراسية'}
+                  </span>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: '#16a34a',
+                    background: '#dcfce7',
+                    padding: '2px 8px',
+                    borderRadius: '6px'
+                  }}>
+                    معتمدة للنشر
+                  </span>
+                </div>
+
+                <h4 style={{
+                  margin: 0,
+                  fontSize: '0.98rem',
+                  fontWeight: 700,
+                  color: '#0f172a',
+                  lineHeight: '1.4'
+                }}>
+                  {ws.lessonTitle || 'ورقة عمل تفاعلية'}
+                </h4>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.8rem', color: '#64748b' }}>
+                  <span>{ws.questions?.length || 0} أسئلة</span>
+                  <span>•</span>
+                  <span>{ws.totalMarks || 10} درجات</span>
+                  {ws.teacherName && (
+                    <>
+                      <span>•</span>
+                      <span>أ. {ws.teacherName}</span>
+                    </>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '6px' }}>
+                  <button
+                    onClick={() => setSelectedHomeWorksheet(ws)}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #9333ea, #7e22ce)',
+                      color: 'white',
+                      border: 'none',
+                      fontSize: '0.84rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 6px rgba(147, 51, 234, 0.25)'
+                    }}
+                  >
+                    <Sparkles size={14} />
+                    <span>حل وتفاعل الآن</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedHomeWorksheet(ws)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: '#f8fafc',
+                      color: '#475569',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                    title="طباعة وتصدير ورقة العمل"
+                  >
+                    طباعة
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Quick Navigation Cards */}
       <div style={{
@@ -476,6 +724,17 @@ function StudentHome() {
           </Link>
         </div>
       </div>
+
+      {/* Interactive Solver / Viewer Modal */}
+      {selectedHomeWorksheet && (
+        <LessonWorksheetModal
+          isOpen={true}
+          onClose={() => setSelectedHomeWorksheet(null)}
+          existingWorksheet={selectedHomeWorksheet}
+          readOnly={false}
+          userRole="student"
+        />
+      )}
 
     </div>
   );
@@ -1475,47 +1734,61 @@ function StudentMaterials() {
 
 function StudentPreparations() {
   const { t } = useLanguage();
+  const { userData } = useAuth();
   const studentClass = useStudentClass();
   const [preparations, setPreparations] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState('');
   const [publishedWorksheets, setPublishedWorksheets] = useState({});
+  const [worksheetsList, setWorksheetsList] = useState([]);
   const [activeWorksheet, setActiveWorksheet] = useState(null);
   const [activePrepData, setActivePrepData] = useState(null);
   const [showGoalsMap, setShowGoalsMap] = useState({});
 
+  const schoolId = userData?.schoolId || 'default_school_1';
+
   useEffect(() => {
-    if (!studentClass) return;
-    const q = query(collection(db, 'preparations'), where('className', '==', studentClass));
+    // 1. Fetch preparations (with smart class fallback)
+    const q = collection(db, 'preparations');
     const unsub = onSnapshot(q, (snapshot) => {
       const data = [];
-      snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() }));
+      snapshot.forEach((doc) => {
+        const p = { id: doc.id, ...doc.data() };
+        if (isClassOrStageMatch(studentClass, p.className, p.stage, p.schoolId, schoolId, p.lessonTitle)) {
+          data.push(p);
+        }
+      });
       setPreparations(data);
     });
 
-    // Query published worksheets for this class
+    // 2. Query published worksheets using smart class matching
     const qWs = query(
       collection(db, 'worksheets'),
-      where('className', '==', studentClass),
       where('status', '==', 'published')
     );
     const unsubWs = onSnapshot(qWs, (snapshot) => {
       const map = {};
+      const list = [];
       snapshot.forEach((docSnap) => {
         const wsData = { id: docSnap.id, ...docSnap.data() };
-        if (wsData.prepId) map[wsData.prepId] = wsData;
-        const normKey = `${(wsData.subject || '').trim()}_${(wsData.lessonTitle || '').trim()}`;
-        map[normKey] = wsData;
+        if (isClassOrStageMatch(studentClass, wsData.className, wsData.stage, wsData.schoolId, schoolId, wsData.lessonTitle)) {
+          list.push(wsData);
+          if (wsData.prepId) map[wsData.prepId] = wsData;
+          const normKey = `${(wsData.subject || '').trim()}_${(wsData.lessonTitle || '').trim()}`;
+          map[normKey] = wsData;
+          map[wsData.id] = wsData;
+        }
       });
       setPublishedWorksheets(map);
+      setWorksheetsList(list);
     });
 
     return () => {
       unsub();
       unsubWs();
     };
-  }, [studentClass]);
+  }, [studentClass, schoolId]);
 
-  if (!studentClass) {
+  if (!studentClass && preparations.length === 0 && worksheetsList.length === 0) {
     return <div className="glass-panel" style={{ padding: '24px' }}>{t('studentDashboard.loadingData')}</div>;
   }
 
@@ -1529,7 +1802,7 @@ function StudentPreparations() {
     <div className="glass-panel" style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2>{t('studentDashboard.preparationsClass')} {studentClass}</h2>
+          <h2>{t('studentDashboard.preparationsClass')} {studentClass || 'الفصل الدراسي'}</h2>
           <p style={{ color: 'var(--color-text-muted)' }}>{t('studentDashboard.preparationsSubtitle')}</p>
         </div>
         
@@ -1546,10 +1819,100 @@ function StudentPreparations() {
         )}
       </div>
 
+      {/* Featured Published Worksheets Section */}
+      {worksheetsList.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%)',
+          border: '1.5px solid #a5f3fc',
+          borderRadius: '14px',
+          padding: '20px',
+          marginBottom: '24px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Sparkles size={20} color="#0891b2" />
+              <h3 style={{ margin: 0, fontSize: '16px', color: '#0e7490', fontWeight: 800 }}>
+                📄 أوراق العمل التفاعلية المعتمدة لهذا الصف ({worksheetsList.length})
+              </h3>
+            </div>
+            <Link
+              to="/worksheets"
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                color: '#0e7490',
+                textDecoration: 'none',
+                background: '#ffffff',
+                border: '1px solid #67e8f9',
+                padding: '4px 12px',
+                borderRadius: '8px'
+              }}
+            >
+              استعراض كافة أوراق العمل ➔
+            </Link>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
+            {worksheetsList.map(ws => (
+              <div key={ws.id} style={{
+                background: 'white',
+                borderRadius: '10px',
+                padding: '14px 16px',
+                border: '1px solid #cffafe',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: 'white', background: '#0e7490', padding: '2px 8px', borderRadius: '6px' }}>
+                    {ws.subject}
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#15803d', fontWeight: 700 }}>
+                    🎯 {ws.totalMarks || 10} درجات
+                  </span>
+                </div>
+                <h4 style={{ margin: '2px 0 0', fontSize: '14px', color: '#0f172a', fontWeight: 700, lineHeight: 1.4 }}>
+                  {ws.lessonTitle}
+                </h4>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
+                  معلم المادة: {ws.teacherName || 'المعلم'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveWorksheet(ws);
+                    setActivePrepData(null);
+                  }}
+                  style={{
+                    marginTop: '6px',
+                    background: 'linear-gradient(135deg, #0e7490, #0891b2)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <BookOpen size={14} /> حل وتفاعل مع ورقة العمل
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {preparations.length === 0 ? (
-        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>
-          {t('studentDashboard.noPreparationsClass')}
-        </p>
+        worksheetsList.length === 0 && (
+          <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>
+            {t('studentDashboard.noPreparationsClass')}
+          </p>
+        )
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {filtered.map(p => {
@@ -1719,6 +2082,7 @@ export default function StudentDashboard() {
         <Route path="/portfolio" element={<AchievementPortfolioPage />} />
         <Route path="/grades" element={<StudentPortfolio />} />
         <Route path="/weekly-plan" element={<StudentWeeklyPlan />} />
+        <Route path="/worksheets" element={<StudentWorksheets />} />
         <Route path="/assignments" element={<StudentAssignments />} />
         <Route path="/schedule" element={<StudentSchedule />} />
         <Route path="/materials" element={<StudentMaterials />} />

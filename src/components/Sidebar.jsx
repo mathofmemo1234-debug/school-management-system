@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, Users, BookOpen, Calendar, Home, Settings, FileText, Star, UserCheck, ShieldCheck, CheckSquare, Globe, Mail, Award, ClipboardList, Layers, FileSpreadsheet } from 'lucide-react';
+import { LogOut, Users, BookOpen, Calendar, Home, Settings, FileText, Star, UserCheck, ShieldCheck, CheckSquare, Globe, Mail, Award, ClipboardList, Layers, FileSpreadsheet, Sparkles } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
@@ -125,6 +125,7 @@ export default function Sidebar({ role }) {
 
   const studentLinks = [
     { path: '/student', icon: Home, label: t('sidebar.overview') },
+    { path: '/student/worksheets', icon: Sparkles, label: 'أوراق العمل التفاعلية' },
     { path: '/student/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/student/portfolio', icon: Award, label: 'ملف الإنجاز الأكاديمي' },
     { path: '/student/weekly-plan', icon: Calendar, label: t('sidebar.weeklyPlan') },
@@ -138,6 +139,7 @@ export default function Sidebar({ role }) {
 
   const parentLinks = [
     { path: '/parent', icon: Home, label: t('sidebar.overview') },
+    { path: '/parent/worksheets', icon: Sparkles, label: 'أوراق العمل للابن' },
     { path: '/parent/exam-reports', icon: Award, label: 'كشف الدرجات والبرنامج العلاجي' },
     { path: '/parent/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/parent/portfolio', icon: Award, label: 'ملف إنجاز الطالب' },

@@ -11,7 +11,8 @@ import WeeklyPlanView from '../components/WeeklyPlanView';
 import Settings from './Settings';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
 import ComprehensiveStudentRecord from './ComprehensiveStudentRecord';
-import { User, GraduationCap, School, BookOpen, Calendar, Award, Mail, FileText, CheckCircle2, ChevronLeft, ClipboardList } from 'lucide-react';
+import StudentWorksheets from '../components/StudentWorksheets';
+import { User, GraduationCap, School, BookOpen, Calendar, Award, Mail, FileText, CheckCircle2, ChevronLeft, ClipboardList, Sparkles } from 'lucide-react';
 
 function ParentHome() {
   const { userData, currentUser } = useAuth();
@@ -174,6 +175,27 @@ function ParentHome() {
           </div>
           <ChevronLeft size={20} color="#94a3b8" />
         </div>
+
+        <div 
+          onClick={() => setActiveTab('worksheets')}
+          className="glass-panel" 
+          style={{ 
+            padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px',
+            cursor: 'pointer', border: activeTab === 'worksheets' ? '2px solid #9333ea' : '1px solid var(--color-border)',
+            transition: 'all 0.2s', background: activeTab === 'worksheets' ? '#faf5ff' : 'var(--color-bg-card)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '10px', background: '#f3e8ff', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Sparkles size={24} />
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: '#64748b' }}>أوراق العمل التفاعلية</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-text)' }}>أوراق العمل والتمارين للابن</div>
+            </div>
+          </div>
+          <ChevronLeft size={20} color="#94a3b8" />
+        </div>
       </div>
 
       {/* Embedded Active Section */}
@@ -262,6 +284,12 @@ function ParentHome() {
             <SchoolMessagingHub />
           </div>
         )}
+
+        {activeTab === 'worksheets' && (
+          <div>
+            <StudentWorksheets studentClassOverride={userData?.studentClass} schoolIdOverride={userData?.schoolId} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -284,10 +312,12 @@ function ParentStudentPortfolio() {
 }
 
 export default function ParentDashboard() {
+  const { userData } = useAuth();
   return (
     <Layout role="parent">
       <Routes>
         <Route path="/" element={<ParentHome />} />
+        <Route path="/worksheets" element={<StudentWorksheets studentClassOverride={userData?.studentClass} schoolIdOverride={userData?.schoolId} />} />
         <Route path="/exam-reports" element={<ParentExamReports />} />
         <Route path="/student-records" element={<ComprehensiveStudentRecord role="parent" />} />
         <Route path="/weekly-plan" element={<ParentWeeklyPlan />} />
