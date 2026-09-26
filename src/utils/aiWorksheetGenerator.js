@@ -29,12 +29,27 @@ export function formatNumberBySymbol(num, symbolLang = 'ar') {
   return String(num).replace(/[0-9]/g, d => arabicNumerals[d]);
 }
 
+// التحقق مما إذا كانت المدرسة أو المسار يعتمد المنهج الدولي (American / British / IB / STEM)
+export function isInternationalSchool({
+  isInternational = false,
+  curriculumTrack = 'national',
+  curriculumType = '',
+  schoolName = '',
+  track = ''
+} = {}) {
+  if (isInternational === true) return true;
+  if (curriculumTrack === 'international' || curriculumType === 'international' || track === 'international') return true;
+  const combined = `${schoolName || ''} ${track || ''} ${curriculumType || ''}`.toLowerCase();
+  return /international|american|british|diploma|igcse|ib|stem|عالمي|عالمية|الدولي|الدولية/.test(combined);
+}
+
 // قوالب متخصصة للمواد لتوليد أسئلة واقعية ذات صلة بالدرس والأهداف
 const SUBJECT_GENERATION_MATRICES = {
   math: {
     keywords: ['رياضيات', 'جبر', 'هندسة', 'حساب', 'تفاضل', 'تكامل', 'مثلثات', 'إحصاء', 'احتمالات', 'Math'],
-    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex) => {
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false) => {
       const isAr = symbolLang === 'ar';
+      const isFullEn = Boolean(isInternational);
       const varX = isAr ? 'س' : 'x';
       const varY = isAr ? 'ص' : 'y';
       const varZ = isAr ? 'ع' : 'z';
@@ -42,25 +57,32 @@ const SUBJECT_GENERATION_MATRICES = {
       if (type === 'mcq') {
         if (bloomLevel.id === 'remember' || bloomLevel.id === 'understand') {
           return {
-            question: isAr 
-              ? `بناءً على الهدف "${objective}"؛ ما هو التعبير الرياضي الصحيح الذي يمثل العلاقة الخطية بالمتغيرين (${varX}) و (${varY})؟`
-              : `Based on the objective "${objective}"; Which mathematical expression represents a linear equation in variables (${varX}) and (${varY})?`,
-            options: isAr ? [
+            question: isFullEn 
+              ? `Based on learning objective "${objective}": Which mathematical expression represents a linear equation in variables (${varX}) and (${varY})?`
+              : `بناءً على الهدف "${objective}"؛ ما هو التعبير الرياضي الصحيح الذي يمثل العلاقة الخطية بالمتغيرين (${varX}) و (${varY})؟`,
+            options: isFullEn ? [
+              `A) ${varY} = m${varX} + b (where m is slope, b is y-intercept)`,
+              `B) ${varY} = ${varX}² + 4`,
+              `C) ${varY} / ${varX} = sqrt(${varX})`,
+              `D) ${varY} = 1 / (${varX} - 1)`
+            ] : (isAr ? [
               `أ) ${varY} = م ${varX} + جـ (حيث م الميل، وجـ المقطع الصادي)`,
               `ب) ${varY} = ${varX}² + ٤`,
               `جـ) ${varY} / ${varX} = جذر(${varX})`,
               `د) ${varY} = ١ / (${varX} - ١)`
             ] : [
-              `A) ${varY} = m${varX} + b (where m is slope, b is y-intercept)`,
-              `B) ${varY} = ${varX}² + 4`,
-              `C) ${varY} / ${varX} = sqrt(${varX})`,
-              `D) ${varY} = 1 / (${varX} - 1)`
-            ],
+              `أ) ${varY} = m${varX} + b (حيث m يمثل الميل، و b المقطع من المحور ${varY})`,
+              `ب) ${varY} = ${varX}² + 4`,
+              `جـ) ${varY} / ${varX} = sqrt(${varX})`,
+              `د) ${varY} = 1 / (${varX} - 1)`
+            ]),
             correctOption: 0,
-            correctAnswer: isAr ? `${varY} = م ${varX} + جـ` : `${varY} = m${varX} + b`,
-            explanation: isAr 
-              ? `المعادلة الخطية تكون من الدرجة الأولى بحيث يكون أس المتغير (${varX}) مساوياً لواحد.`
-              : `A linear equation is of degree one where the power of variable (${varX}) equals 1.`,
+            correctAnswer: isFullEn
+              ? `${varY} = m${varX} + b`
+              : (isAr ? `${varY} = م ${varX} + جـ` : `${varY} = m${varX} + b`),
+            explanation: isFullEn 
+              ? `A linear equation is of degree one where the power of variable (${varX}) equals 1.`
+              : `المعادلة الخطية تكون من الدرجة الأولى بحيث يكون أس المتغير (${varX}) مساوياً لواحد.`,
             points: 1
           };
         } else {
@@ -68,109 +90,128 @@ const SUBJECT_GENERATION_MATRICES = {
           const valA = (qIndex + 2) * 3;
           const valB = (qIndex + 1) * 2;
           const sol = valA - valB;
+          const numA = isAr ? formatNumberBySymbol(valA, 'ar') : valA;
+          const numB = isAr ? formatNumberBySymbol(valB, 'ar') : valB;
+          const numSol = isAr ? formatNumberBySymbol(sol, 'ar') : sol;
+          const numSol2 = isAr ? formatNumberBySymbol(sol + 2, 'ar') : (sol + 2);
+          const numSolSub1 = isAr ? formatNumberBySymbol(sol - 1, 'ar') : (sol - 1);
+          const numSum = isAr ? formatNumberBySymbol(valA + valB, 'ar') : (valA + valB);
+
           return {
-            question: isAr
-              ? `إذا كانت المعادلة الرياضية هي: ${varX} + ${formatNumberBySymbol(valB, 'ar')} = ${formatNumberBySymbol(valA, 'ar')}، فما هي قيمة المتغير (${varX})؟`
-              : `Given the equation: ${varX} + ${valB} = ${valA}, what is the exact value of variable (${varX})?`,
-            options: isAr ? [
-              `أ) ${varX} = ${formatNumberBySymbol(sol, 'ar')}`,
-              `ب) ${varX} = ${formatNumberBySymbol(sol + 2, 'ar')}`,
-              `جـ) ${varX} = ${formatNumberBySymbol(sol - 1, 'ar')}`,
-              `د) ${varX} = ${formatNumberBySymbol(valA + valB, 'ar')}`
-            ] : [
+            question: isFullEn
+              ? `Given the equation: ${varX} + ${valB} = ${valA}, what is the exact value of variable (${varX})?`
+              : `إذا كانت المعادلة الرياضية هي: ${varX} + ${numB} = ${numA}، فما هي قيمة المتغير (${varX})؟`,
+            options: isFullEn ? [
               `A) ${varX} = ${sol}`,
               `B) ${varX} = ${sol + 2}`,
               `C) ${varX} = ${sol - 1}`,
               `D) ${varX} = ${valA + valB}`
+            ] : [
+              `أ) ${varX} = ${numSol}`,
+              `ب) ${varX} = ${numSol2}`,
+              `جـ) ${varX} = ${numSolSub1}`,
+              `د) ${varX} = ${numSum}`
             ],
             correctOption: 0,
-            correctAnswer: isAr ? `${varX} = ${formatNumberBySymbol(sol, 'ar')}` : `${varX} = ${sol}`,
-            explanation: isAr
-              ? `بطرح ${formatNumberBySymbol(valB, 'ar')} من طرفي المعادلة نجد أن: ${varX} = ${formatNumberBySymbol(valA, 'ar')} - ${formatNumberBySymbol(valB, 'ar')} = ${formatNumberBySymbol(sol, 'ar')}.`
-              : `Subtracting ${valB} from both sides yields: ${varX} = ${valA} - ${valB} = ${sol}.`,
+            correctAnswer: `${varX} = ${numSol}`,
+            explanation: isFullEn
+              ? `Subtracting ${valB} from both sides yields: ${varX} = ${valA} - ${valB} = ${sol}.`
+              : `بطرح ${numB} من طرفي المعادلة نجد أن: ${varX} = ${numA} - ${numB} = ${numSol}.`,
             points: 2
           };
         }
       } else if (type === 'true_false') {
         const isTrue = qIndex % 2 === 0;
         return {
-          question: isAr
-            ? (isTrue 
-                ? `(تحقيقاً للهدف: ${objective}) في الدالة الرياضية، لكل مدخلة في المجال قيمة مخرجة واحدة فقط في المدى.`
-                : `(تحقيقاً للهدف: ${objective}) في أي علاقة خطية، لا يمكن أن يكون ميل المستقيم (${varX} أو ${varY}) مساوياً للصفر مطلقاً.`)
-            : (isTrue
+          question: isFullEn
+            ? (isTrue
                 ? `(For objective: ${objective}) In a function, each input in the domain maps to exactly one output in the range.`
-                : `(For objective: ${objective}) In a linear relation, the slope can never equal zero under any conditions.`),
-          options: isAr ? ['صح (True)', 'خطأ (False)'] : ['True', 'False'],
+                : `(For objective: ${objective}) In a linear relation, the slope can never equal zero under any conditions.`)
+            : (isTrue 
+                ? `(تحقيقاً للهدف: ${objective}) في أي دالة رياضية، لكل مدخلة في المجال (${varX}) قيمة مخرجة واحدة فقط في المدى (${varY}).`
+                : `(تحقيقاً للهدف: ${objective}) في أي علاقة خطية، لا يمكن أن يكون ميل المستقيم (${varX} أو ${varY}) مساوياً للصفر مطلقاً.`),
+          options: isFullEn ? ['True', 'False'] : ['صح (True)', 'خطأ (False)'],
           correctOption: isTrue ? 0 : 1,
-          correctAnswer: isAr ? (isTrue ? 'صح' : 'خطأ') : (isTrue ? 'True' : 'False'),
-          explanation: isAr
-            ? (isTrue ? 'العبارة صحيحة؛ هذا هو التعريف الرياضي الدقيق للدالة.' : 'العبارة خاطئة؛ المستقيم الأفقي له ميل يساوي صفراً.')
-            : (isTrue ? 'Statement is true: this is the fundamental definition of a function.' : 'Statement is false: horizontal lines have a slope of zero.'),
+          correctAnswer: isFullEn ? (isTrue ? 'True' : 'False') : (isTrue ? 'صح' : 'خطأ'),
+          explanation: isFullEn
+            ? (isTrue ? 'Statement is true: this is the fundamental definition of a function.' : 'Statement is false: horizontal lines have a slope of zero.')
+            : (isTrue ? 'العبارة صحيحة؛ هذا هو التعريف الرياضي الدقيق للدالة.' : `العبارة خاطئة؛ المستقيم الأفقي له ميل يساوي صفراً (${isAr ? 'م = ٠' : 'm = 0'}).`),
           points: 1
         };
       } else if (type === 'fill_blank') {
         return {
-          question: isAr
-            ? `أكمل الفراغ بما يناسبه: يُطلق على النقطة التي يتقاطع عندها التمثيل البياني للمعادلة مع المحور (${varY}) اسم .................... .`
-            : `Fill in the blank: The point where the graph intersects the (${varY})-axis is termed the .................... .`,
-          correctAnswer: isAr ? 'المقطع الصادي' : 'y-intercept',
-          explanation: isAr 
-            ? 'المقطع الصادي هو قيمة (ص) عندما تكون س = ٠.'
-            : 'The y-intercept represents the value of y when x = 0.',
+          question: isFullEn
+            ? `Fill in the blank: The point where the graph intersects the (${varY})-axis is termed the .................... .`
+            : `أكمل الفراغ بما يناسبه: يُطلق على النقطة التي يتقاطع عندها التمثيل البياني للمعادلة مع المحور (${varY}) اسم .................... .`,
+          correctAnswer: isFullEn ? 'y-intercept' : (isAr ? 'المقطع الصادي' : `المقطع من المحور ${varY} (${varY}-intercept)`),
+          explanation: isFullEn 
+            ? 'The y-intercept represents the value of y when x = 0.'
+            : (isAr ? 'المقطع الصادي هو قيمة (ص) عندما تكون س = ٠.' : `المقطع الصادي هو قيمة المتغير (${varY}) عندما تكون ${varX} = 0.`),
           points: 1
         };
       } else if (type === 'matching') {
         return {
-          question: isAr
-            ? `زاوج بين كل مفهوم رياضي في العمود (أ) وما يطابقه من تعريف أو صيغة في العمود (ب) [تحقيقاً للهدف: ${objective}]:`
-            : `Match each mathematical concept in Column (A) with its corresponding definition in Column (B) [Objective: ${objective}]:`,
-          columnA: isAr ? [
+          question: isFullEn
+            ? `Match each mathematical concept in Column (A) with its corresponding definition in Column (B) [Objective: ${objective}]:`
+            : `زاوج بين كل مفهوم رياضي في العمود (أ) وما يطابقه من تعريف أو صيغة في العمود (ب) [تحقيقاً للهدف: ${objective}]:`,
+          columnA: isFullEn ? [
+            { id: '1', num: '1', text: `Slope of a line (m)` },
+            { id: '2', num: '2', text: `Linear Equation` },
+            { id: '3', num: '3', text: `y-intercept (${varY})` },
+            { id: '4', num: '4', text: `Coordinate Plane` }
+          ] : (isAr ? [
             { id: '1', num: '١', text: `ميل المستقيم (${varX}، ${varY})` },
             { id: '2', num: '٢', text: `المعادلة الخطية` },
             { id: '3', num: '٣', text: `المقطع الصادي (${varY})` },
             { id: '4', num: '٤', text: `المستوى الإحداثي` }
           ] : [
-            { id: '1', num: '1', text: `Slope of a line (m)` },
-            { id: '2', num: '2', text: `Linear Equation` },
-            { id: '3', num: '3', text: `y-intercept (${varY})` },
-            { id: '4', num: '4', text: `Coordinate Plane` }
-          ],
-          columnB: isAr ? [
+            { id: '1', num: '1', text: `ميل المستقيم (Slope: m)` },
+            { id: '2', num: '2', text: `المعادلة الخطية (Linear Equation: ${varY} = m${varX} + b)` },
+            { id: '3', num: '3', text: `المقطع من المحور (${varY}-intercept)` },
+            { id: '4', num: '4', text: `المستوى الإحداثي (${varX}-${varY} Plane)` }
+          ]),
+          columnB: isFullEn ? [
+            { id: 'a', label: 'A', text: `The value of ${varY} at intersection when ${varX} = 0.` },
+            { id: 'b', label: 'B', text: `Ratio of vertical change (Δ${varY}) to horizontal change (Δ${varX}).` },
+            { id: 'c', label: 'C', text: `Grid formed by two perpendicular axes (${varX} and ${varY}).` },
+            { id: 'd', label: 'D', text: `An algebraic equation of degree one that graphs as a straight line.` }
+          ] : (isAr ? [
             { id: 'a', label: 'أ', text: `قيمة (${varY}) عند نقطة التقاطع عندما تكون ${varX} = ٠.` },
             { id: 'b', label: 'ب', text: `نسبة التغير الرأسي (دلتا ${varY}) إلى التغير الأفقي (دلتا ${varX}).` },
             { id: 'c', label: 'جـ', text: `نظام يتكون من تقاطع مستقيمين متعامدين (محور ${varX} ومحور ${varY}).` },
             { id: 'd', label: 'د', text: `معادلة جبرية من الدرجة الأولى تُمثَّل بيانياً بمستقيم.` }
           ] : [
-            { id: 'a', label: 'A', text: `The value of ${varY} at intersection when ${varX} = 0.` },
-            { id: 'b', label: 'B', text: `Ratio of vertical change (Δ${varY}) to horizontal change (Δ${varX}).` },
-            { id: 'c', label: 'C', text: `Grid formed by two perpendicular axes (${varX} and ${varY}).` },
-            { id: 'd', label: 'D', text: `An algebraic equation of degree one that graphs as a straight line.` }
-          ],
-          correctAnswer: isAr
-            ? 'دليل المزاوجة الصحيح:\n(١ ➔ ب)، (٢ ➔ د)، (٣ ➔ أ)، (٤ ➔ جـ)'
-            : 'Matching Key:\n(1 ➔ B), (2 ➔ D), (3 ➔ A), (4 ➔ C)',
-          explanation: isAr
-            ? `الميل = التغير الرأسي/الأفقي، المعادلة الخطية تمثل بمستقيم، المقطع الصادي قيمة ${varY} عند ${varX} = ٠.`
-            : `Slope = Δ${varY}/Δ${varX}, linear equation graphs as line, y-intercept is value at ${varX}=0.`,
+            { id: 'a', label: 'أ', text: `قيمة (${varY}) عند نقطة التقاطع عندما تكون ${varX} = 0.` },
+            { id: 'b', label: 'ب', text: `نسبة التغير الرأسي (Δ${varY}) إلى التغير الأفقي (Δ${varX}).` },
+            { id: 'c', label: 'جـ', text: `نظام محاور متعامدة يتكون من المحور (${varX}) والمحور (${varY}).` },
+            { id: 'd', label: 'د', text: `معادلة جبرية من الدرجة الأولى تُمثَّل بيانياً بمستقيم.` }
+          ]),
+          correctAnswer: isFullEn
+            ? 'Matching Key:\n(1 ➔ B), (2 ➔ D), (3 ➔ A), (4 ➔ C)'
+            : (isAr ? 'دليل المزاوجة الصحيح:\n(١ ➔ ب)، (٢ ➔ د)، (٣ ➔ أ)، (٤ ➔ جـ)' : 'دليل المزاوجة الصحيح:\n(1 ➔ ب)، (2 ➔ د)، (3 ➔ أ)، (4 ➔ جـ)'),
+          explanation: isFullEn
+            ? `Slope = Δ${varY}/Δ${varX}, linear equation graphs as line, y-intercept is value at ${varX}=0.`
+            : `الميل = التغير الرأسي/الأفقي (Δ${varY}/Δ${varX})، المعادلة الخطية تمثل بمستقيم، المقطع الصادي قيمة ${varY} عند ${varX} = ${isAr ? '٠' : '0'}.`,
           points: 2
         };
       } else {
         // Problem Solving
         return {
-          question: isAr
-            ? `مسألة تطبيقية (تفكير وحل مشكلات) - تحقيقاً للهدف [${objective}]:\n` +
-              `أوجد مجموعة حل المعادلة التالية موضحاً خطوات الحل الرياضي بدقة:\n` +
-              `٢(${varX} - ٣) + ٤ = ${formatNumberBySymbol(14, 'ar')}`
-            : `Application Problem - Target Objective [${objective}]:\n` +
+          question: isFullEn
+            ? `Application Problem - Target Objective [${objective}]:\n` +
               `Find the solution set for the following equation, showing step-by-step mathematical working:\n` +
-              `2(${varX} - 3) + 4 = 14`,
-          correctAnswer: isAr 
-            ? `خطوات الحل النموذجي:\n1) فك الأقواس: ٢${varX} - ٦ + ٤ = ١٤\n2) التبسيط: ٢${varX} - ٢ = ١٤\n3) إضافة ٢ للطرفين: ٢${varX} = ١٦\n4) القسمة على ٢: ${varX} = ٨`
-            : `Step-by-step Solution:\n1) Expand brackets: 2${varX} - 6 + 4 = 14\n2) Simplify: 2${varX} - 2 = 14\n3) Add 2 to both sides: 2${varX} = 16\n4) Divide by 2: ${varX} = 8`,
-          explanation: isAr 
-            ? 'تطبيق خاصية التوزيع ثم جمع الحدود المتشابهة ثم عزل المتغير.'
-            : 'Apply the distributive property, combine like terms, and isolate the variable.',
+              `2(${varX} - 3) + 4 = 14`
+            : `مسألة تطبيقية (تفكير وحل مشكلات) - تحقيقاً للهدف [${objective}]:\n` +
+              `أوجد مجموعة حل المعادلة التالية موضحاً خطوات الحل الرياضي بدقة:\n` +
+              `${isAr ? `٢(${varX} - ٣) + ٤ = ${formatNumberBySymbol(14, 'ar')}` : `2(${varX} - 3) + 4 = 14`}`,
+          correctAnswer: isFullEn 
+            ? `Step-by-step Solution:\n1) Expand brackets: 2${varX} - 6 + 4 = 14\n2) Simplify: 2${varX} - 2 = 14\n3) Add 2 to both sides: 2${varX} = 16\n4) Divide by 2: ${varX} = 8`
+            : (isAr 
+                ? `خطوات الحل النموذجي:\n1) فك الأقواس: ٢${varX} - ٦ + ٤ = ١٤\n2) التبسيط: ٢${varX} - ٢ = ١٤\n3) إضافة ٢ للطرفين: ٢${varX} = ١٦\n4) القسمة على ٢: ${varX} = ٨`
+                : `خطوات الحل النموذجي:\n1) فك الأقواس: 2${varX} - 6 + 4 = 14\n2) التبسيط: 2${varX} - 2 = 14\n3) إضافة 2 للطرفين: 2${varX} = 16\n4) القسمة على 2: ${varX} = 8`),
+          explanation: isFullEn 
+            ? 'Apply the distributive property, combine like terms, and isolate the variable.'
+            : 'تطبيق خاصية التوزيع ثم جمع الحدود المتشابهة ثم عزل المتغير.',
           points: 3
         };
       }
@@ -179,112 +220,122 @@ const SUBJECT_GENERATION_MATRICES = {
 
   science: {
     keywords: ['علوم', 'فيزياء', 'كيمياء', 'أحياء', 'علم بيئة', 'جيولوجيا', 'طبيعة', 'Science', 'Physics', 'Chemistry', 'Biology'],
-    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex) => {
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false) => {
       const isAr = symbolLang === 'ar';
-      const notationSpeed = isAr ? 'ع (السرعة)' : 'v (velocity)';
-      const notationDist = isAr ? 'ف (المسافة)' : 'd (distance)';
-      const notationTime = isAr ? 'ز (الزمن)' : 't (time)';
+      const isFullEn = Boolean(isInternational);
+      const unitSpeed = isAr ? 'م/ث' : 'm/s';
+      const unitAcc = isAr ? 'م/ث²' : 'm/s²';
 
       if (type === 'mcq') {
         return {
-          question: isAr
-            ? `انطلاقاً من الهدف الدراسي "${objective}"؛ ما هو التفسير العلمي الصحيح للظاهرة المرتبطة بموضوع الدرس؟`
-            : `Based on learning objective "${objective}"; What is the scientifically accurate explanation for the phenomenon studied in this lesson?`,
-          options: isAr ? [
-            `أ) حدوث تغير في الحالة الفيزيائية أو الكيميائية مع بقاء الكتلة الكلية محفوظة طبقاً لقانون حفظ المادة.`,
-            `ب) تلاشي الطاقة كلياً أثناء التحول دون انبعاث أو امتصاص حراري.`,
-            `جـ) زيادة سرعة الجزيئات عند انخفاض درجة الحرارة إلى ما دون الصفر المئوي.`,
-            `د) تحول المادة إلى طاقة دون وجود أي قوى مؤثرة.`
-          ] : [
+          question: isFullEn
+            ? `Based on learning objective "${objective}": What is the scientifically accurate explanation for the phenomenon studied in this lesson?`
+            : `انطلاقاً من الهدف الدراسي "${objective}"؛ ما هو التفسير العلمي الصحيح للظاهرة المرتبطة بموضوع الدرس؟`,
+          options: isFullEn ? [
             `A) Occurrence of state change while total mass is strictly conserved according to Conservation of Mass.`,
             `B) Complete vanishing of energy during transformation without thermal exchange.`,
             `C) Molecules accelerate when temperatures fall below absolute zero.`,
             `D) Spontaneous matter conversion without external applied forces.`
+          ] : [
+            `أ) حدوث تغير في الحالة الفيزيائية أو الكيميائية مع بقاء الكتلة الكلية محفوظة طبقاً لقانون حفظ المادة.`,
+            `ب) تلاشي الطاقة كلياً أثناء التحول دون انبعاث أو امتصاص حراري.`,
+            `جـ) زيادة سرعة الجزيئات عند انخفاض درجة الحرارة إلى ما دون الصفر المئوي.`,
+            `د) تحول المادة إلى طاقة دون وجود أي قوى مؤثرة.`
           ],
           correctOption: 0,
-          correctAnswer: isAr 
-            ? 'حدوث تغير في الحالة الفيزيائية أو الكيميائية مع بقاء الكتلة محفوظة.'
-            : 'Occurrence of state change while total mass is conserved.',
-          explanation: isAr 
-            ? 'قانون حفظ الكتلة والطاقة ينص على أن المادة لا تفنى ولا تستحدث من العدم.'
-            : 'The law of conservation of mass and energy states that matter is neither created nor destroyed.',
+          correctAnswer: isFullEn 
+            ? 'Occurrence of state change while total mass is conserved.'
+            : 'حدوث تغير في الحالة الفيزيائية أو الكيميائية مع بقاء الكتلة محفوظة.',
+          explanation: isFullEn 
+            ? 'The law of conservation of mass and energy states that matter is neither created nor destroyed.'
+            : 'قانون حفظ الكتلة والطاقة ينص على أن المادة لا تفنى ولا تستحدث من العدم.',
           points: 1
         };
       } else if (type === 'true_false') {
         const isTrue = qIndex % 2 === 0;
         return {
-          question: isAr
+          question: isFullEn
             ? (isTrue
-                ? `(تحقيقاً للهدف: ${objective}) في النظام الدولي للوحدات (SI)، تقاس الكمية الفيزيائية المستهدفة بالوحدة القياسية المعتمدة عالمياً.`
-                : `(تحقيقاً للهدف: ${objective}) تتناسب طاقة الحركة لجسم ما عكسياً مع كتلته وسرعته.`)
-            : (isTrue
                 ? `(For objective: ${objective}) In the International System of Units (SI), the target quantity is measured in standard SI units.`
-                : `(For objective: ${objective}) Kinetic energy is inversely proportional to mass and velocity.`),
-          options: isAr ? ['صح (True)', 'خطأ (False)'] : ['True', 'False'],
+                : `(For objective: ${objective}) Kinetic energy is inversely proportional to mass and velocity.`)
+            : (isTrue
+                ? `(تحقيقاً للهدف: ${objective}) في النظام الدولي للوحدات (SI)، تقاس الكمية الفيزيائية المستهدفة بالوحدة القياسية المعتمدة عالمياً (${unitSpeed}).`
+                : `(تحقيقاً للهدف: ${objective}) تتناسب طاقة الحركة لجسم ما عكسياً مع كتلته وسرعته.`),
+          options: isFullEn ? ['True', 'False'] : ['صح (True)', 'خطأ (False)'],
           correctOption: isTrue ? 0 : 1,
-          correctAnswer: isAr ? (isTrue ? 'صح' : 'خطأ') : (isTrue ? 'True' : 'False'),
-          explanation: isAr
-            ? (isTrue ? 'العبارة صحيحة ومتوافقة مع المعايير العلمية الدولية.' : 'العبارة خاطئة؛ التناسب طردي (ط = ١/٢ ك ع²).')
-            : (isTrue ? 'Statement is true according to international scientific standards.' : 'Statement is false: kinetic energy is directly proportional (KE = 1/2 m v^2).'),
+          correctAnswer: isFullEn ? (isTrue ? 'True' : 'False') : (isTrue ? 'صح' : 'خطأ'),
+          explanation: isFullEn
+            ? (isTrue ? 'Statement is true according to international scientific standards.' : 'Statement is false: kinetic energy is directly proportional (KE = 1/2 m v^2).')
+            : (isTrue ? 'العبارة صحيحة ومتوافقة مع المعايير العلمية الدولية.' : `العبارة خاطئة؛ التناسب طردي (${isAr ? 'ط = ١/٢ ك ع²' : 'KE = 1/2 m v²'}).`),
           points: 1
         };
       } else if (type === 'fill_blank') {
         return {
-          question: isAr
-            ? `اكتب المصطلح العلمي المناسب مكان النقط [ارتباطاً بهدف: ${objective}]:\n(............................): مقدار التغير في السرعة المتجهة مقسوماً على الفترة الزمنية التي حدث خلالها هذا التغير.`
-            : `Write the accurate scientific term [Targeting objective: ${objective}]:\n(............................): The rate of change of velocity per unit of elapsed time.`,
-          correctAnswer: isAr ? 'التسارع (العجلة)' : 'Acceleration',
-          explanation: isAr
-            ? 'التسارع = التغير في السرعة / التغير في الزمن (ت = دلتا ع / دلتا ز).'
-            : 'Acceleration = Delta v / Delta t.',
+          question: isFullEn
+            ? `Write the accurate scientific term [Targeting objective: ${objective}]:\n(............................): The rate of change of velocity per unit of elapsed time.`
+            : `اكتب المصطلح العلمي المناسب مكان النقط [ارتباطاً بهدف: ${objective}]:\n(............................): مقدار التغير في السرعة المتجهة مقسوماً على الفترة الزمنية التي حدث خلالها هذا التغير (${isAr ? 'ت = دلتا ع / دلتا ز' : 'a = Δv / Δt'}).`,
+          correctAnswer: isFullEn ? 'Acceleration' : (isAr ? 'التسارع (العجلة)' : 'التسارع (Acceleration - a)'),
+          explanation: isFullEn
+            ? 'Acceleration = Delta v / Delta t.'
+            : (isAr ? 'التسارع = التغير في السرعة / التغير في الزمن (ت = دلتا ع / دلتا ز).' : 'التسارع = التغير في السرعة / التغير في الزمن (a = Δv / Δt).'),
           points: 1
         };
       } else if (type === 'matching') {
         return {
-          question: isAr
-            ? `صل بين كل مفهوم علمي في العمود (أ) وما يناسبه من دلالة أو وحدة قياس في العمود (ب) [تحقيقاً للهدف: ${objective}]:`
-            : `Match each scientific concept in Column (A) with its description or SI unit in Column (B) [Objective: ${objective}]:`,
-          columnA: isAr ? [
+          question: isFullEn
+            ? `Match each scientific concept in Column (A) with its description or SI unit in Column (B) [Objective: ${objective}]:`
+            : `صل بين كل مفهوم علمي في العمود (أ) وما يناسبه من دلالة أو وحدة قياس في العمود (ب) [تحقيقاً للهدف: ${objective}]:`,
+          columnA: isFullEn ? [
+            { id: '1', num: '1', text: 'Velocity' },
+            { id: '2', num: '2', text: 'Acceleration' },
+            { id: '3', num: '3', text: 'Conservation of Mass' },
+            { id: '4', num: '4', text: 'Kinetic Energy' }
+          ] : (isAr ? [
             { id: '1', num: '١', text: 'السرعة المتجهة' },
             { id: '2', num: '٢', text: 'التسارع (العجلة)' },
             { id: '3', num: '٣', text: 'قانون حفظ الكتلة' },
             { id: '4', num: '٤', text: 'الطاقة الحركية' }
           ] : [
-            { id: '1', num: '1', text: 'Velocity' },
-            { id: '2', num: '2', text: 'Acceleration' },
-            { id: '3', num: '3', text: 'Conservation of Mass' },
-            { id: '4', num: '4', text: 'Kinetic Energy' }
-          ],
-          columnB: isAr ? [
+            { id: '1', num: '1', text: 'السرعة المتجهة (Velocity: v)' },
+            { id: '2', num: '2', text: 'التسارع (Acceleration: a)' },
+            { id: '3', num: '3', text: 'قانون حفظ الكتلة (Mass: m)' },
+            { id: '4', num: '4', text: 'الطاقة الحركية (Kinetic Energy: KE)' }
+          ]),
+          columnB: isFullEn ? [
+            { id: 'a', label: 'A', text: 'Rate of change of velocity per unit time (m/s²).' },
+            { id: 'b', label: 'B', text: 'Energy possessed by an object due to its motion.' },
+            { id: 'c', label: 'C', text: 'Displacement per unit time in a specified direction (m/s).' },
+            { id: 'd', label: 'D', text: 'Mass is neither created nor destroyed during chemical reaction.' }
+          ] : (isAr ? [
             { id: 'a', label: 'أ', text: 'معدل التغير في السرعة المتجهة مقسوماً على زمن التغير (م/ث²).' },
             { id: 'b', label: 'ب', text: 'الطاقة التي يمتلكها الجسم بسبب حركته (تعتمد على كتلته وسرعته).' },
             { id: 'c', label: 'جـ', text: 'الإزاحة المقطوعة خلال وحدة الزمن في اتجاه محدد (م/ث).' },
             { id: 'd', label: 'د', text: 'المادة لا تفنى ولا تستحدث في التفاعل الكيميائي بل تتحول.' }
           ] : [
-            { id: 'a', label: 'A', text: 'Rate of change of velocity per unit time (m/s²).' },
-            { id: 'b', label: 'B', text: 'Energy possessed by an object due to its motion.' },
-            { id: 'c', label: 'C', text: 'Displacement per unit time in a specified direction (m/s).' },
-            { id: 'd', label: 'D', text: 'Mass is neither created nor destroyed during chemical reaction.' }
-          ],
-          correctAnswer: isAr
-            ? 'دليل المزاوجة الصحيح:\n(١ ➔ جـ)، (٢ ➔ أ)، (٣ ➔ د)، (٤ ➔ ب)'
-            : 'Matching Key:\n(1 ➔ C), (2 ➔ A), (3 ➔ D), (4 ➔ B)',
-          explanation: isAr
-            ? 'السرعة المتجهة تقاس بـ م/ث، والتسارع بـ م/ث²، وحفظ الكتلة ثبات كتلة المواد، والطاقة الحركية ط = ١/٢ ك ع².'
-            : 'Velocity is m/s, Acceleration is m/s², mass is conserved, Kinetic Energy is 1/2mv².',
+            { id: 'a', label: 'أ', text: 'معدل التغير في السرعة المتجهة مقسوماً على زمن التغير (m/s²).' },
+            { id: 'b', label: 'ب', text: 'الطاقة التي يمتلكها الجسم بسبب حركته وتساوي (1/2 m v²).' },
+            { id: 'c', label: 'جـ', text: 'الإزاحة المقطوعة خلال وحدة الزمن في اتجاه محدد (m/s).' },
+            { id: 'd', label: 'د', text: 'المادة لا تفنى ولا تستحدث في التفاعل الكيميائي بل تتحول.' }
+          ]),
+          correctAnswer: isFullEn
+            ? 'Matching Key:\n(1 ➔ C), (2 ➔ A), (3 ➔ D), (4 ➔ B)'
+            : (isAr ? 'دليل المزاوجة الصحيح:\n(١ ➔ جـ)، (٢ ➔ أ)، (٣ ➔ د)، (٤ ➔ ب)' : 'دليل المزاوجة الصحيح:\n(1 ➔ جـ)، (2 ➔ أ)، (3 ➔ د)، (4 ➔ ب)'),
+          explanation: isFullEn
+            ? 'Velocity is m/s, Acceleration is m/s², mass is conserved, Kinetic Energy is 1/2mv².'
+            : (isAr ? 'السرعة المتجهة تقاس بـ م/ث، والتسارع بـ م/ث²، وحفظ الكتلة ثبات كتلة المواد، والطاقة الحركية ط = ١/٢ ك ع².' : 'السرعة المتجهة تقاس بـ m/s، والتسارع بـ m/s²، وحفظ الكتلة ثبات كتلة المواد، والطاقة الحركية KE = 1/2 m v².'),
           points: 2
         };
       } else {
         return {
-          question: isAr
-            ? `سؤال التفكير الاستقصائي والتطبيق العملي:\nاستناداً إلى الهدف التعليمي [${objective}]؛ فسر علمياً ما يحدث في التجربة موضحاً العوامل المؤثرة والمتغير المستقل والمتغير التابع، مع ذكر الاستنتاج النهائي.`
-            : `Inquiry & Scientific Application Question:\nBased on learning objective [${objective}]; Explain the scientific mechanism of this experiment, identifying independent and dependent variables and the final conclusion.`,
-          correctAnswer: isAr
-            ? 'نموذج الإجابة:\n1) المتغير المستقل: العامل الذي يتحكم فيه الباحث.\n2) المتغير التابع: الظاهرة الناتجة المقاسة.\n3) الاستنتاج: تأكيد صحة الفرضية العلمية استناداً إلى البيانات التجريبية.'
-            : 'Model Answer:\n1) Independent variable: Controlled test factor.\n2) Dependent variable: Measured outcome.\n3) Conclusion: Validates hypothesis based on empirical evidence.',
-          explanation: isAr 
-            ? 'تطبيق خطوات المنهج العلمي والاستقصاء المقنن.'
-            : 'Applies rigorous scientific method and controlled inquiry.',
+          question: isFullEn
+            ? `Inquiry & Scientific Application Question:\nBased on learning objective [${objective}]; Explain the scientific mechanism of this experiment, identifying independent and dependent variables and the final conclusion.`
+            : `سؤال التفكير الاستقصائي والتطبيق العملي:\nاستناداً إلى الهدف التعليمي [${objective}]؛ فسر علمياً ما يحدث في التجربة موضحاً العوامل المؤثرة والمتغير المستقل والمتغير التابع، مع ذكر الاستنتاج النهائي.`,
+          correctAnswer: isFullEn
+            ? 'Model Answer:\n1) Independent variable: Controlled test factor.\n2) Dependent variable: Measured outcome.\n3) Conclusion: Validates hypothesis based on empirical evidence.'
+            : 'نموذج الإجابة:\n1) المتغير المستقل: العامل الذي يتحكم فيه الباحث.\n2) المتغير التابع: الظاهرة الناتجة المقاسة.\n3) الاستنتاج: تأكيد صحة الفرضية العلمية استناداً إلى البيانات التجريبية.',
+          explanation: isFullEn 
+            ? 'Applies rigorous scientific method and controlled inquiry.'
+            : 'تطبيق خطوات المنهج العلمي والاستقصاء المقنن.',
           points: 3
         };
       }
@@ -293,8 +344,8 @@ const SUBJECT_GENERATION_MATRICES = {
 
   languages: {
     keywords: ['لغتي', 'عربي', 'لغة عربية', 'نحو', 'صرف', 'بلاغة', 'إملاء', 'English', 'اللغة الإنجليزية', 'قراءة', 'نصوص'],
-    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex) => {
-      const isEnglishSubject = /english|انجليزي/i.test(objective);
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false) => {
+      const isEnglishSubject = /english|انجليزي/i.test(objective) || Boolean(isInternational);
       if (isEnglishSubject) {
         if (type === 'mcq') {
           return {
@@ -423,7 +474,7 @@ const SUBJECT_GENERATION_MATRICES = {
 
   islamic: {
     keywords: ['إسلامية', 'توحيد', 'فقه', 'تفسير', 'حديث', 'قرآن', 'دين', 'عقيدة'],
-    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex) => {
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false) => {
       if (type === 'mcq') {
         return {
           question: `في ضوء الهدف الشرعي والتربوي "${objective}"؛ ما هو الحكم أو التوجيه الإسلامي الصحيح المستنبط من الدليل الشرعي؟`,
@@ -486,7 +537,7 @@ const SUBJECT_GENERATION_MATRICES = {
 
   social: {
     keywords: ['اجتماعيات', 'تاريخ', 'جغرافيا', 'وطنية', 'دراسات اجتماعية'],
-    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex) => {
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false) => {
       if (type === 'mcq') {
         return {
           question: `ارتباطاً بموضوع الدرس والهدف المنشود "${objective}"؛ حدد الحدث التاريخي أو الموقع الجغرافي الدقيق:`,
@@ -581,8 +632,20 @@ export async function generateWorksheetAI({
   cognitiveDistribution = 'balanced', // 'balanced' | 'remember' | 'understand' | 'apply' | 'analyze'
   symbolLanguage = 'ar', // 'ar' (س، ص، ١، ٢) | 'en' (x, y, 1, 2)
   questionTypes = ['mcq', 'true_false', 'fill_blank', 'matching', 'problem_solving'],
-  customInstructions = ''
+  customInstructions = '',
+  isInternational = false,
+  curriculumTrack = 'national', // 'national' | 'international'
+  schoolName = '',
+  track = ''
 }) {
+  // التحقق الحاسم من اعتماد المدرسة للمنهج الدولي
+  const effectiveIsInternational = isInternationalSchool({
+    isInternational,
+    curriculumTrack,
+    schoolName,
+    track
+  });
+
   // 1. تنقية وتجهيز الأهداف
   let cleanObjectives = Array.isArray(objectives) 
     ? objectives.map(o => String(o).trim()).filter(Boolean)
@@ -590,7 +653,12 @@ export async function generateWorksheetAI({
 
   // إذا لم يكتب المعلم أهدافاً، يتم توليد أهداف ذكية فورية من واقع عنوان الدرس والمادة
   if (cleanObjectives.length === 0) {
-    cleanObjectives = [
+    cleanObjectives = effectiveIsInternational ? [
+      `Students will identify core concepts and terminology of (${lessonTitle}) accurately.`,
+      `Students will comprehend scientific and quantitative relations in (${lessonTitle}).`,
+      `Students will apply learned formulas and principles to solve analytical problems.`,
+      `Students will analyze outcomes and draw verified conclusions for (${lessonTitle}).`
+    ] : [
       `أن يتعرف الطالب على المفاهيم والمصطلحات الأساسية لدرس (${lessonTitle}) بدقة.`,
       `أن يستوعب الطالب العلاقات والروابط العلمية المتعلقة بموضوع (${lessonTitle}).`,
       `أن يطبق الطالب القوانين والمهارات المكتسبة في حل مسائل وتمارين الدرس.`,
@@ -638,7 +706,7 @@ export async function generateWorksheetAI({
     const bloom = targetLevels[i % targetLevels.length];
     const qType = effectiveTypes[i % effectiveTypes.length];
 
-    const qData = generator.generateQuestion(targetObj, bloom, qType, symbolLanguage, i);
+    const qData = generator.generateQuestion(targetObj, bloom, qType, symbolLanguage, i, effectiveIsInternational);
 
     const questionItem = {
       id: `q_${Date.now()}_${i + 1}`,
@@ -649,6 +717,7 @@ export async function generateWorksheetAI({
       bloomLevelEn: bloom.en,
       targetObjective: targetObj,
       question: qData.question,
+      image: null,
       options: qData.options || null,
       correctOption: qData.correctOption !== undefined ? qData.correctOption : null,
       columnA: qData.columnA || null,
@@ -663,15 +732,15 @@ export async function generateWorksheetAI({
   }
 
   // 4. لمسة إبداعية: سؤال التحدي والتفكير الناقد (Bonus Question)
-  const isAr = symbolLanguage === 'ar';
+  // لا يكون بالإنجليزية إلا إذا كانت المدرسة تعتمد المنهج الدولي
   const bonusQuestion = {
-    title: isAr ? '⭐ مسألة التحدي والمهارات العليا (Bonus Challenge)' : '⭐ Higher-Order Thinking Challenge (Bonus)',
-    question: isAr
-      ? `تحدّي المبدعين: بالربط بين موضوع الدرس "${lessonTitle}" وتطبيقات الحياة اليومية ورؤية المستقبل؛ كيف يمكنك توظيف المفاهيم التي تعلمتها لتصميم حل أو ابتكار يحل مشكلة معاصرة؟ برر إجابتك علمياً.`
-      : `Creative Challenge: Connecting "${lessonTitle}" with modern real-world applications; How can you apply the principles learned today to invent or optimize a solution for an engineering or scientific problem? Justify your rationale.`,
-    modelAnswer: isAr
-      ? 'يقوم المعلم بتقييم إجابة الطالب الإبداعية بناءً على: أصالة الفكرة، وسلامة التطبيق العلمي، ودقة الربط بمفاهيم الدرس.'
-      : 'Evaluated based on originality, scientific rigor, and conceptual coherence with lesson themes.',
+    title: effectiveIsInternational ? '⭐ Higher-Order Thinking Challenge (Bonus)' : '⭐ مسألة التحدي والمهارات العليا (Bonus Challenge)',
+    question: effectiveIsInternational
+      ? `Creative Challenge: Connecting "${lessonTitle}" with modern real-world applications; How can you apply the principles learned today to invent or optimize a solution for an engineering or scientific problem? Justify your rationale.`
+      : `تحدّي المبدعين: بالربط بين موضوع الدرس "${lessonTitle}" وتطبيقات الحياة اليومية ورؤية المستقبل؛ كيف يمكنك توظيف المفاهيم التي تعلمتها لتصميم حل أو ابتكار يحل مشكلة معاصرة؟ برر إجابتك علمياً.`,
+    modelAnswer: effectiveIsInternational
+      ? 'Evaluated based on originality, scientific rigor, and conceptual coherence with lesson themes.'
+      : 'يقوم المعلم بتقييم إجابة الطالب الإبداعية بناءً على: أصالة الفكرة، وسلامة التطبيق العلمي، ودقة الربط بمفاهيم الدرس.',
     points: 2
   };
 
@@ -685,13 +754,20 @@ export async function generateWorksheetAI({
     className,
     semester,
     symbolLanguage,
+    curriculumTrack: effectiveIsInternational ? 'international' : 'national',
+    isInternational: effectiveIsInternational,
     estimatedMinutes: `${estimatedMinutes} دقيقة`,
     totalPoints: totalPoints + bonusQuestion.points,
     questionsCount: generatedQuestions.length,
     objectives: cleanObjectives,
     questions: generatedQuestions,
     bonusQuestion,
-    instructions: [
+    instructions: effectiveIsInternational ? [
+      'Read all questions thoroughly before answering.',
+      'For multiple choice questions, fill in the correct option circle clearly.',
+      'Show your step-by-step working for mathematical and scientific problems.',
+      'Review all your responses carefully before submitting.'
+    ] : [
       'اقرأ جميع الأسئلة بعناية قبل البدء في الإجابة.',
       'في أسئلة الاختيار من متعدد، اختر الإجابة الأصح وظللها بدقة.',
       'في المسائل الرياضية والعلمية، وضّح خطوات الحل والقوانين المستخدمة.',
