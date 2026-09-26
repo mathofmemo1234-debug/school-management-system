@@ -33,7 +33,9 @@ import {
   XCircle,
   RotateCcw,
   BarChart2,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 function StudentHome() {
@@ -1479,6 +1481,7 @@ function StudentPreparations() {
   const [publishedWorksheets, setPublishedWorksheets] = useState({});
   const [activeWorksheet, setActiveWorksheet] = useState(null);
   const [activePrepData, setActivePrepData] = useState(null);
+  const [showGoalsMap, setShowGoalsMap] = useState({});
 
   useEffect(() => {
     if (!studentClass) return;
@@ -1564,9 +1567,9 @@ function StudentPreparations() {
                       {t('studentDashboard.teacherLabel')} {p.teacherName || p.teacherEmail}
                     </div>
 
-                    {/* Published Worksheet Button for Student */}
-                    {ws && (
-                      <div style={{ marginTop: '10px' }}>
+                    {/* Action buttons (Worksheet & Toggle Lesson Objectives) */}
+                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {ws && (
                         <button
                           type="button"
                           onClick={() => {
@@ -1590,8 +1593,32 @@ function StudentPreparations() {
                         >
                           <Sparkles size={14} /> 📄 ورقة عمل الدرس (معتمدة للحل والطباعة)
                         </button>
-                      </div>
-                    )}
+                      )}
+
+                      {p.goals && (
+                        <button
+                          type="button"
+                          onClick={() => setShowGoalsMap(prev => ({ ...prev, [p.id]: !prev[p.id] }))}
+                          style={{
+                            background: showGoalsMap[p.id] ? '#f0fdfa' : '#f8fafc',
+                            color: showGoalsMap[p.id] ? '#0e7490' : '#64748b',
+                            border: `1px solid ${showGoalsMap[p.id] ? '#99f6e4' : '#cbd5e1'}`,
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                          title={showGoalsMap[p.id] ? 'إخفاء الأهداف السلوكية للدرس' : 'عرض الأهداف السلوكية للدرس'}
+                        >
+                          {showGoalsMap[p.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                          <span>أهداف الدرس: {showGoalsMap[p.id] ? 'ظاهرة 👁️' : 'مخفية 🔒 (افتراضي)'}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div style={{ textAlign: 'left' }}>
@@ -1621,6 +1648,31 @@ function StudentPreparations() {
                       homework: t('lessonPreparation.homework')
                     };
                     if (!p[field]) return null;
+
+                    // Lesson behavioral goals are hidden from students by default, unless toggled on
+                    if (field === 'goals') {
+                      if (!showGoalsMap[p.id]) return null;
+                      return (
+                        <div key={field} style={{ background: '#f0fdfa', border: '1.5px solid #99f6e4', padding: '14px', borderRadius: '10px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <h4 style={{ color: '#0e7490', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Eye size={16} /> {titles[field]}:
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={() => setShowGoalsMap(prev => ({ ...prev, [p.id]: false }))}
+                              style={{ background: 'transparent', border: 'none', color: '#0e7490', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+                            >
+                              إخفاء 🔒
+                            </button>
+                          </div>
+                          <div style={{ padding: '12px', background: '#fff', border: '1px solid #ccfbf1', borderRadius: '8px' }}>
+                            <MarkdownViewer content={p[field]} />
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div key={field}>
                         <h4 style={{ color: 'var(--color-secondary-dark)', margin: '0 0 8px 0' }}>{titles[field]}:</h4>

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { db } from '../firebase';
 import { collection, doc, setDoc, addDoc, updateDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { 
-  Sparkles, Save, Printer, Download, Eye, Edit3, Trash2, Plus, 
+  Sparkles, Save, Printer, Download, Eye, EyeOff, Edit3, Trash2, Plus, 
   CheckCircle2, AlertCircle, Share2, Globe, Lock, BookOpen, Clock, 
   CheckSquare, Square, X, Award, HelpCircle, Layers, ArrowRight, RefreshCw, FileText,
   ArrowLeftRight, Image as ImageIcon, Upload, Check, ChevronDown, ChevronUp, Loader
@@ -55,6 +55,9 @@ export default function LessonWorksheetModal({
     existingWorksheet?.selectedTypes || ['mcq', 'true_false', 'fill_blank', 'matching', 'problem_solving']
   );
 
+  // Show/Hide Objectives Option (Defaults to false: hidden from student)
+  const [showObjectives, setShowObjectives] = useState(existingWorksheet?.showObjectives || false);
+
   // Active View Tab: 'student' (Student Worksheet) | 'teacher' (Model Answer Key) | 'studio' (AI Editor)
   const [activeTab, setActiveTab] = useState(userRole === 'student' ? 'student' : (existingWorksheet ? 'student' : 'studio'));
 
@@ -98,6 +101,7 @@ export default function LessonWorksheetModal({
       setStatus(existingWorksheet.status || 'published');
       setSymbolLanguage(existingWorksheet.symbolLanguage || 'ar');
       setCurriculumTrack(existingWorksheet.curriculumTrack || (existingWorksheet.isInternational ? 'international' : 'national'));
+      setShowObjectives(existingWorksheet.showObjectives || false);
       setWorksheetDocId(existingWorksheet.id || null);
     }
   }, [existingWorksheet]);
@@ -138,7 +142,8 @@ export default function LessonWorksheetModal({
         questionTypes: selectedTypes,
         curriculumTrack,
         isInternational: curriculumTrack === 'international',
-        schoolName: userData?.schoolName || prepData?.schoolName || ''
+        schoolName: userData?.schoolName || prepData?.schoolName || '',
+        showObjectives
       });
 
       setQuestions(result.questions);
@@ -320,6 +325,7 @@ export default function LessonWorksheetModal({
         symbolLanguage,
         curriculumTrack,
         isInternational: curriculumTrack === 'international',
+        showObjectives,
         cognitiveDistribution,
         selectedTypes,
         estimatedMinutes,
@@ -687,11 +693,33 @@ export default function LessonWorksheetModal({
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '13px', color: '#64748b' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '13px', color: '#64748b', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setShowObjectives(prev => !prev)}
+              style={{
+                background: showObjectives ? '#f0fdfa' : '#ffffff',
+                border: `1.5px solid ${showObjectives ? '#0e7490' : '#cbd5e1'}`,
+                color: showObjectives ? '#0e7490' : '#64748b',
+                borderRadius: '8px',
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: showObjectives ? '0 2px 6px rgba(14, 116, 144, 0.15)' : 'none'
+              }}
+              title="التبديل بين إظهار أو إخفاء أهداف الدرس في ورقة العمل"
+            >
+              {showObjectives ? <Eye size={14} color="#0e7490" /> : <EyeOff size={14} color="#64748b" />}
+              <span>أهداف الدرس: {showObjectives ? 'معروضة 👁️' : 'مخفية 🔒'}</span>
+            </button>
             <span>عدد الأسئلة: <strong>{questions.length}</strong></span>
             <span>الدرجة الكلية: <strong>{totalMarks} درجات</strong></span>
             <span>الزمن المقترح: <strong>{estimatedMinutes}</strong></span>
-            <span>الرموز: <strong>{symbolLanguage === 'ar' ? '🇸🇦 عربية (س، ص، ١، ٢)' : '🇬🇧 إنجليزية (x, y, 1, 2)'}</strong></span>
+            <span>الرموز: <strong>{symbolLanguage === 'ar' ? '🇸🇦 عربية (س، ص)' : '🇬🇧 إنجليزية (x, y)'}</strong></span>
           </div>
         </div>
 
@@ -876,6 +904,51 @@ export default function LessonWorksheetModal({
                 </div>
               </div>
 
+              {/* Show / Hide Objectives Option */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#374151', marginBottom: '6px' }}>
+                  عرض أهداف الدرس للطالب
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowObjectives(false)}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      border: !showObjectives ? '2px solid #0e7490' : '1px solid #cbd5e1',
+                      background: !showObjectives ? '#f0fdfa' : 'white',
+                      color: !showObjectives ? '#0e7490' : '#475569'
+                    }}
+                    title="إخفاء الأهداف تماماً عن الطالب لعدم تشتيته أو كشف الإجابات"
+                  >
+                    🔒 إخفاء الأهداف (افتراضي)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowObjectives(true)}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      border: showObjectives ? '2px solid #7c3aed' : '1px solid #cbd5e1',
+                      background: showObjectives ? '#faf5ff' : 'white',
+                      color: showObjectives ? '#7c3aed' : '#475569'
+                    }}
+                    title="إظهار الأهداف التعليمية كبطاقة إرشادية أعلى ورقة العمل"
+                  >
+                    👁️ إظهار الأهداف
+                  </button>
+                </div>
+              </div>
+
             </div>
 
             {/* Curriculum and Language Hint Banner */}
@@ -1031,12 +1104,37 @@ export default function LessonWorksheetModal({
             border: '1px solid #fef3c7',
             padding: '8px 14px',
             borderRadius: '6px',
-            marginBottom: '24px',
+            marginBottom: '20px',
             fontSize: '12px',
             color: '#92400e'
           }}>
             <strong>📌 تعليمات وتوجيهات ورقة العمل:</strong> {instructions.join(' • ')}
           </div>
+
+          {/* Target Objectives Box (Visible ONLY if teacher explicitly enables showObjectives) */}
+          {showObjectives && effectiveObjectives.length > 0 && (
+            <div style={{
+              background: '#f0fdfa',
+              border: '1.5px solid #99f6e4',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              marginBottom: '20px',
+              fontSize: '12px',
+              color: '#0f766e',
+              pageBreakInside: 'avoid'
+            }}>
+              <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                🎯 الأهداف التعليمية المستهدفة لورقة العمل:
+              </strong>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {effectiveObjectives.map((obj, i) => (
+                  <span key={i} style={{ background: '#ccfbf1', border: '1px solid #5eead4', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', color: '#115e59', fontWeight: 500 }}>
+                    • {obj}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Questions List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -1170,6 +1268,21 @@ export default function LessonWorksheetModal({
                           fontWeight: 'bold'
                         }}>
                           بلوم: {q.bloomLevel}
+                        </span>
+                      )}
+
+                      {/* Target Objective Badge (Visible if teacher enabled showObjectives, or in teacher view) */}
+                      {(showObjectives || activeTab === 'teacher') && q.targetObjective && (
+                        <span style={{
+                          background: '#f0fdfa',
+                          color: '#0e7490',
+                          border: '1.5px solid #99f6e4',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: 'bold'
+                        }} title="الهدف التعليمي المستهدف لهذا السؤال">
+                          🎯 {q.targetObjective}
                         </span>
                       )}
 

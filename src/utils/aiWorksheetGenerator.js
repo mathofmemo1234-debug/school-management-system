@@ -47,19 +47,21 @@ export function isInternationalSchool({
 const SUBJECT_GENERATION_MATRICES = {
   math: {
     keywords: ['رياضيات', 'جبر', 'هندسة', 'حساب', 'تفاضل', 'تكامل', 'مثلثات', 'إحصاء', 'احتمالات', 'Math'],
-    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false) => {
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false, showObjectives = false) => {
       const isAr = symbolLang === 'ar';
       const isFullEn = Boolean(isInternational);
       const varX = isAr ? 'س' : 'x';
       const varY = isAr ? 'ص' : 'y';
       const varZ = isAr ? 'ع' : 'z';
+      const objPrefix = showObjectives ? (isFullEn ? `[Objective: ${objective}] ` : `[الهدف: ${objective}] `) : '';
+      const objTag = showObjectives ? (isFullEn ? ` [Objective: ${objective}]` : ` [الهدف: ${objective}]`) : '';
 
       if (type === 'mcq') {
         if (bloomLevel.id === 'remember' || bloomLevel.id === 'understand') {
           return {
             question: isFullEn 
-              ? `Based on learning objective "${objective}": Which mathematical expression represents a linear equation in variables (${varX}) and (${varY})?`
-              : `بناءً على الهدف "${objective}"؛ ما هو التعبير الرياضي الصحيح الذي يمثل العلاقة الخطية بالمتغيرين (${varX}) و (${varY})؟`,
+              ? `${objPrefix}Which mathematical expression represents a linear equation in variables (${varX}) and (${varY})?`
+              : `${objPrefix}ما هو التعبير الرياضي الصحيح الذي يمثل العلاقة الخطية بالمتغيرين (${varX}) و (${varY})؟`,
             options: isFullEn ? [
               `A) ${varY} = m${varX} + b (where m is slope, b is y-intercept)`,
               `B) ${varY} = ${varX}² + 4`,
@@ -99,8 +101,8 @@ const SUBJECT_GENERATION_MATRICES = {
 
           return {
             question: isFullEn
-              ? `Given the equation: ${varX} + ${valB} = ${valA}, what is the exact value of variable (${varX})?`
-              : `إذا كانت المعادلة الرياضية هي: ${varX} + ${numB} = ${numA}، فما هي قيمة المتغير (${varX})؟`,
+              ? `${objPrefix}Given the equation: ${varX} + ${valB} = ${valA}, what is the exact value of variable (${varX})?`
+              : `${objPrefix}إذا كانت المعادلة الرياضية هي: ${varX} + ${numB} = ${numA}، فما هي قيمة المتغير (${varX})؟`,
             options: isFullEn ? [
               `A) ${varX} = ${sol}`,
               `B) ${varX} = ${sol + 2}`,
@@ -125,11 +127,11 @@ const SUBJECT_GENERATION_MATRICES = {
         return {
           question: isFullEn
             ? (isTrue
-                ? `(For objective: ${objective}) In a function, each input in the domain maps to exactly one output in the range.`
-                : `(For objective: ${objective}) In a linear relation, the slope can never equal zero under any conditions.`)
+                ? `${objPrefix}In a function, each input in the domain maps to exactly one output in the range.`
+                : `${objPrefix}In a linear relation, the slope can never equal zero under any conditions.`)
             : (isTrue 
-                ? `(تحقيقاً للهدف: ${objective}) في أي دالة رياضية، لكل مدخلة في المجال (${varX}) قيمة مخرجة واحدة فقط في المدى (${varY}).`
-                : `(تحقيقاً للهدف: ${objective}) في أي علاقة خطية، لا يمكن أن يكون ميل المستقيم (${varX} أو ${varY}) مساوياً للصفر مطلقاً.`),
+                ? `${objPrefix}في أي دالة رياضية، لكل مدخلة في المجال (${varX}) قيمة مخرجة واحدة فقط في المدى (${varY}).`
+                : `${objPrefix}في أي علاقة خطية، لا يمكن أن يكون ميل المستقيم (${varX} أو ${varY}) مساوياً للصفر مطلقاً.`),
           options: isFullEn ? ['True', 'False'] : ['صح (True)', 'خطأ (False)'],
           correctOption: isTrue ? 0 : 1,
           correctAnswer: isFullEn ? (isTrue ? 'True' : 'False') : (isTrue ? 'صح' : 'خطأ'),
@@ -141,8 +143,8 @@ const SUBJECT_GENERATION_MATRICES = {
       } else if (type === 'fill_blank') {
         return {
           question: isFullEn
-            ? `Fill in the blank: The point where the graph intersects the (${varY})-axis is termed the .................... .`
-            : `أكمل الفراغ بما يناسبه: يُطلق على النقطة التي يتقاطع عندها التمثيل البياني للمعادلة مع المحور (${varY}) اسم .................... .`,
+            ? `${objPrefix}Fill in the blank: The point where the graph intersects the (${varY})-axis is termed the .................... .`
+            : `${objPrefix}أكمل الفراغ بما يناسبه: يُطلق على النقطة التي يتقاطع عندها التمثيل البياني للمعادلة مع المحور (${varY}) اسم .................... .`,
           correctAnswer: isFullEn ? 'y-intercept' : (isAr ? 'المقطع الصادي' : `المقطع من المحور ${varY} (${varY}-intercept)`),
           explanation: isFullEn 
             ? 'The y-intercept represents the value of y when x = 0.'
@@ -152,8 +154,8 @@ const SUBJECT_GENERATION_MATRICES = {
       } else if (type === 'matching') {
         return {
           question: isFullEn
-            ? `Match each mathematical concept in Column (A) with its corresponding definition in Column (B) [Objective: ${objective}]:`
-            : `زاوج بين كل مفهوم رياضي في العمود (أ) وما يطابقه من تعريف أو صيغة في العمود (ب) [تحقيقاً للهدف: ${objective}]:`,
+            ? `Match each mathematical concept in Column (A) with its corresponding definition in Column (B)${objTag}:`
+            : `زاوج بين كل مفهوم رياضي في العمود (أ) وما يطابقه من تعريف أو صيغة في العمود (ب)${objTag}:`,
           columnA: isFullEn ? [
             { id: '1', num: '1', text: `Slope of a line (m)` },
             { id: '2', num: '2', text: `Linear Equation` },
@@ -198,10 +200,10 @@ const SUBJECT_GENERATION_MATRICES = {
         // Problem Solving
         return {
           question: isFullEn
-            ? `Application Problem - Target Objective [${objective}]:\n` +
+            ? `Application Problem${objTag}:\n` +
               `Find the solution set for the following equation, showing step-by-step mathematical working:\n` +
               `2(${varX} - 3) + 4 = 14`
-            : `مسألة تطبيقية (تفكير وحل مشكلات) - تحقيقاً للهدف [${objective}]:\n` +
+            : `مسألة تطبيقية (تفكير وحل مشكلات)${objTag}:\n` +
               `أوجد مجموعة حل المعادلة التالية موضحاً خطوات الحل الرياضي بدقة:\n` +
               `${isAr ? `٢(${varX} - ٣) + ٤ = ${formatNumberBySymbol(14, 'ar')}` : `2(${varX} - 3) + 4 = 14`}`,
           correctAnswer: isFullEn 
@@ -220,17 +222,19 @@ const SUBJECT_GENERATION_MATRICES = {
 
   science: {
     keywords: ['علوم', 'فيزياء', 'كيمياء', 'أحياء', 'علم بيئة', 'جيولوجيا', 'طبيعة', 'Science', 'Physics', 'Chemistry', 'Biology'],
-    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false) => {
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false, showObjectives = false) => {
       const isAr = symbolLang === 'ar';
       const isFullEn = Boolean(isInternational);
       const unitSpeed = isAr ? 'م/ث' : 'm/s';
       const unitAcc = isAr ? 'م/ث²' : 'm/s²';
+      const objPrefix = showObjectives ? (isFullEn ? `[Objective: ${objective}] ` : `[الهدف: ${objective}] `) : '';
+      const objTag = showObjectives ? (isFullEn ? ` [Objective: ${objective}]` : ` [الهدف: ${objective}]`) : '';
 
       if (type === 'mcq') {
         return {
           question: isFullEn
-            ? `Based on learning objective "${objective}": What is the scientifically accurate explanation for the phenomenon studied in this lesson?`
-            : `انطلاقاً من الهدف الدراسي "${objective}"؛ ما هو التفسير العلمي الصحيح للظاهرة المرتبطة بموضوع الدرس؟`,
+            ? `${objPrefix}What is the scientifically accurate explanation for the phenomenon studied in this lesson?`
+            : `${objPrefix}ما هو التفسير العلمي الصحيح للظاهرة المرتبطة بموضوع الدرس؟`,
           options: isFullEn ? [
             `A) Occurrence of state change while total mass is strictly conserved according to Conservation of Mass.`,
             `B) Complete vanishing of energy during transformation without thermal exchange.`,
@@ -256,11 +260,11 @@ const SUBJECT_GENERATION_MATRICES = {
         return {
           question: isFullEn
             ? (isTrue
-                ? `(For objective: ${objective}) In the International System of Units (SI), the target quantity is measured in standard SI units.`
-                : `(For objective: ${objective}) Kinetic energy is inversely proportional to mass and velocity.`)
+                ? `${objPrefix}In the International System of Units (SI), the target quantity is measured in standard SI units.`
+                : `${objPrefix}Kinetic energy is inversely proportional to mass and velocity.`)
             : (isTrue
-                ? `(تحقيقاً للهدف: ${objective}) في النظام الدولي للوحدات (SI)، تقاس الكمية الفيزيائية المستهدفة بالوحدة القياسية المعتمدة عالمياً (${unitSpeed}).`
-                : `(تحقيقاً للهدف: ${objective}) تتناسب طاقة الحركة لجسم ما عكسياً مع كتلته وسرعته.`),
+                ? `${objPrefix}في النظام الدولي للوحدات (SI)، تقاس الكمية الفيزيائية المستهدفة بالوحدة القياسية المعتمدة عالمياً (${unitSpeed}).`
+                : `${objPrefix}تتناسب طاقة الحركة لجسم ما عكسياً مع كتلته وسرعته.`),
           options: isFullEn ? ['True', 'False'] : ['صح (True)', 'خطأ (False)'],
           correctOption: isTrue ? 0 : 1,
           correctAnswer: isFullEn ? (isTrue ? 'True' : 'False') : (isTrue ? 'صح' : 'خطأ'),
@@ -272,8 +276,8 @@ const SUBJECT_GENERATION_MATRICES = {
       } else if (type === 'fill_blank') {
         return {
           question: isFullEn
-            ? `Write the accurate scientific term [Targeting objective: ${objective}]:\n(............................): The rate of change of velocity per unit of elapsed time.`
-            : `اكتب المصطلح العلمي المناسب مكان النقط [ارتباطاً بهدف: ${objective}]:\n(............................): مقدار التغير في السرعة المتجهة مقسوماً على الفترة الزمنية التي حدث خلالها هذا التغير (${isAr ? 'ت = دلتا ع / دلتا ز' : 'a = Δv / Δt'}).`,
+            ? `Write the accurate scientific term${objTag}:\n(............................): The rate of change of velocity per unit of elapsed time.`
+            : `اكتب المصطلح العلمي المناسب مكان النقط${objTag}:\n(............................): مقدار التغير في السرعة المتجهة مقسوماً على الفترة الزمنية التي حدث خلالها هذا التغير (${isAr ? 'ت = دلتا ع / دلتا ز' : 'a = Δv / Δt'}).`,
           correctAnswer: isFullEn ? 'Acceleration' : (isAr ? 'التسارع (العجلة)' : 'التسارع (Acceleration - a)'),
           explanation: isFullEn
             ? 'Acceleration = Delta v / Delta t.'
@@ -283,8 +287,8 @@ const SUBJECT_GENERATION_MATRICES = {
       } else if (type === 'matching') {
         return {
           question: isFullEn
-            ? `Match each scientific concept in Column (A) with its description or SI unit in Column (B) [Objective: ${objective}]:`
-            : `صل بين كل مفهوم علمي في العمود (أ) وما يناسبه من دلالة أو وحدة قياس في العمود (ب) [تحقيقاً للهدف: ${objective}]:`,
+            ? `Match each scientific concept in Column (A) with its description or SI unit in Column (B)${objTag}:`
+            : `صل بين كل مفهوم علمي في العمود (أ) وما يناسبه من دلالة أو وحدة قياس في العمود (ب)${objTag}:`,
           columnA: isFullEn ? [
             { id: '1', num: '1', text: 'Velocity' },
             { id: '2', num: '2', text: 'Acceleration' },
@@ -328,8 +332,8 @@ const SUBJECT_GENERATION_MATRICES = {
       } else {
         return {
           question: isFullEn
-            ? `Inquiry & Scientific Application Question:\nBased on learning objective [${objective}]; Explain the scientific mechanism of this experiment, identifying independent and dependent variables and the final conclusion.`
-            : `سؤال التفكير الاستقصائي والتطبيق العملي:\nاستناداً إلى الهدف التعليمي [${objective}]؛ فسر علمياً ما يحدث في التجربة موضحاً العوامل المؤثرة والمتغير المستقل والمتغير التابع، مع ذكر الاستنتاج النهائي.`,
+            ? `Inquiry & Scientific Application Question${objTag}:\nExplain the scientific mechanism of this experiment, identifying independent and dependent variables and the final conclusion.`
+            : `سؤال التفكير الاستقصائي والتطبيق العملي${objTag}:\nفسر علمياً ما يحدث في التجربة موضحاً العوامل المؤثرة والمتغير المستقل والمتغير التابع، مع ذكر الاستنتاج النهائي.`,
           correctAnswer: isFullEn
             ? 'Model Answer:\n1) Independent variable: Controlled test factor.\n2) Dependent variable: Measured outcome.\n3) Conclusion: Validates hypothesis based on empirical evidence.'
             : 'نموذج الإجابة:\n1) المتغير المستقل: العامل الذي يتحكم فيه الباحث.\n2) المتغير التابع: الظاهرة الناتجة المقاسة.\n3) الاستنتاج: تأكيد صحة الفرضية العلمية استناداً إلى البيانات التجريبية.',
@@ -344,12 +348,15 @@ const SUBJECT_GENERATION_MATRICES = {
 
   languages: {
     keywords: ['لغتي', 'عربي', 'لغة عربية', 'نحو', 'صرف', 'بلاغة', 'إملاء', 'English', 'اللغة الإنجليزية', 'قراءة', 'نصوص'],
-    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false) => {
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false, showObjectives = false) => {
       const isEnglishSubject = /english|انجليزي/i.test(objective) || Boolean(isInternational);
+      const objPrefix = showObjectives ? (isEnglishSubject ? `[Objective: ${objective}] ` : `[الهدف: ${objective}] `) : '';
+      const objTag = showObjectives ? (isEnglishSubject ? ` [Objective: ${objective}]` : ` [الهدف: ${objective}]`) : '';
+
       if (isEnglishSubject) {
         if (type === 'mcq') {
           return {
-            question: `Choose the correct linguistic structure related to: "${objective}":`,
+            question: `Choose the correct linguistic structure${showObjectives ? ` related to: "${objective}"` : ''}:`,
             options: [
               'A) The student has completed the required assignment successfully.',
               'B) The student have complete the required assignment successfully.',
@@ -363,7 +370,7 @@ const SUBJECT_GENERATION_MATRICES = {
           };
         } else if (type === 'true_false') {
           return {
-            question: `Regarding the objective "${objective}": Adjectives always follow the noun in standard English syntax.`,
+            question: `${objPrefix}Adjectives always follow the noun in standard English syntax.`,
             options: ['True', 'False'],
             correctOption: 1,
             correctAnswer: 'False',
@@ -372,14 +379,14 @@ const SUBJECT_GENERATION_MATRICES = {
           };
         } else if (type === 'fill_blank') {
           return {
-            question: `Fill in the blank with the appropriate transition word [Objective: ${objective}]:\n"The weather was stormy; ...................., the school continued its interactive digital classes without interruption."`,
+            question: `Fill in the blank with the appropriate transition word${objTag}:\n"The weather was stormy; ...................., the school continued its interactive digital classes without interruption."`,
             correctAnswer: 'However / Nevertheless',
             explanation: 'Shows contrast between two independent clauses.',
             points: 1
           };
         } else if (type === 'matching') {
           return {
-            question: `Match each part of speech in Column (A) with its correct syntactic role in Column (B) [Objective: ${objective}]:`,
+            question: `Match each part of speech in Column (A) with its correct syntactic role in Column (B)${objTag}:`,
             columnA: [
               { id: '1', num: '1', text: 'Noun' },
               { id: '2', num: '2', text: 'Verb' },
@@ -398,7 +405,7 @@ const SUBJECT_GENERATION_MATRICES = {
           };
         } else {
           return {
-            question: `Language Application and Writing [Objective: ${objective}]:\nConstruct two complete, grammatically accurate sentences that demonstrate the core concept of the lesson.`,
+            question: `Language Application and Writing${objTag}:\nConstruct two complete, grammatically accurate sentences that demonstrate the core concept of the lesson.`,
             correctAnswer: 'Teacher evaluates grammar accuracy, lexical variety, and semantic clarity.',
             explanation: 'Assesses written communicative competence and syntactic mastery.',
             points: 3
@@ -408,7 +415,7 @@ const SUBJECT_GENERATION_MATRICES = {
         // Arabic Language
         if (type === 'mcq') {
           return {
-            question: `بناءً على الهدف التعليمي "${objective}"؛ حدد الخيار الإعرابي أو الدلالي الصحيح للجملة:`,
+            question: `حدد الخيار الإعرابي أو الدلالي الصحيح للجملة التالية${objTag}:`,
             options: [
               'أ) تُعرب الكلمة المستهدفة فاعلاً مرفوعاً وعلامة رفعه الضمة الظاهرة على آخره.',
               'ب) تُعرب الكلمة مفعولاً به منصوباً بالكسرة نيابة عن الفتحة لأنه جمع مؤنث سالم.',
@@ -424,8 +431,8 @@ const SUBJECT_GENERATION_MATRICES = {
           const isTrue = qIndex % 2 === 0;
           return {
             question: isTrue
-              ? `(تحقيقاً للهدف: ${objective}) الفعل المضارع يُبنى في حالتين فقط: إذا اتصلت به نون النسوة أو نون التوكيد المباشرة.`
-              : `(تحقيقاً للهدف: ${objective}) كان وأخواتها تدخل على الجملة الاسمية فتنصب المبتدأ وترفع الخبر.`,
+              ? `${objPrefix}الفعل المضارع يُبنى في حالتين فقط: إذا اتصلت به نون النسوة أو نون التوكيد المباشرة.`
+              : `${objPrefix}كان وأخواتها تدخل على الجملة الاسمية فتنصب المبتدأ وترفع الخبر.`,
             options: ['صح', 'خطأ'],
             correctOption: isTrue ? 0 : 1,
             correctAnswer: isTrue ? 'صح' : 'خطأ',
@@ -436,14 +443,14 @@ const SUBJECT_GENERATION_MATRICES = {
           };
         } else if (type === 'fill_blank') {
           return {
-            question: `أكمل الفراغ بالقاعدة الإملائية أو النحوية السليمة [ارتباطاً بالهدف: ${objective}]:\nتُكتب الهمزة المتوسطة على الواو إذا كانت مضمومة وما قبلها .................... أو ساكن.`,
+            question: `أكمل الفراغ بالقاعدة الإملائية أو النحوية السليمة${objTag}:\nتُكتب الهمزة المتوسطة على الواو إذا كانت مضمومة وما قبلها .................... أو ساكن.`,
             correctAnswer: 'مفتوح (أو مضموم)',
             explanation: 'قاعدة قوة الحركات في الهمزة المتوسطة (الكسرة ثم الضمة ثم الفتحة ثم السكون).',
             points: 1
           };
         } else if (type === 'matching') {
           return {
-            question: `صل بين المصطلح النحوي في العمود (أ) وما يطابقه من حكم أو وظيفة إعرابية في العمود (ب) [تحقيقاً للهدف: ${objective}]:`,
+            question: `صل بين المصطلح النحوي في العمود (أ) وما يطابقه من حكم أو وظيفة إعرابية في العمود (ب)${objTag}:`,
             columnA: [
               { id: '1', num: '١', text: 'الفاعل' },
               { id: '2', num: '٢', text: 'المفعول به' },
@@ -462,7 +469,7 @@ const SUBJECT_GENERATION_MATRICES = {
           };
         } else {
           return {
-            question: `سؤال التحليل اللغوي والتعبير الإبداعي [تحقيقاً للهدف: ${objective}]:\nاستخرج من النص السابق الأسلوب البلاغي الموظف، مبيناً نوعه، وسر جماله، وأثره في المعنى.`,
+            question: `سؤال التحليل اللغوي والتعبير الإبداعي${objTag}:\nاستخرج من النص السابق الأسلوب البلاغي الموظف، مبيناً نوعه، وسر جماله، وأثره في المعنى.`,
             correctAnswer: 'نموذج الإجابة:\n1) الأسلوب: استعارة مكنية أو تشبيه بليغ.\n2) سر الجمال: التشخيص أو التجسيم وتوضيح الفكرة في صورة محسوسة.\n3) الأثر: إبراز المعنى وإثارة ذهن القارئ.',
             explanation: 'تحليل بلاغي يقيس مهارة التذوق الأدبي والفهم العميق.',
             points: 3
@@ -474,10 +481,13 @@ const SUBJECT_GENERATION_MATRICES = {
 
   islamic: {
     keywords: ['إسلامية', 'توحيد', 'فقه', 'تفسير', 'حديث', 'قرآن', 'دين', 'عقيدة'],
-    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false) => {
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false, showObjectives = false) => {
+      const objPrefix = showObjectives ? `[الهدف: ${objective}] ` : '';
+      const objTag = showObjectives ? ` [الهدف: ${objective}]` : '';
+
       if (type === 'mcq') {
         return {
-          question: `في ضوء الهدف الشرعي والتربوي "${objective}"؛ ما هو الحكم أو التوجيه الإسلامي الصحيح المستنبط من الدليل الشرعي؟`,
+          question: `ما هو الحكم أو التوجيه الإسلامي الصحيح المستنبط من الدليل الشرعي لموضوع الدرس${objTag}؟`,
           options: [
             'أ) واجب شرعاً دل عليه الكتاب والسنة وإجماع الأمة.',
             'ب) مستحب يثاب فاعله ولا يعاقب تاركه.',
@@ -491,7 +501,7 @@ const SUBJECT_GENERATION_MATRICES = {
         };
       } else if (type === 'true_false') {
         return {
-          question: `(تحقيقاً للهدف: ${objective}) النية شرط أساسي لصحة العبادات وتعيينها لقول النبي ﷺ: "إنما الأعمال بالنيات".`,
+          question: `${objPrefix}النية شرط أساسي لصحة العبادات وتعيينها لقول النبي ﷺ: "إنما الأعمال بالنيات".`,
           options: ['صح', 'خطأ'],
           correctOption: 0,
           correctAnswer: 'صح',
@@ -500,14 +510,14 @@ const SUBJECT_GENERATION_MATRICES = {
         };
       } else if (type === 'fill_blank') {
         return {
-          question: `أكمل العبارة الشريفة [هدف: ${objective}]:\nقال رسول الله ﷺ: "من سلك طريقاً يلتمس فيه علماً سهّل الله له به طريقاً إلى ....................".`,
+          question: `أكمل العبارة الشريفة التالية${objTag}:\nقال رسول الله ﷺ: "من سلك طريقاً يلتمس فيه علماً سهّل الله له به طريقاً إلى ....................".`,
           correctAnswer: 'الجنة',
           explanation: 'حديث صحيح رواه مسلم، يحث على فضل طلب العلم الشرعي والنافع.',
           points: 1
         };
       } else if (type === 'matching') {
         return {
-          question: `صل بين المصطلح الشرعي في العمود (أ) وما يناسبه من تعريف فقهي في العمود (ب) [تحقيقاً للهدف: ${objective}]:`,
+          question: `صل بين المصطلح الشرعي في العمود (أ) وما يناسبه من تعريف فقهي في العمود (ب)${objTag}:`,
           columnA: [
             { id: '1', num: '١', text: 'الركن' },
             { id: '2', num: '٢', text: 'الشرط' },
@@ -526,7 +536,7 @@ const SUBJECT_GENERATION_MATRICES = {
         };
       } else {
         return {
-          question: `سؤال الاستنباط والتطبيق القيمي [تحقيقاً للهدف: ${objective}]:\nبين كيف يطبق الطالب المسلم هذا الهدي النبوي في حياته اليومية وتعاملاته المدرسية والأسرية؟`,
+          question: `سؤال الاستنباط والتطبيق القيمي${objTag}:\nبين كيف يطبق الطالب المسلم هذا الهدي النبوي في حياته اليومية وتعاملاته المدرسية والأسرية؟`,
           correctAnswer: 'نموذج الإجابة:\n1) الإخلاص واستشعار رقابة الله تعالى.\n2) حسن الخلق والصدق في القول والعمل.\n3) الإحسان إلى الزملاء وبر الوالدين.',
           explanation: 'ربط المعارف الإسلامية بالسلوك العملي وبناء الشخصية المتوازنة.',
           points: 3
@@ -537,10 +547,13 @@ const SUBJECT_GENERATION_MATRICES = {
 
   social: {
     keywords: ['اجتماعيات', 'تاريخ', 'جغرافيا', 'وطنية', 'دراسات اجتماعية'],
-    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false) => {
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false, showObjectives = false) => {
+      const objPrefix = showObjectives ? `[الهدف: ${objective}] ` : '';
+      const objTag = showObjectives ? ` [الهدف: ${objective}]` : '';
+
       if (type === 'mcq') {
         return {
-          question: `ارتباطاً بموضوع الدرس والهدف المنشود "${objective}"؛ حدد الحدث التاريخي أو الموقع الجغرافي الدقيق:`,
+          question: `حدد الحدث التاريخي أو الموقع الجغرافي الدقيق المرتبط بموضوع الدرس${objTag}:`,
           options: [
             'أ) تحقيق الإنجاز الوطني الاستراتيجي وتوحيد البلاد وفق رؤية تنموية رائدة.',
             'ب) تأسيس أول المراكز التجارية على الساحل الغربي في القرن التاسع عشر.',
@@ -554,7 +567,7 @@ const SUBJECT_GENERATION_MATRICES = {
         };
       } else if (type === 'true_false') {
         return {
-          question: `(تحقيقاً للهدف: ${objective}) تقع المملكة العربية السعودية في الركن الجنوبي الغربي من قارة آسيا، وتشغل الجزء الأكبر من شبه الجزيرة العربية.`,
+          question: `${objPrefix}تقع المملكة العربية السعودية في الركن الجنوبي الغربي من قارة آسيا، وتشغل الجزء الأكبر من شبه الجزيرة العربية.`,
           options: ['صح', 'خطأ'],
           correctOption: 0,
           correctAnswer: 'صح',
@@ -563,14 +576,14 @@ const SUBJECT_GENERATION_MATRICES = {
         };
       } else if (type === 'fill_blank') {
         return {
-          question: `أكمل الفراغ بالمعلومة الجغرافية أو التاريخية الدقيقة [الهدف: ${objective}]:\nتعتبر عاصمة المملكة العربية السعودية ومركز ثقلها السياسي والاقتصادي هي مدينة .................... .`,
+          question: `أكمل الفراغ بالمعلومة الجغرافية أو التاريخية الدقيقة${objTag}:\nتعتبر عاصمة المملكة العربية السعودية ومركز ثقلها السياسي والاقتصادي هي مدينة .................... .`,
           correctAnswer: 'الرياض',
           explanation: 'مدينة الرياض هي عاصمة المملكة العربية السعودية ومقر الحكم والوزارات.',
           points: 1
         };
       } else if (type === 'matching') {
         return {
-          question: `زاوج بين المفاهيم الجغرافية في العمود (أ) وما يطابقها من دلالات في العمود (ب) [تحقيقاً للهدف: ${objective}]:`,
+          question: `زاوج بين المفاهيم الجغرافية في العمود (أ) وما يطابقها من دلالات في العمود (ب)${objTag}:`,
           columnA: [
             { id: '1', num: '١', text: 'خط الاستواء' },
             { id: '2', num: '٢', text: 'خط غرينتش' },
@@ -589,7 +602,7 @@ const SUBJECT_GENERATION_MATRICES = {
         };
       } else {
         return {
-          question: `سؤال التحليل الحضاري والجغرافي [الهدف: ${objective}]:\nعلل: الأهمية الجيوسياسية والاقتصادية للموقع الجغرافي المتميز لموضوع الدرس.`,
+          question: `سؤال التحليل الحضاري والجغرافي${objTag}:\nعلل: الأهمية الجيوسياسية والاقتصادية للموقع الجغرافي المتميز لموضوع الدرس.`,
           correctAnswer: 'نموذج الإجابة:\n1) وقوعه على ملتقى طرق التجارة العالمية وثلاث قارات.\n2) الإشراف على ممرات مائية حيوية (البحر الأحمر والخليج العربي).\n3) الثروات الطبيعية والمكانة الحضارية.',
           explanation: 'مهارات التفكير المكاني والتحليل الجغرافي والتاريخي.',
           points: 3
@@ -636,7 +649,8 @@ export async function generateWorksheetAI({
   isInternational = false,
   curriculumTrack = 'national', // 'national' | 'international'
   schoolName = '',
-  track = ''
+  track = '',
+  showObjectives = false
 }) {
   // التحقق الحاسم من اعتماد المدرسة للمنهج الدولي
   const effectiveIsInternational = isInternationalSchool({
@@ -706,7 +720,7 @@ export async function generateWorksheetAI({
     const bloom = targetLevels[i % targetLevels.length];
     const qType = effectiveTypes[i % effectiveTypes.length];
 
-    const qData = generator.generateQuestion(targetObj, bloom, qType, symbolLanguage, i, effectiveIsInternational);
+    const qData = generator.generateQuestion(targetObj, bloom, qType, symbolLanguage, i, effectiveIsInternational, showObjectives);
 
     const questionItem = {
       id: `q_${Date.now()}_${i + 1}`,
@@ -756,6 +770,7 @@ export async function generateWorksheetAI({
     symbolLanguage,
     curriculumTrack: effectiveIsInternational ? 'international' : 'national',
     isInternational: effectiveIsInternational,
+    showObjectives,
     estimatedMinutes: `${estimatedMinutes} دقيقة`,
     totalPoints: totalPoints + bonusQuestion.points,
     questionsCount: generatedQuestions.length,
