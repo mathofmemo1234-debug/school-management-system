@@ -285,6 +285,30 @@
     .badge-green { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
     .badge-purple { background: #f3e8ff; color: #9333ea; border: 1px solid #e9d5ff; }
     .badge-amber { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+    .badge-rose { background: #ffe4e6; color: #e11d48; border: 1px solid #fecdd3; }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .badge-emerald { background: #d1fae5; color: #047857; border: 1px solid #a7f3d0; }
+    .badge-indigo { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; }
+    .badge-dark { background: #e2e8f0; color: #0f172a; border: 1px solid #cbd5e1; }
+
+    .super-features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 12px 0;
+    }
+
+    .super-feature-card {
+      border-radius: 12px;
+      padding: 14px 16px;
+      border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
+
+    .card-indigo { background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border-right: 5px solid #6366f1; }
+    .card-emerald { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-right: 5px solid #10b981; }
+    .card-amber { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-right: 5px solid #f59e0b; }
+    .card-sky { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-right: 5px solid #0284c7; }
 
     /* Callout Box */
     .callout-box {
@@ -452,6 +476,11 @@
       <strong>💎 العائد التشغيلي والاستثماري للمشروع (Corporate ROI):</strong>
       أتمتة أكثر من 85% من الإجراءات الورقية والروتينية (التحضير، الجداول، بنوك الأسئلة، كشوف الرصد، وتوليد أوراق العمل)، وتوفير مئات ساعات العمل الأسبوعية للكوادر التعليمية والإدارية، مع حفظ كامل للحقوق الفكرية والأصول الرقمية لمجمعات شركة المدارس المتقدمة التعليمية.
     </div>
+
+    <div class="callout-box" style="margin-top: 10px; border-right-color: #4338ca; background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); color: #1e1b4b; border-color: #a5b4fc;">
+      <strong>🌐 التأسيس المؤسسي المركزي لجميع مجمعات الشركة والتوسع المستقبلي (Enterprise Multi-Campus Architecture):</strong>
+      تم تأسيس وهندسة هذه البوابة خصيصاً لتكون <strong>المنظومة الرقمية المركزية لجميع مجمعات ومدارس شركة المدارس المتقدمة التعليمية</strong> (45+ مدرسة ومجمع في الرياض وجدة والأحساء والقصيم وغيرها، بمساريها الأهلي والدولي STEM)، مع مرونة مطلقة تتيح <strong>إضافة وتدشين أي مجمعات جديدة تنشئها الشركة مستقبلاً</strong> بنقرة زر واحدة من السوبر أدمن، وإدارتها مركزياً مع حفظ الاستقلالية التشغيلية لكل مجمع.
+    </div>
   </div>
 
   <!-- Section 2: High Performance & Speed Benchmarks -->
@@ -498,9 +527,79 @@
 
   <div class="page-break"></div>
 
-  <!-- Section 3: The 7 Portals -->
+  <!-- Section 3: Central SuperAdmin, Multi-Campus Expansion, Resource Balancing & Instant Directives -->
   <div class="section-card">
-    <h2 class="section-header header-purple">🏛️ 3. هيكلية البوابات السبع المستقلة للمنظومة (The 7 Specialized Portals)</h2>
+    <h2 class="section-header header-indigo">🌐 3. المنظومة المركزية للسوبر أدمن: إدارة مجمعات الشركة الحالية والمستقبلية، موازنة الكوادر وسد العجز، والمراسلات والاعتمادات الفورية</h2>
+    
+    <p>
+      تنفرد المنظومة بوجود عقل مركزي أعلى (Super Master Dashboard) صُمم خصيصاً للقيادة التنفيذية العليا بـ <strong>شركة المدارس المتقدمة التعليمية</strong>، ليمارس الإشراف المؤسسي الكامل والربط السحابي الموحد لجميع مجمعات الشركة الحالية والمستقبلية:
+    </p>
+
+    <div class="super-features-grid">
+      <!-- Feature 1: Multi-Campus & Future Expansion -->
+      <div class="super-feature-card card-indigo">
+        <div class="portal-head" style="color: #4338ca;">
+          🏢 1. إدارة المجمعات الحالية والتدشين اللحظي للمجمعات المستقبلية
+        </div>
+        <p style="font-size: 8.8pt; line-height: 1.5; color: #334155; margin-bottom: 6px;">
+          المنظومة مهندسة كبنية سحابية متعددة المستأجرين (Multi-Tenancy) تخدم جميع مجمعات الشركة، مع ميزة <strong>التدشين الفوري لأي مجمع جديد</strong> تنشئه الشركة مستقبلاً؛ حيث يقوم السوبر أدمن بإضافة المجمع وتحديد مدينته، مساره (أهلي / دولي)، ونوعه (بنين / بنات)، فيقوم النظام تلقائياً بتوليد معرّف المجمع السحابي وهيكلته البرمجية دون توقف النظام.
+        </p>
+        <span class="badge badge-indigo">إضافة مجمعات فورية</span>
+        <span class="badge badge-cyan">عزل أمني للبيانات</span>
+        <span class="badge badge-emerald">جاهزية التوسع 100%</span>
+      </div>
+
+      <!-- Feature 2: Teacher Deficit & Surplus Balancing -->
+      <div class="super-feature-card card-emerald">
+        <div class="portal-head" style="color: #047857;">
+          ⚖️ 2. محرك التوازن البشري والطلب الفوري عند عجز أو فائض المعلمين
+        </div>
+        <p style="font-size: 8.8pt; line-height: 1.5; color: #334155; margin-bottom: 6px;">
+          رصد ذكي لأنصبة المواد والحصص وفق المعايير المعتمدة للشركة، مع كشف آلي لمؤشرات <strong>العجز والفائض</strong> لكل مادة ومرحلة. يتيح النظام لمدير أي مجمع <strong>رفع طلب فوري لسد العجز</strong> بضغطة زر، كما يتيح للسوبر أدمن إصدار <strong>قرارات التكليف والندب وسد الاحتياج</strong> ونقل الحصص بين مجمعات الشركة المتجاورة لسد أي فجوة أكاديمية فورياً.
+        </p>
+        <span class="badge badge-emerald">طلب فوري لسد العجز</span>
+        <span class="badge badge-amber">معالجة الفائض والندب</span>
+        <span class="badge badge-cyan">أنصبة معيارية دقيقة</span>
+      </div>
+
+      <!-- Feature 3: Master Messaging Hub & Hotline -->
+      <div class="super-feature-card card-sky">
+        <div class="portal-head" style="color: #0369a1;">
+          📨 3. منظومة المراسلات والقرارات الإدارية الفورية والخط الساخن
+        </div>
+        <p style="font-size: 8.8pt; line-height: 1.5; color: #334155; margin-bottom: 6px;">
+          مركز اتصالات إداري مشفر وفوري (Master Messaging Hub) يتيح إرسال القرارات والتعاميم والتوجيهات الموجهة بدقة (لكافة المجمعات، أو مجمعات مدينة معينة، أو مسار محدد، أو لمجمع بعينه)، مع وجود <strong>خط ساخن مباشر (1-on-1 Hotline Chat)</strong> للتواصل الفوري بين السوبر أدمن ومدراء المجمعات وتبادل المستندات والتعليمات العاجلة بلحظات.
+        </p>
+        <span class="badge badge-cyan">بث تعاميم موجه</span>
+        <span class="badge badge-indigo">خط ساخن 1-on-1</span>
+        <span class="badge badge-purple">إشعارات Realtime</span>
+      </div>
+
+      <!-- Feature 4: Digital Accreditation & Compliance Tracking -->
+      <div class="super-feature-card card-amber">
+        <div class="portal-head" style="color: #b45309;">
+          ✅ 4. دورة وسلسلة الاعتمادات الرقمية والرقابة اللحظية على الامتثال
+        </div>
+        <p style="font-size: 8.8pt; line-height: 1.5; color: #334155; margin-bottom: 6px;">
+          سلسلة اعتماد رقمية متكاملة لجميع طلبات المدارس وتكليفات المعلمين (تقديم الطلب ⬅ مراجعة ⬅ اعتماد السوبر أدمن الرسمي بالباركود)، مع <strong>لوحة مؤشرات الرقابة والامتثال (Compliance Rate Dashboard)</strong> التي تُظهر للسوبر أدمن بالاسم والدقيقة والثانية من قام بالإقرار والاستلام من مدراء المجمعات ومن تأخر في التنفيذ.
+        </p>
+        <span class="badge badge-amber">اعتماد رقمي فوري</span>
+        <span class="badge badge-emerald">تتبع نسب الإقرار</span>
+        <span class="badge badge-dark">توثيق رسمي بالباركود</span>
+      </div>
+    </div>
+
+    <div class="callout-box" style="margin-top: 10px; border-right-color: #059669; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); color: #064e3b; border-color: #86efac;">
+      <strong>⚡ القيمة الاستراتيجية للقيادة العليا:</strong>
+      تحويل إدارة مجمعات شركة المدارس المتقدمة التعليمية من النمط البيروقراطي المنفصل إلى <strong>غرفة عمليات مركزية ذكية ولحظية</strong>؛ حيث تتم معالجة عجز الكوادر بقرارات فورية معتمدة، وتصل التوجيهات الرئاسية لجميع المدارس بلمسة واحدة مع ضمان استلامها بنسبة 100%.
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- Section 4: The 7 Portals -->
+  <div class="section-card">
+    <h2 class="section-header header-purple">🏛️ 4. هيكلية البوابات السبع المستقلة للمنظومة (The 7 Specialized Portals)</h2>
     <p>
       تم فصل الصلاحيات والواجهات بحسب الأدوار الوظيفية (Role-Based Access Control - RBAC) لمنع التشتت وتقديم تجربة استخدام دقيقة ومحكمة:
     </p>
@@ -531,21 +630,20 @@
       <div class="portal-box box-purple">
         <div class="portal-head col-purple">🎓 3. بوابة الطالب التفاعلية (Student Portal)</div>
         <ul class="portal-list">
-          <li><strong>الجدول المدرسي اليومي:</strong> متابعة الحصص والمقررات والمعلمين مع تنبيهات ذكية.</li>
-          <li><strong>الخطة الأسبوعية التفاعلية:</strong> استعراض الدروس المقررة والواجبات اليومية ومواعيدها.</li>
-          <li><strong>حل أوراق العمل والاختبارات:</strong> واجهات حل ذكية وفورية مع إظهار النتائج والشروحات.</li>
-          <li><strong>بنك المواد الإثرائية:</strong> تحميل ملخصات المعلمين، الفيديوهات، والعروض التقديمية.</li>
-          <li><strong>منظومة التلعيب والتحفيز:</strong> كسب النقاط والشارات وتصدر قوائم الشرف الأكاديمية.</li>
+          <li><strong>حل أوراق العمل التفاعلية دون مغادرة البوابة:</strong> نافذة ذكية تفتح مباشرة بالمتصفح دون روابط خارجية أو تشتت.</li>
+          <li><strong>التصحيح والتعزيز اللحظي:</strong> إظهار النتيجة فور التسليم مع الشروحات التربوية للإجابات الصحيحة ومكامن الخطأ.</li>
+          <li><strong>الخطة الأسبوعية والجدول التفاعلي:</strong> استعراض الدروس المقررة والواجبات اليومية والمصادر الإثرائية بلمسة واحدة.</li>
+          <li><strong>منظومة التلعيب والتحفيز (Gamification):</strong> حصد النقاط التفاعلية، شارات التميز، وتصدر لوحة الشرف الذكية.</li>
         </ul>
       </div>
 
       <div class="portal-box box-sky">
         <div class="portal-head col-sky">👨‍👩‍👧 4. بوابة ولي الأمر للمتابعة الشاملة (Parent Portal)</div>
         <ul class="portal-list">
-          <li><strong>المتابعة المتعددة للأبناء:</strong> التنقل بنقرة واحدة بين كافة الأبناء المسجلين بالمجمع.</li>
-          <li><strong>سجل الحضور والغياب:</strong> إشعارات لحظية بالتأخر أو الغياب وتقديم الأعذار إلكترونياً.</li>
-          <li><strong>التقارير التحليلية والشهادات:</strong> رسوم بيانية توضح نقاط القوة والفرص التحسينية للطالب.</li>
-          <li><strong>متابعة الخطط وأوراق العمل:</strong> الاطلاع المباشر على ما يدرسه الابن لتعزيز التكامل الأسري.</li>
+          <li><strong>قياس أثر التعلم الحقيقي (Learning Impact):</strong> تحليل مستوى إتقان الابن للمهارات ونواتج التعلم ومستويات بلوم.</li>
+          <li><strong>سجل متابعة الطالب الشامل:</strong> رادار بياني يكشف نقاط القوة ومكامن التحسين لكل مادة ومقرر دراسي.</li>
+          <li><strong>المتابعة المتعددة للأبناء بنقرة واحدة:</strong> التنقل السلس بين كافة الأبناء بمختلف مجمعات الشركة من حساب واحد.</li>
+          <li><strong>إشعارات فورية بالإنجاز والغياب:</strong> تنبيهات مباشرة فور تسليم ورقة العمل أو رصد التأخر لتعزيز الشراكة الأسرية.</li>
         </ul>
       </div>
 
@@ -571,16 +669,78 @@
     <div style="margin-top: 12px;" class="portal-box box-slate">
       <div class="portal-head col-slate">🌐 7. بوابة الإدارة العامة متعددة المدارس والمجمعات (SuperAdmin & Multi-Tenancy)</div>
       <p class="portal-desc">
-        تتيح للقيادة العليا في <strong>شركة المدارس المتقدمة</strong> الإشراف المباشر والربط الموحد لجميع مجمعات ومدارس الشركة في مختلف مدن المملكة (الرياض، جدة، وغيرها)، مع عزل أمني تام لبيانات كل مدرسة، وتخصيص الهوية واللغة والتقويم، وإجراء النسخ الاحتياطي السحابي المركزي والترحيل السريع.
+        تتيح للقيادة العليا في <strong>شركة المدارس المتقدمة التعليمية</strong> الإشراف المباشر والربط الموحد لجميع مجمعات ومدارس الشركة في مختلف مدن المملكة، وتدشين المجمعات المستقبلية فور إنشائها، مع معالجة عجز وفائض المعلمين، وإرسال التعاميم واعتماد التكليفات لحظياً بالباركود السحابي.
       </p>
     </div>
   </div>
 
   <div class="page-break"></div>
 
-  <!-- Section 4: AI Pedagogical Innovations & The 5 Question Types -->
+  <!-- Section 5: Student In-Portal Experience, Parent Learning Impact & Seamless Registration -->
   <div class="section-card">
-    <h2 class="section-header header-amber">✨ 4. محركات الذكاء الاصطناعي والتفردات التربوية وأنماط الأسئلة الخمسة</h2>
+    <h2 class="section-header header-rose">💎 5. تجربة المستفيد الفائقة: حل أوراق العمل التفاعلية داخل البوابة، قياس أثر التعلم لولي الأمر، وسلاسة التسجيل والربط</h2>
+
+    <p>
+      أحدثت المنظومة نقلة نوعية في تجربة الطالب وولي الأمر ترتقي بمعايير التعليم بـ <strong>شركة المدارس المتقدمة التعليمية</strong> إلى آفاق عالمية، من خلال بيئة تفاعلية مغلقة ومترابطة:
+    </p>
+
+    <div class="super-features-grid">
+      <!-- Pillar 1: Student Interactive In-Portal Solving -->
+      <div class="super-feature-card card-sky">
+        <div class="portal-head" style="color: #0284c7;">
+          🎓 1. استفادة الطالب: حل أوراق العمل التفاعلية دون مغادرة البوابة
+        </div>
+        <ul class="portal-list" style="padding-right: 14px; font-size: 8.5pt;">
+          <li><strong>بيئة مغلقة خالية من التشتت (Zero-Exit Experience):</strong> يحل الطالب أوراق العمل مباشرة عبر نافذة تفاعلية منبثقة وذكية داخل جدوله الأسبوعي دون الحاجة للانتقال لمواقع خارجية، أو فتح روابط طرف ثالث، أو طباعة ورقية.</li>
+          <li><strong>تفاعل مباشر مع الأنماط الخمسة:</strong> حل الاختيار من متعدد، الصواب والخطأ، إكمال الفراغ، ومطابقة عناصر <strong>جدول المزاوجة والربط</strong> بلمسة واحدة، وكتابة خطوات الحل المقالي.</li>
+          <li><strong>التصحيح والتعزيز الفوري (Instant Grading & Feedback):</strong> يتلقى الطالب نتيجته فور التسليم في أجزاء من الثانية، مع إيضاح الشروحات التربوية للإجابة الصحيحة وأسباب الخطأ لترسيخ المفهوم.</li>
+          <li><strong>التحفيز الأكاديمي والتلعيب (Gamification):</strong> احتساب النقاط التفاعلية، حصد الأوسمة المعرفية، وتحديث لوحة الشرف الذكية لرفع الدافعية الذاتية للتعلم.</li>
+        </ul>
+        <span class="badge badge-cyan">حل تفاعلي داخلي</span>
+        <span class="badge badge-emerald">تصحيح فوري 100%</span>
+        <span class="badge badge-purple">تلعيب وأوسمة</span>
+      </div>
+
+      <!-- Pillar 2: Parent Learning Impact Tracking -->
+      <div class="super-feature-card card-emerald">
+        <div class="portal-head" style="color: #047857;">
+          👨‍👩‍👧 2. تمكين ولي الأمر: قياس أثر التعلم الحقيقي ومتابعة نواتج التعلم
+        </div>
+        <ul class="portal-list" style="padding-right: 14px; font-size: 8.5pt;">
+          <li><strong>الانتقال من "رصد الدرجات" إلى "قياس أثر التعلم":</strong> لا تقتصر لوحة ولي الأمر على إظهار أرقام صامتة، بل تكشف مستوى إتقان الابن الفعلي لنواتج التعلم ومستويات التفكير وفق هرم بلوم.</li>
+          <li><strong>سجل متابعة الطالب الشامل (Comprehensive Record):</strong> رادار تحليلي يوضح بدقة نقاط القوة ومكامن التميز، والمفاهيم التي تحتاج إلى تعزيز ومراجعة منزلية.</li>
+          <li><strong>إشعارات لحظية بتطور الأداء:</strong> استلام إشعار سحابي فوري فور إنجاز الطالب لورقة العمل متضمناً تقريراً موجزاً ومستوى التقدم وملاحظات المعلم المهنية.</li>
+          <li><strong>متابعة متعددة الأبناء بنقرة واحدة:</strong> التنقل السلس بين الأبناء بمختلف مجمعات ومراحل شركة المدارس المتقدمة من نافذة موحدة دون الحاجة لعدة حسابات.</li>
+        </ul>
+        <span class="badge badge-emerald">قياس أثر التعلم</span>
+        <span class="badge badge-indigo">رادار نواتج التعلم</span>
+        <span class="badge badge-amber">إشعارات فورية</span>
+      </div>
+    </div>
+
+    <!-- Pillar 3: Frictionless Registration & Auto-Role Binding -->
+    <div style="background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%); border: 1.5px solid #eab308; border-right: 6px solid #ca8a04; border-radius: 12px; padding: 14px 18px; margin-top: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+        <strong style="color: #854d0e; font-size: 10.5pt;">🔑 3. سهولة التسجيل الفوري والربط الأسري التلقائي (Frictionless Onboarding):</strong>
+        <div>
+          <span class="badge badge-dark">دخول برقم الهوية</span>
+          <span class="badge badge-green">ربط آلي للأبناء</span>
+          <span class="badge badge-cyan">اكتشاف الأدوار الذكي</span>
+        </div>
+      </div>
+      <p style="font-size: 8.8pt; line-height: 1.55; color: #713f12; margin: 0;">
+        • <strong>التسجيل برقم الهوية الوطنية / الإقامة:</strong> الدخول المباشر للطلاب وأولياء الأمور دون تعقيدات كلمات المرور المنسية أو الشروط الروتينية.<br>
+        • <strong>الربط الأسري التلقائي (One-Click Family Binding):</strong> تسجيل ذاتي ميسر لولي الأمر يربط حسابه تلقائياً ببيانات أبنائه عبر رقم الهوية المدرسية المسجل بالمجمع.<br>
+        • <strong>محرك الكشف التلقائي عن الأدوار (Smart Auto-Role Discovery):</strong> في حال اختار المستخدم بوابة أخرى بالخطأ، يتعرف النظام تلقائياً على سجله ويوجهه فورياً لبوابته الصحيحة برفق وسلاسة دون إظهار أي رسائل خطأ.
+      </p>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- Section 6: AI Pedagogical Innovations & The 5 Question Types -->
+  <div class="section-card">
+    <h2 class="section-header header-amber">✨ 6. محركات الذكاء الاصطناعي والتفردات التربوية وأنماط الأسئلة الخمسة</h2>
     <p>
       يمتلك النظام محرك ذكاء اصطناعي تربوي توليدي حصري (Pedagogical AI Generator)، يقوم بقراءة وتحليل الأهداف السلوكية التي يدخلها المعلم للدرس، ثم يولد اختبارات وأوراق عمل تقيس كل هدف بدقة متناهية وفق تصنيف هرم بلوم المعرفي:
     </p>
@@ -608,24 +768,40 @@
     </ul>
   </div>
 
-  <!-- Section 5: Seamless Branching & UX -->
+  <!-- Section 7: Seamless Branching, Multi-Platform Installation & UX -->
   <div class="section-card">
-    <h2 class="section-header header-indigo">🧭 5. سهولة التفرع وانسيابية تجربة المستخدم وتطبيقات الهواتف (UX Architecture)</h2>
+    <h2 class="section-header header-indigo">🧭 7. سهولة التفرع وتثبيت البوابة الفوري على كافة الأنظمة بحجم لا يُذكر (Multi-Platform PWA & UX)</h2>
     <p>
-      تم تصميم النظام للقضاء التام على مشكلة "التيه الرقمي" (Navigation Fatigue) التي تعاني منها معظم المنصات المدرسية:
+      تم تصميم النظام ليعمل بتناغم كامل على كافة الأجهزة والأنظمة مع القضاء التام على مشكلة "التيه الرقمي" (Navigation Fatigue):
     </p>
+
+    <!-- Cross-Platform Zero-Footprint Installation Card -->
+    <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1.5px solid #86efac; border-right: 6px solid #16a34a; border-radius: 12px; padding: 14px 18px; margin: 12px 0;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+        <strong style="color: #166534; font-size: 10.5pt;">📲 التثبيت الفوري الشامل على كافة الأنظمة بحجم خفيف لا يُذكر (Universal Installation):</strong>
+        <div>
+          <span class="badge badge-emerald">حجم &lt; 3 ميجابايت</span>
+          <span class="badge badge-indigo">تثبيت بنقرة واحدة</span>
+          <span class="badge badge-cyan">كافة أنظمة التشغيل</span>
+        </div>
+      </div>
+      <p style="font-size: 8.8pt; line-height: 1.55; color: #14532d; margin: 0;">
+        • <strong>التوافق الشامل مع كافة الأنظمة:</strong> يمكن تثبيت البوابة وتشغيلها بسهولة بالغة كتطبيق أصلي ومستقل على <strong>Windows, macOS, iOS (iPhone/iPad), Android, Linux, وشاشات الفصول التفاعلية الذكية</strong>.<br>
+        • <strong>حجم خفيف جداً لا يُذكر (Zero-Footprint PWA):</strong> لا يتجاوز حجم تثبيت البوابة <strong>بضعة ميجابايتات معدودة (أقل من 3 إلى 5 ميجابايت)</strong> دون استنزاف ذاكرة أجهزة الطلاب والمعلمين أو إرهاق سعة التخزين، مقارنة بالتطبيقات التقليدية الثقيلة (150-300 ميجابايت).<br>
+        • <strong>تثبيت فوري دون المرور بمتاجر التطبيقات:</strong> تثبيت مباشر من المتصفح بنقرة واحدة "إضافة إلى الشاشة الرئيسية"، مع ميزة <strong>التحديث التلقائي اللحظي</strong> دون الحاجة لتحديث يدوي، وتشغيل فوري في نافذة تطبيق مستقلة وبدون أشرطة تصفح.
+      </p>
+    </div>
+
     <ul>
       <li><strong>نظام النوافذ المحمولة الذكية (Smart React Portals):</strong> يستطيع المعلم أو المدير إعداد ورقة العمل، رصد درجات الطلاب، إسناد الواجبات، أو مراجعة الشواهد عبر نوافذ تفاعلية ذكية تطفو فوق الصفحة دون مغادرة سياق العمل ودون الحاجة للتنقل بين روابط متعددة.</li>
       <li><strong>شريط التنقل الجانبي الذكي الموجه بالأدوار (`Sidebar.jsx`):</strong> يتغير تلقائياً وبسلاسة بحسب هوية وصلاحيات المسجل، مع إبراز الصفحة النشطة وتنبيهات المهام المعلقة.</li>
-      <li><strong>التطبيق الهاتفي والويب التقدمي (PWA & Capacitor Android):</strong> دعم كامل كـ <strong>تطبيق ويب تقدمي (PWA)</strong> قابل للتثبيت المباشر على الشاشة الرئيسية للهواتف، مع توفر تطبيق أصلي للأجهزة الذكية (Android) عبر تقنية Capacitor، مما يتيح تجربة لمسية فائقة وسرعة تشغيل فورية.</li>
+      <li><strong>تطبيق أصلي مدعوم بتقنية Capacitor:</strong> جاهزية تامة كحزمة أندرويد أصلية (APK/AAB) لتلبية احتياجات كافة فئات المستخدمين.</li>
     </ul>
   </div>
 
-  <div class="page-break"></div>
-
-  <!-- Section 6: Advanced Printing & Word Export -->
+  <!-- Section 8: Advanced Printing & Word Export -->
   <div class="section-card">
-    <h2 class="section-header header-rose">🖨️ 6. منظومة الطباعة الفائقة والتصدير المكتبي (A4 & Word (.doc))</h2>
+    <h2 class="section-header header-rose">🖨️ 8. منظومة الطباعة الفائقة والتصدير المكتبي (A4 & Word (.doc))</h2>
     <p>
       صُممت مخرجات الطباعة في هذا النظام لتطابق بدقة هندسية مواصفات ونماذج الاختبارات والوثائق الرسمية لـ <strong>وزارة التعليم بالمملكة العربية السعودية</strong>:
     </p>
@@ -638,11 +814,13 @@
     </ul>
   </div>
 
-  <!-- Section 7: Languages & Mathematics -->
+  <div class="page-break"></div>
+
+  <!-- Section 9: Languages & Mathematics -->
   <div class="section-card">
-    <h2 class="section-header header-teal">🌐 7. ثنائية اللغة والتحكم المتقدم بالرموز الرياضية والعلمية (KaTeX & Multi-Symbols)</h2>
+    <h2 class="section-header header-teal">🌐 9. ثنائية اللغة والتحكم المتقدم بالرموز الرياضية والعلمية (KaTeX & Multi-Symbols)</h2>
     <p>
-      تتميز مجمعات <strong>شركة المدارس المتقدمة</strong> باحتوائها على مسارات وطنية وعالمية (أهلية ودولية)، ولذا تم تزويد النظام بدعم متكامل ومزدوج:
+      تتميز مجمعات <strong>شركة المدارس المتقدمة التعليمية</strong> باحتوائها على مسارات وطنية وعالمية (أهلية ودولية)، ولذا تم تزويد النظام بدعم متكامل ومزدوج:
     </p>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
@@ -675,9 +853,9 @@
     </p>
   </div>
 
-  <!-- Section 8: Psychometrics & National Integrations -->
+  <!-- Section 10: Psychometrics & National Integrations -->
   <div class="section-card">
-    <h2 class="section-header header-emerald">📊 8. التحليل السيكومتري للاختبارات والتكامل مع المنصات الوطنية (نور وقياس)</h2>
+    <h2 class="section-header header-emerald">📊 10. التحليل السيكومتري للاختبارات والتكامل مع المنصات الوطنية (نور وقياس)</h2>
     <p>
       تم تزويد المنظومة بمحرك إحصائي متقدم يضاهي أدوات مراكز القياس الدولية لضمان جودة التعليم في مدارس الشركة:
     </p>
@@ -693,14 +871,14 @@
 
   <div class="page-break"></div>
 
-  <!-- Section 9: Benchmarking Matrix -->
+  <!-- Section 11: Benchmarking Matrix -->
   <div class="section-card">
-    <h2 class="section-header header-purple">🏆 9. مصفوفة المقارنة والتفوق التنافسي لشركة المدارس المتقدمة</h2>
+    <h2 class="section-header header-purple">🏆 11. مصفوفة المقارنة والتفوق التنافسي لشركة المدارس المتقدمة التعليمية</h2>
     <table>
       <thead>
         <tr>
           <th>المعيار والخاصية</th>
-          <th>منظومتنا الذكية لشركة المدارس المتقدمة</th>
+          <th>منظومتنا الذكية لشركة المدارس المتقدمة التعليمية</th>
           <th>الأنظمة والمنصات المدرسية التقليدية</th>
         </tr>
       </thead>
@@ -709,6 +887,36 @@
           <td><strong>سرعة الأداء التقني</strong></td>
           <td class="highlight-cell">بناء في 5.7 ثوانٍ، تصفير كامل لإعادة التحميل، وضغط 80% في المتصفح</td>
           <td>بطء شديد وتكرار طلبات الخادم وتجمّد المتصفح أثناء الرصد</td>
+        </tr>
+        <tr>
+          <td><strong>إدارة المجمعات والتوسع المستقبلي</strong></td>
+          <td class="highlight-cell">تأسيس مركزي لكافة مجمعات الشركة وتدشين أي مجمع جديد فورياً بضغطة زر</td>
+          <td>أنظمة معزولة وتكلفة ترخيص وبرمجة باهظة عند افتتاح أي مجمع جديد</td>
+        </tr>
+        <tr>
+          <td><strong>عجز وفائض المعلمين</strong></td>
+          <td class="highlight-cell">رصد آلي لأنصبة الحصص، طلب فوري لسد العجز، وقرارات ندب وتكليف لحظية</td>
+          <td>إجراءات ورقية روتينية بطيئة وتعطيل حصص الطلاب دون معالجة سريعة</td>
+        </tr>
+        <tr>
+          <td><strong>المراسلات وسلسلة الاعتمادات</strong></td>
+          <td class="highlight-cell">مركز مراسلات مشفر، بث موجه، خط ساخن 1-on-1، وتتبع نسب الإقرار والامتثال</td>
+          <td>بريد إلكتروني مبعثر أو واتساب غير رسمي يفتقر للتوثيق والاعتماد الإداري</td>
+        </tr>
+        <tr>
+          <td><strong>حل أوراق العمل للطالب</strong></td>
+          <td class="highlight-cell">حل تفاعلي كامل داخل البوابة دون خروج مع تصحيح وتغذية راجعة وتلعيب فوري</td>
+          <td>تحميل ملفات PDF وطباعتها ورقياً أو الانتقال لمواقع خارجية مشتتة</td>
+        </tr>
+        <tr>
+          <td><strong>قياس أثر التعلم لولي الأمر</strong></td>
+          <td class="highlight-cell">رادار بياني لنواتج التعلم، سجل شامل، وتبديل فوري بين الأبناء بنقرة واحدة</td>
+          <td>أرقام ودرجات صامتة لا توضح مهارات الطالب ونقاط القوة والضعف لديه</td>
+        </tr>
+        <tr>
+          <td><strong>سهولة التسجيل والربط</strong></td>
+          <td class="highlight-cell">دخول مباشر برقم الهوية، ربط آلي للأبناء، واكتشاف ذكي للأدوار بدون تعقيد</td>
+          <td>نماذج تسجيل مطولة، كلمات مرور معقدة، وتكرار الحسابات لكل ابن</td>
         </tr>
         <tr>
           <td><strong>توليد أوراق العمل</strong></td>
@@ -735,20 +943,15 @@
           <td class="highlight-cell">معاملات الصعوبة والتمييز وكرونباخ ألفا وبيرسون آلياً للاختبارات</td>
           <td>حساب متوسط درجات حسابي بسيط يفتقر للعمق التربوي</td>
         </tr>
-        <tr>
-          <td><strong>الهيكلية وسهولة التفرع</strong></td>
-          <td class="highlight-cell">7 بوابات مستقلة ونوافذ ذكية تمنع مغادرة سياق العمل</td>
-          <td>صفحات متداخلة وروابط معقدة تشتت المعلم والإدارة</td>
-        </tr>
       </tbody>
     </table>
   </div>
 
-  <!-- Luxury Corporate Accreditation, Dedication & Signatures Card -->
+  <!-- Section 12: Luxury Corporate Accreditation Card & Signatures -->
   <div class="corp-accreditation-card">
     <div class="accreditation-top">
       <div class="accreditation-title">
-        🏢 شركة المدارس المتقدمة التعليمية • بطاقة الاعتماد والتوثيق الرسمي للمشروع
+        🏢 شركة المدارس المتقدمة التعليمية • بطاقة الاعتماد والتوثيق الرسمي للمشروع (12)
       </div>
       <div class="dedication-badge">
         مشروع تقني وتربوي استراتيجي معتمد
