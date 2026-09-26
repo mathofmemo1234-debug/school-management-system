@@ -26,6 +26,12 @@ export default function LessonWorksheetModal({
   const { userData } = useAuth();
   const { t } = useLanguage();
 
+  // Role Detection
+  const effectiveRole = userRole || userData?.role || 'teacher';
+  const isStudent = effectiveRole === 'student' || userData?.role === 'student';
+  const isParent = effectiveRole === 'parent' || userData?.role === 'parent';
+  const isTeacherOrStaff = !isStudent && !isParent;
+
   // Basic Details
   const lessonTitle = prepData?.lessonTitle || existingWorksheet?.lessonTitle || 'درس تعليمي';
   const subject = prepData?.subject || existingWorksheet?.subject || 'المادة الدراسية';
@@ -34,6 +40,35 @@ export default function LessonWorksheetModal({
   const semester = prepData?.semester || existingWorksheet?.semester || '';
   const schoolId = prepData?.schoolId || userData?.schoolId || 'default_school_1';
   const prepId = prepData?.id || prepData?.prepDocId || existingWorksheet?.prepId || null;
+
+  // Name Resolution: Teacher vs Student
+  const effectiveTeacherName = 
+    existingWorksheet?.teacherName || 
+    prepData?.teacherName || 
+    prepData?.teacher ||
+    (isTeacherOrStaff ? (userData?.name || 'معلم المادة') : 'معلم المادة');
+
+  const effectiveStudentName = 
+    isParent 
+      ? (userData?.studentName || 'الطالب') 
+      : isStudent 
+        ? (userData?.name || 'الطالب') 
+        : (existingWorksheet?.studentName || '');
+
+  const effectiveStudentNid = 
+    isParent 
+      ? (userData?.studentNationalId || '') 
+      : isStudent 
+        ? (userData?.nationalId || userData?.studentId || '') 
+        : (existingWorksheet?.studentNationalId || '');
+
+  const effectiveClassName = 
+    className || 
+    userData?.class || 
+    userData?.className || 
+    userData?.studentClass || 
+    prepData?.className || 
+    '';
 
   // Track & Curriculum Detection (National vs International)
   const initialIsIntl = isInternationalSchool({
@@ -78,6 +113,25 @@ export default function LessonWorksheetModal({
   );
   const [estimatedMinutes, setEstimatedMinutes] = useState(existingWorksheet?.estimatedMinutes || '20 دقيقة');
   const [status, setStatus] = useState(existingWorksheet?.status || 'published'); // 'draft' | 'published'
+
+  // Parse estimated minutes (e.g., '20 دقيقة' -> 20)
+  const defaultMinutes = useMemo(() => {
+    const raw = existingWorksheet?.estimatedMinutes || estimatedMinutes || '20';
+    const match = String(raw).match(/\d+/);
+    return match ? Math.max(5, Math.min(120, parseInt(match[0], 10))) : 20;
+  }, [existingWorksheet?.estimatedMinutes, estimatedMinutes]);
+
+  // Student Interactive Solving & Countdown Timer State
+  const [selectedDuration, setSelectedDuration] = useState(defaultMinutes);
+  const [timeRemaining, setTimeRemaining] = useState(defaultMinutes * 60);
+  const [timerRunning, setTimerRunning] = useState(true);
+  const [timerEnded, setTimerEnded] = useState(false);
+  const [studentAnswers, setStudentAnswers] = useState({});
+  const [studentSubmitted, setStudentSubmitted] = useState(false);
+  const [submissionScore, setSubmissionScore] = useState(null);
+  const [submissionPercentage, setSubmissionPercentage] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [timeSpentSeconds, setTimeSpentSeconds] = useState(0);
 
   // Loading & Saving State
   const [isGenerating, setIsGenerating] = useState(false);
@@ -320,8 +374,8 @@ export default function LessonWorksheetModal({
         semester,
         schoolId,
         prepId: prepId || '',
-        teacherId: userData?.id || userData?.nationalId || 'teacher',
-        teacherName: userData?.name || 'معلم المادة',
+        teacherId: existingWorksheet?.teacherId || prepData?.teacherId || (isTeacherOrStaff ? (userData?.id || userData?.nationalId || 'teacher') : 'teacher'),
+        teacherName: existingWorksheet?.teacherName || prepData?.teacherName || prepData?.teacher || (isTeacherOrStaff ? (userData?.name || 'معلم المادة') : 'معلم المادة'),
         symbolLanguage,
         curriculumTrack,
         isInternational: curriculumTrack === 'international',
@@ -381,6 +435,169 @@ export default function LessonWorksheetModal({
       setIsSaving(false);
     }
   };
+
+  // Reset timer when defaultMinutes changes
+  useEffect(() => {
+    setSelectedDuration(defaultMinutes);
+    setTimeRemaining(defaultMinutes * 60);
+    setTimeSpentSeconds(0);
+    setTimerEnded(false);
+  }, [defaultMinutes]);
+
+  // Handle duration change from dropdown
+  const handleDurationChange = (newMinutes) => {
+    const mins = Math.max(1, Number(newMinutes) || 20);
+    setSelectedDuration(mins);
+    setTimeRemaining(mins * 60);
+    setTimerEnded(false);
+    setTimerRunning(true);
+    setTimeSpentSeconds(0);
+  };
+
+  // Format time (MM:SS)
+  const formatTime = (secs) => {
+    const safeSecs = Math.max(0, secs);
+    const m = Math.floor(safeSecs / 60);
+    const s = safeSecs % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // Calculate Student Score
+  const calculateStudentScore = (answersToScore = studentAnswers) => {
+    let earned = 0;
+    questions.forEach((q, idx) => {
+      const qPoints = Number(q.points) || 1;
+      const userAns = answersToScore[idx];
+
+      if (q.type === 'mcq') {
+        if (userAns === q.correctOption) earned += qPoints;
+      } else if (q.type === 'true_false') {
+        if (userAns === q.correctOption) earned += qPoints;
+      } else if (q.type === 'fill_blank') {
+        const cleanUser = String(userAns || '').trim().toLowerCase().replace(/[إأآا]/g, 'ا').replace(/ة/g, 'ه');
+        const cleanCorrect = String(q.correctAnswer || '').trim().toLowerCase().replace(/[إأآا]/g, 'ا').replace(/ة/g, 'ه');
+        if (cleanUser && (cleanUser === cleanCorrect || cleanCorrect.includes(cleanUser))) {
+          earned += qPoints;
+        }
+      } else if (q.type === 'matching') {
+        const totalPairs = q.columnA?.length || 1;
+        let matchedCorrectly = 0;
+        q.columnA?.forEach(itemA => {
+          const studentChoice = userAns?.[itemA.num];
+          const regex = new RegExp(`\\(${itemA.num}\\s*[➔->:]\\s*([^)]+)\\)`);
+          const m = (q.correctAnswer || '').match(regex);
+          const correctChoice = m ? m[1].trim() : null;
+          if (studentChoice && correctChoice && studentChoice === correctChoice) {
+            matchedCorrectly += 1;
+          }
+        });
+        earned += (matchedCorrectly / totalPairs) * qPoints;
+      } else if (q.type === 'problem_solving') {
+        if (userAns && String(userAns).trim().length > 5) {
+          earned += qPoints;
+        }
+      }
+    });
+
+    return Math.min(totalMarks, Math.round(earned * 10) / 10);
+  };
+
+  // Handle Student Submit
+  const handleStudentSubmit = async (isAuto = false) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setTimerRunning(false);
+
+    try {
+      const finalScore = calculateStudentScore(studentAnswers);
+      const finalPercent = totalMarks > 0 ? Math.round((finalScore / totalMarks) * 100) : 100;
+      setSubmissionScore(finalScore);
+      setSubmissionPercentage(finalPercent);
+      setStudentSubmitted(true);
+
+      const targetWorksheetId = worksheetDocId || existingWorksheet?.id || prepId || `ws_${Date.now()}`;
+      const studentId = userData?.id || userData?.nationalId || 'student_guest';
+
+      const payload = {
+        worksheetId: targetWorksheetId,
+        prepId: prepId || '',
+        lessonTitle,
+        subject,
+        className: effectiveClassName,
+        studentId,
+        studentName: effectiveStudentName,
+        studentNationalId: effectiveStudentNid,
+        teacherName: effectiveTeacherName,
+        answers: studentAnswers,
+        score: finalScore,
+        totalMarks,
+        percentage: finalPercent,
+        timeLimitMinutes: selectedDuration,
+        timeSpentSeconds: timeSpentSeconds,
+        isAutoSubmitted: isAuto,
+        submittedAt: new Date().toISOString()
+      };
+
+      await addDoc(collection(db, 'worksheet_submissions'), payload);
+    } catch (err) {
+      console.error('Error saving worksheet submission:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Countdown Timer Hook
+  useEffect(() => {
+    if (!isOpen || !timerRunning || studentSubmitted) return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setTimerEnded(true);
+          setTimerRunning(false);
+          handleStudentSubmit(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+      setTimeSpentSeconds(s => s + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isOpen, timerRunning, studentSubmitted, studentAnswers, isSubmitting]);
+
+  // Load existing submission if student previously solved this
+  useEffect(() => {
+    const fetchExistingSubmission = async () => {
+      const studentId = userData?.id || userData?.nationalId;
+      const targetWorksheetId = worksheetDocId || existingWorksheet?.id || prepId;
+      if (!studentId || !targetWorksheetId) return;
+
+      try {
+        const qSub = query(
+          collection(db, 'worksheet_submissions'),
+          where('worksheetId', '==', targetWorksheetId),
+          where('studentId', '==', studentId)
+        );
+        const snap = await getDocs(qSub);
+        if (!snap.empty) {
+          const subData = snap.docs[0].data();
+          if (subData.answers) setStudentAnswers(subData.answers);
+          if (subData.score !== undefined) setSubmissionScore(subData.score);
+          if (subData.percentage !== undefined) setSubmissionPercentage(subData.percentage);
+          setStudentSubmitted(true);
+          setTimerRunning(false);
+        }
+      } catch (err) {
+        console.warn('Could not fetch existing worksheet submission:', err);
+      }
+    };
+
+    if (isOpen) {
+      fetchExistingSubmission();
+    }
+  }, [isOpen, worksheetDocId, existingWorksheet?.id, prepId, userData?.id, userData?.nationalId]);
 
   // Export to Microsoft Word (.doc)
   const exportToWord = () => {
@@ -730,6 +947,154 @@ export default function LessonWorksheetModal({
           </div>
         </div>
 
+        {/* Student Interactive Solving & Countdown Timer Bar */}
+        {activeTab === 'student' && (
+          <div className="no-print" style={{
+            background: timeRemaining <= 180 && !studentSubmitted ? '#fef2f2' : '#f0fdfa',
+            borderBottom: `2px solid ${timeRemaining <= 180 && !studentSubmitted ? '#f87171' : '#99f6e4'}`,
+            padding: '10px 24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                background: studentSubmitted ? '#ecfdf5' : (timeRemaining <= 180 ? '#fee2e2' : '#ccfbf1'),
+                border: `1.5px solid ${studentSubmitted ? '#10b981' : (timeRemaining <= 180 ? '#ef4444' : '#14b8a6')}`
+              }}>
+                <Clock size={18} color={studentSubmitted ? '#059669' : (timeRemaining <= 180 ? '#dc2626' : '#0f766e')} />
+                <span style={{ fontSize: '13px', fontWeight: 'bold', color: studentSubmitted ? '#059669' : (timeRemaining <= 180 ? '#b91c1c' : '#0f766e') }}>
+                  {studentSubmitted ? '✓ تم تسليم ورقة العمل' : '⏱️ المؤقت الزمني للإجابة:'}
+                </span>
+                <span style={{
+                  fontSize: '17px',
+                  fontWeight: '900',
+                  fontFamily: 'monospace',
+                  color: studentSubmitted ? '#059669' : (timeRemaining <= 180 ? '#dc2626' : '#0e7490'),
+                  direction: 'ltr',
+                  letterSpacing: '1.5px'
+                }}>
+                  {formatTime(timeRemaining)}
+                </span>
+              </div>
+
+              {!studentSubmitted && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#475569' }}>
+                  <span>المدة المحددة:</span>
+                  <select
+                    value={selectedDuration}
+                    onChange={(e) => handleDurationChange(Number(e.target.value))}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      background: 'white',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      color: '#0e7490',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value={5}>5 دقائق</option>
+                    <option value={10}>10 دقائق</option>
+                    <option value={15}>15 دقيقة</option>
+                    <option value={20}>20 دقيقة (الافتراضي)</option>
+                    <option value={30}>30 دقيقة</option>
+                    <option value={45}>45 دقيقة</option>
+                    <option value={60}>60 دقيقة</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => setTimerRunning(!timerRunning)}
+                    style={{
+                      background: timerRunning ? '#fffbeb' : '#f0fdf4',
+                      border: `1px solid ${timerRunning ? '#f59e0b' : '#10b981'}`,
+                      color: timerRunning ? '#b45309' : '#15803d',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    {timerRunning ? '⏸️ إيقاف مؤقت' : '▶️ متابعة العد'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div>
+              {!studentSubmitted ? (
+                <button
+                  type="button"
+                  onClick={() => handleStudentSubmit(false)}
+                  disabled={isSubmitting}
+                  style={{
+                    background: 'linear-gradient(135deg, #0e7490, #10b981)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 22px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(14, 116, 144, 0.2)'
+                  }}
+                >
+                  {isSubmitting ? <Loader size={14} className="spin" /> : <CheckCircle2 size={16} />}
+                  <span>تسليم ورقة العمل واعتماد الحل 🚀</span>
+                </button>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#059669' }}>
+                    الدرجة المستحقة: {submissionScore} / {totalMarks} ({submissionPercentage}%)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('هل تريد إعادة محاولة حل ورقة العمل من جديد؟')) {
+                        setStudentSubmitted(false);
+                        setStudentAnswers({});
+                        setSubmissionScore(null);
+                        setSubmissionPercentage(null);
+                        setTimeRemaining(selectedDuration * 60);
+                        setTimerRunning(true);
+                        setTimerEnded(false);
+                      }
+                    }}
+                    style={{
+                      background: 'white',
+                      border: '1px solid #cbd5e1',
+                      color: '#0e7490',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    إعادة المحاولة 🔄
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* AI Studio Configuration Box (Shown when activeTab === 'studio') */}
         {activeTab === 'studio' && canEdit && (
           <div className="no-print" style={{
@@ -1076,11 +1441,11 @@ export default function LessonWorksheetModal({
 
             {/* Left: Metadata & Grade */}
             <div style={{ textAlign: 'left', fontSize: '12px', color: '#1e293b', lineHeight: '1.5' }}>
-              <div>معلم المادة: <strong>{userData?.name || 'معلم المادة'}</strong></div>
+              <div>معلم المادة: <strong>{effectiveTeacherName}</strong></div>
               <div>الزمن المقترح: <strong>{estimatedMinutes}</strong></div>
               <div>الدرجة الكلية: <strong>[ {totalMarks} درجات ]</strong></div>
               <div style={{ marginTop: '4px', fontSize: '11px', color: '#64748b' }}>
-                التاريخ: {prepData?.date || new Date().toISOString().split('T')[0]}
+                التاريخ: {prepData?.date || existingWorksheet?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]}
               </div>
             </div>
           </div>
@@ -1097,13 +1462,51 @@ export default function LessonWorksheetModal({
             marginBottom: '20px',
             fontSize: '13px'
           }}>
-            <div><strong>اسم الطالب:</strong> ....................................</div>
-            <div><strong>الصف / الفصل:</strong> {className || '....................'}</div>
-            <div><strong>الرقم الأكاديمي:</strong> ....................</div>
+            <div><strong>اسم الطالب:</strong> {effectiveStudentName || '....................................'}</div>
+            <div><strong>الصف / الفصل:</strong> {effectiveClassName || '....................'}</div>
+            <div><strong>الرقم الأكاديمي:</strong> {effectiveStudentNid || '....................'}</div>
             <div style={{ textAlign: 'left', fontWeight: 'bold', color: '#0e7490' }}>
-              <strong>الدرجة المستحقة:</strong> [ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / {totalMarks} ]
+              <strong>الدرجة المستحقة:</strong> [ {studentSubmitted ? `${submissionScore} / ${totalMarks}` : `...... / ${totalMarks}`} ]
             </div>
           </div>
+
+          {/* Submission Celebration Banner */}
+          {studentSubmitted && (
+            <div className="no-print" style={{
+              background: 'linear-gradient(135deg, #ecfdf5, #f0fdf4)',
+              border: '2px solid #10b981',
+              borderRadius: '10px',
+              padding: '14px 18px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '26px' }}>🎉</span>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#065f46' }}>
+                    تم تسليم إجابات ورقة العمل واعتماد درجتك بنجاح!
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#047857' }}>
+                    {timerEnded ? 'انتهى الوقت المحدد للمؤقت وتم الاعتماد التلقائي.' : 'تم إنهاء الحل وتسليمه للمعلم.'} تم فتح دليل التصحيح والتعليل لمراجعة أدائك ذاتياً.
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: 'white', border: '1.5px solid #10b981', borderRadius: '8px', padding: '6px 14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>الدرجة المحققة</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#059669' }}>{submissionScore} / {totalMarks}</div>
+                </div>
+                <div style={{ background: 'white', border: '1.5px solid #10b981', borderRadius: '8px', padding: '6px 14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>النسبة</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: submissionPercentage >= 70 ? '#059669' : '#d97706' }}>{submissionPercentage}%</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Instructions Box */}
           <div style={{
@@ -1422,20 +1825,48 @@ export default function LessonWorksheetModal({
                       }}>
                         {q.options.map((opt, oIdx) => {
                           const isCorrect = q.correctOption === oIdx;
-                          const showAsCorrect = activeTab === 'teacher' && isCorrect;
+                          const showAsCorrect = (activeTab === 'teacher' && isCorrect) || (studentSubmitted && isCorrect);
+                          const isSelectedByStudent = studentAnswers[idx] === oIdx;
+                          const isStudentWrong = studentSubmitted && isSelectedByStudent && !isCorrect;
+
+                          let cardBorder = '1px solid #e2e8f0';
+                          let cardBg = '#f8fafc';
+                          let textColor = '#334155';
+
+                          if (showAsCorrect) {
+                            cardBorder = '2px solid #10b981';
+                            cardBg = '#ecfdf5';
+                            textColor = '#065f46';
+                          } else if (isStudentWrong) {
+                            cardBorder = '2px solid #ef4444';
+                            cardBg = '#fef2f2';
+                            textColor = '#991b1b';
+                          } else if (isSelectedByStudent && !studentSubmitted) {
+                            cardBorder = '2px solid #0e7490';
+                            cardBg = '#f0fdfa';
+                            textColor = '#0e7490';
+                          }
 
                           return (
                             <div 
                               key={oIdx}
+                              onClick={() => {
+                                if (activeTab === 'student' && !studentSubmitted) {
+                                  setStudentAnswers(prev => ({ ...prev, [idx]: oIdx }));
+                                }
+                              }}
                               style={{
                                 padding: '10px 14px',
                                 borderRadius: '8px',
-                                border: (showAsCorrect || (canEdit && activeTab === 'studio' && isCorrect)) ? '2px solid #10b981' : '1px solid #e2e8f0',
-                                background: (showAsCorrect || (canEdit && activeTab === 'studio' && isCorrect)) ? '#ecfdf5' : '#f8fafc',
+                                border: cardBorder,
+                                background: cardBg,
                                 display: 'flex',
                                 alignItems: 'center',
+                                justifyContent: 'space-between',
                                 gap: '10px',
-                                fontSize: '13px'
+                                fontSize: '13px',
+                                cursor: (activeTab === 'student' && !studentSubmitted) ? 'pointer' : 'default',
+                                transition: 'all 0.15s ease'
                               }}
                             >
                               {canEdit && activeTab === 'studio' ? (
@@ -1481,17 +1912,36 @@ export default function LessonWorksheetModal({
                                 </div>
                               ) : (
                                 <>
-                                  <span style={{
-                                    width: '18px',
-                                    height: '18px',
-                                    borderRadius: '50%',
-                                    border: showAsCorrect ? '5px solid #10b981' : '1.5px solid #94a3b8',
-                                    display: 'inline-block',
-                                    flexShrink: 0
-                                  }} />
-                                  <span style={{ fontWeight: showAsCorrect ? 'bold' : 'normal', color: showAsCorrect ? '#065f46' : '#334155' }}>
-                                    {opt}
-                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{
+                                      width: '18px',
+                                      height: '18px',
+                                      borderRadius: '50%',
+                                      border: (isSelectedByStudent || showAsCorrect)
+                                        ? `5px solid ${showAsCorrect ? '#10b981' : (isStudentWrong ? '#ef4444' : '#0e7490')}`
+                                        : '1.5px solid #94a3b8',
+                                      display: 'inline-block',
+                                      flexShrink: 0
+                                    }} />
+                                    <span style={{ fontWeight: (showAsCorrect || isSelectedByStudent) ? 'bold' : 'normal', color: textColor }}>
+                                      {opt}
+                                    </span>
+                                  </div>
+
+                                  {studentSubmitted && (
+                                    <div style={{ flexShrink: 0 }}>
+                                      {isCorrect && (
+                                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#059669', background: '#d1fae5', padding: '2px 8px', borderRadius: '6px' }}>
+                                          ✓ الإجابة النموذجية
+                                        </span>
+                                      )}
+                                      {isStudentWrong && (
+                                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#dc2626', background: '#fee2e2', padding: '2px 8px', borderRadius: '6px' }}>
+                                          ✗ اختيارك
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -1538,22 +1988,49 @@ export default function LessonWorksheetModal({
                     <div style={{ display: 'flex', gap: '20px', marginRight: '34px', marginTop: '8px', flexWrap: 'wrap' }}>
                       {['صح (True)', 'خطأ (False)'].map((choice, cIdx) => {
                         const isCorrect = q.correctOption === cIdx;
-                        const showAsCorrect = activeTab === 'teacher' && isCorrect;
+                        const showAsCorrect = (activeTab === 'teacher' && isCorrect) || (studentSubmitted && isCorrect);
+                        const isSelectedByStudent = studentAnswers[idx] === cIdx;
+                        const isStudentWrong = studentSubmitted && isSelectedByStudent && !isCorrect;
+
+                        let bdr = '1px solid #cbd5e1';
+                        let bg = '#f8fafc';
+                        let clr = '#334155';
+
+                        if (showAsCorrect) {
+                          bdr = '2px solid #10b981';
+                          bg = '#ecfdf5';
+                          clr = '#065f46';
+                        } else if (isStudentWrong) {
+                          bdr = '2px solid #ef4444';
+                          bg = '#fef2f2';
+                          clr = '#991b1b';
+                        } else if (isSelectedByStudent && !studentSubmitted) {
+                          bdr = '2px solid #0e7490';
+                          bg = '#f0fdfa';
+                          clr = '#0e7490';
+                        }
 
                         return (
                           <div 
                             key={cIdx}
+                            onClick={() => {
+                              if (activeTab === 'student' && !studentSubmitted) {
+                                setStudentAnswers(prev => ({ ...prev, [idx]: cIdx }));
+                              }
+                            }}
                             style={{
                               padding: '8px 20px',
                               borderRadius: '8px',
-                              border: (showAsCorrect || (canEdit && activeTab === 'studio' && isCorrect)) ? '2px solid #10b981' : '1px solid #cbd5e1',
-                              background: (showAsCorrect || (canEdit && activeTab === 'studio' && isCorrect)) ? '#ecfdf5' : '#f8fafc',
+                              border: bdr,
+                              background: bg,
                               display: 'flex',
                               alignItems: 'center',
                               gap: '8px',
-                              fontWeight: (showAsCorrect || (canEdit && activeTab === 'studio' && isCorrect)) ? 'bold' : '500',
-                              color: (showAsCorrect || (canEdit && activeTab === 'studio' && isCorrect)) ? '#065f46' : '#334155',
-                              fontSize: '13px'
+                              fontWeight: (showAsCorrect || isSelectedByStudent) ? 'bold' : '500',
+                              color: clr,
+                              fontSize: '13px',
+                              cursor: (activeTab === 'student' && !studentSubmitted) ? 'pointer' : 'default',
+                              transition: 'all 0.15s ease'
                             }}
                           >
                             {canEdit && activeTab === 'studio' ? (
@@ -1572,8 +2049,18 @@ export default function LessonWorksheetModal({
                               </label>
                             ) : (
                               <>
-                                <Square size={16} color={showAsCorrect ? '#10b981' : '#94a3b8'} />
+                                {isSelectedByStudent || showAsCorrect ? (
+                                  <CheckSquare size={16} color={showAsCorrect ? '#10b981' : (isStudentWrong ? '#ef4444' : '#0e7490')} />
+                                ) : (
+                                  <Square size={16} color="#94a3b8" />
+                                )}
                                 <span>{choice}</span>
+                                {studentSubmitted && isCorrect && (
+                                  <span style={{ fontSize: '11px', color: '#059669', marginRight: '6px', fontWeight: 'bold' }}>✓ الصحيحة</span>
+                                )}
+                                {studentSubmitted && isStudentWrong && (
+                                  <span style={{ fontSize: '11px', color: '#dc2626', marginRight: '6px', fontWeight: 'bold' }}>✗ اختيارك</span>
+                                )}
                               </>
                             )}
                           </div>
@@ -1586,12 +2073,32 @@ export default function LessonWorksheetModal({
                   {q.type === 'fill_blank' && (
                     <div style={{ marginRight: '34px', marginTop: '10px' }}>
                       {activeTab === 'student' && (
-                        <div style={{
-                          borderBottom: '2px dashed #94a3b8',
-                          height: '28px',
-                          width: '70%',
-                          marginTop: '8px'
-                        }} />
+                        <div>
+                          <input
+                            type="text"
+                            value={studentAnswers[idx] || ''}
+                            onChange={(e) => setStudentAnswers(prev => ({ ...prev, [idx]: e.target.value }))}
+                            disabled={studentSubmitted}
+                            placeholder="✍️ اكتب إجابتك أو المصطلح المناسب هنا..."
+                            style={{
+                              width: '100%',
+                              maxWidth: '460px',
+                              border: studentSubmitted
+                                ? (studentAnswers[idx]?.trim() ? '2px solid #10b981' : '2px solid #cbd5e1')
+                                : '2px solid #0e7490',
+                              borderRadius: '8px',
+                              padding: '8px 14px',
+                              fontSize: '13px',
+                              outline: 'none',
+                              background: studentSubmitted ? '#f8fafc' : '#ffffff'
+                            }}
+                          />
+                          {studentSubmitted && (
+                            <div style={{ marginTop: '8px', fontSize: '12px', color: '#059669', background: '#ecfdf5', padding: '6px 12px', borderRadius: '6px', display: 'inline-block' }}>
+                              💡 <strong>الإجابة النموذجية المقررة:</strong> {q.correctAnswer}
+                            </div>
+                          )}
+                        </div>
                       )}
                       {canEdit && activeTab === 'studio' && (
                         <div style={{ marginTop: '8px' }}>
@@ -1615,16 +2122,31 @@ export default function LessonWorksheetModal({
                   {q.type === 'problem_solving' && (
                     <div style={{ marginRight: '34px', marginTop: '12px' }}>
                       {activeTab === 'student' && (
-                        <div style={{
-                          border: '1px dashed #cbd5e1',
-                          borderRadius: '8px',
-                          background: '#fcfcfc',
-                          height: '90px',
-                          padding: '8px',
-                          color: '#94a3b8',
-                          fontSize: '12px'
-                        }}>
-                          مساحة مخصصة لكتابة خطوات الحل الرياضي أو العلمي بدقة:
+                        <div>
+                          <textarea
+                            rows={3}
+                            value={studentAnswers[idx] || ''}
+                            onChange={(e) => setStudentAnswers(prev => ({ ...prev, [idx]: e.target.value }))}
+                            disabled={studentSubmitted}
+                            placeholder="✍️ اكتب خطوات الحل والنتائج والقوانين بالتفصيل هنا..."
+                            style={{
+                              width: '100%',
+                              maxWidth: '650px',
+                              border: '2px solid #cbd5e1',
+                              borderRadius: '8px',
+                              padding: '10px 14px',
+                              fontSize: '13px',
+                              outline: 'none',
+                              resize: 'vertical',
+                              background: studentSubmitted ? '#f8fafc' : '#ffffff'
+                            }}
+                          />
+                          {studentSubmitted && (
+                            <div style={{ marginTop: '8px', fontSize: '12px', color: '#059669', background: '#ecfdf5', padding: '8px 12px', borderRadius: '6px' }}>
+                              💡 <strong>خطوات ودليل الحل النموذجي:</strong>
+                              <div style={{ marginTop: '4px', whiteSpace: 'pre-line' }}>{q.correctAnswer}</div>
+                            </div>
+                          )}
                         </div>
                       )}
                       {canEdit && activeTab === 'studio' && (
@@ -1686,9 +2208,9 @@ export default function LessonWorksheetModal({
                             const itemA = q.columnA[rIdx];
                             const itemB = q.columnB[rIdx];
 
-                            // Check teacher match key if in teacher tab
+                            // Check teacher match key
                             let matchKey = null;
-                            if (activeTab === 'teacher' && itemA && q.correctAnswer) {
+                            if (itemA && q.correctAnswer) {
                               const regex = new RegExp(`\\(${itemA.num}\\s*[➔->:]\\s*([^)]+)\\)`);
                               const m = q.correctAnswer.match(regex);
                               if (m) matchKey = m[1].trim();
@@ -1708,24 +2230,74 @@ export default function LessonWorksheetModal({
                                 }}>
                                   {itemA ? (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      {/* Student answer bracket: (    ) */}
-                                      <span style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        minWidth: '40px',
-                                        height: '24px',
-                                        padding: '0 4px',
-                                        border: activeTab === 'teacher' && matchKey ? '1.5px solid #10b981' : '1.5px solid #94a3b8',
-                                        borderRadius: '6px',
-                                        background: activeTab === 'teacher' && matchKey ? '#ecfdf5' : '#ffffff',
-                                        fontWeight: 'bold',
-                                        fontSize: '12px',
-                                        color: activeTab === 'teacher' && matchKey ? '#059669' : '#64748b',
-                                        flexShrink: 0
-                                      }}>
-                                        (&nbsp;{matchKey || <span style={{ display: 'inline-block', width: '16px' }} />}&nbsp;)
-                                      </span>
+                                      {/* Student answer dropdown / bracket */}
+                                      {activeTab === 'student' ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <select
+                                            value={studentAnswers[idx]?.[itemA.num] || ''}
+                                            onChange={(e) => {
+                                              const val = e.target.value;
+                                              setStudentAnswers(prev => ({
+                                                ...prev,
+                                                [idx]: {
+                                                  ...(prev[idx] || {}),
+                                                  [itemA.num]: val
+                                                }
+                                              }));
+                                            }}
+                                            disabled={studentSubmitted}
+                                            style={{
+                                              height: '28px',
+                                              padding: '0 6px',
+                                              borderRadius: '6px',
+                                              border: studentSubmitted
+                                                ? (matchKey && studentAnswers[idx]?.[itemA.num] === matchKey ? '2px solid #10b981' : '2px solid #ef4444')
+                                                : '1.5px solid #0e7490',
+                                              background: studentSubmitted
+                                                ? (matchKey && studentAnswers[idx]?.[itemA.num] === matchKey ? '#ecfdf5' : '#fef2f2')
+                                                : 'white',
+                                              fontWeight: 'bold',
+                                              fontSize: '12px',
+                                              color: '#0e7490',
+                                              cursor: studentSubmitted ? 'default' : 'pointer'
+                                            }}
+                                          >
+                                            <option value="">( اختر )</option>
+                                            {q.columnB.map(b => (
+                                              <option key={b.label} value={b.label}>
+                                                ({b.label})
+                                              </option>
+                                            ))}
+                                          </select>
+                                          {studentSubmitted && matchKey && (
+                                            <span style={{
+                                              fontSize: '11px',
+                                              fontWeight: 'bold',
+                                              color: studentAnswers[idx]?.[itemA.num] === matchKey ? '#059669' : '#dc2626'
+                                            }}>
+                                              {studentAnswers[idx]?.[itemA.num] === matchKey ? '✓ صحيح' : `✗ (الصحيح: ${matchKey})`}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <span style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          minWidth: '40px',
+                                          height: '24px',
+                                          padding: '0 4px',
+                                          border: activeTab === 'teacher' && matchKey ? '1.5px solid #10b981' : '1.5px solid #94a3b8',
+                                          borderRadius: '6px',
+                                          background: activeTab === 'teacher' && matchKey ? '#ecfdf5' : '#ffffff',
+                                          fontWeight: 'bold',
+                                          fontSize: '12px',
+                                          color: activeTab === 'teacher' && matchKey ? '#059669' : '#64748b',
+                                          flexShrink: 0
+                                        }}>
+                                          (&nbsp;{matchKey || <span style={{ display: 'inline-block', width: '16px' }} />}&nbsp;)
+                                        </span>
+                                      )}
 
                                       {/* Item Number */}
                                       <span style={{
@@ -1816,8 +2388,8 @@ export default function LessonWorksheetModal({
                     </div>
                   )}
 
-                  {/* Teacher Model Answer Box (Visible ONLY in Teacher / Admin view) */}
-                  {activeTab === 'teacher' && (
+                  {/* Model Answer & Pedagogical Explanation Box (Visible in Teacher / Admin view, and revealed to Student after submission) */}
+                  {(activeTab === 'teacher' || studentSubmitted) && (
                     <div style={{
                       marginTop: '14px',
                       marginRight: '34px',
@@ -1972,16 +2544,29 @@ export default function LessonWorksheetModal({
                 )}
 
                 {activeTab === 'student' ? (
-                  <div style={{
-                    border: '1px dashed #d97706',
-                    borderRadius: '8px',
-                    background: 'white',
-                    height: '80px',
-                    padding: '8px',
-                    fontSize: '12px',
-                    color: '#94a3b8'
-                  }}>
-                    مساحة إجابة سؤال التحدي والتفكير الإبداعي:
+                  <div>
+                    <textarea
+                      rows={3}
+                      value={studentAnswers['bonus'] || ''}
+                      onChange={(e) => setStudentAnswers(prev => ({ ...prev, bonus: e.target.value }))}
+                      disabled={studentSubmitted}
+                      placeholder="✍️ اكتب فكرتك أو إجابتك الإبداعية لسؤال التحدي هنا..."
+                      style={{
+                        width: '100%',
+                        border: '1.5px solid #d97706',
+                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        fontSize: '13px',
+                        outline: 'none',
+                        background: 'white',
+                        resize: 'vertical'
+                      }}
+                    />
+                    {studentSubmitted && (
+                      <div style={{ marginTop: '8px', fontSize: '12px', color: '#b45309', background: '#fffbeb', padding: '8px 12px', borderRadius: '6px' }}>
+                        💡 <strong>معيار ودليل الإجابة النموذجية للتحدي:</strong> {bonusQuestion.modelAnswer}
+                      </div>
+                    )}
                   </div>
                 ) : canEdit && activeTab === 'studio' ? (
                   <div>
@@ -2027,6 +2612,118 @@ export default function LessonWorksheetModal({
           </div>
 
         </div>
+
+        {/* Student Bottom Solving & Submission Bar */}
+        {activeTab === 'student' && !canEdit && (
+          <div className="no-print" style={{
+            padding: '16px 24px',
+            background: '#f8fafc',
+            borderTop: '1px solid #e2e8f0',
+            borderBottomLeftRadius: '20px',
+            borderBottomRightRadius: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Clock size={18} color="#0e7490" />
+              <span style={{ fontSize: '13px', color: '#475569' }}>
+                {studentSubmitted ? (
+                  <strong style={{ color: '#059669' }}>✓ تم اعتماد وتسليم ورقة العمل</strong>
+                ) : (
+                  <span>الوقت المتبقي: <strong style={{ color: '#0e7490', fontFamily: 'monospace' }}>{formatTime(timeRemaining)}</strong></span>
+                )}
+              </span>
+            </div>
+
+            <div>
+              {!studentSubmitted ? (
+                <button
+                  type="button"
+                  onClick={() => handleStudentSubmit(false)}
+                  disabled={isSubmitting}
+                  style={{
+                    background: 'linear-gradient(135deg, #0e7490, #10b981)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 28px',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(14, 116, 144, 0.25)'
+                  }}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader size={16} className="spin" /> جاري تسليم وحساب الدرجة...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={18} /> تسليم ورقة العمل واعتماد الحل 🚀
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={handlePrint}
+                    style={{
+                      background: '#0e7490',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 18px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Printer size={16} /> طباعة ورقة العمل مع الحل
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('هل تود إعادة محاولة حل ورقة العمل مرة أخرى من البداية؟')) {
+                        setStudentSubmitted(false);
+                        setStudentAnswers({});
+                        setSubmissionScore(null);
+                        setSubmissionPercentage(null);
+                        setTimeRemaining(selectedDuration * 60);
+                        setTimerRunning(true);
+                        setTimerEnded(false);
+                      }
+                    }}
+                    style={{
+                      background: 'white',
+                      color: '#0e7490',
+                      border: '1.5px solid #0e7490',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <RefreshCw size={16} /> إعادة المحاولة 🔄
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Bottom Save & Publish Bar (For Teacher / Admin) */}
         {canEdit && (
