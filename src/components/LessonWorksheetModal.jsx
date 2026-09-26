@@ -15,6 +15,33 @@ import LatexMathToolbar from './LatexMathToolbar';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
+// Helper: normalize answers for reliable matching comparison (handles English case, Arabic tatweel, Alif forms)
+export const normalizeAnswerKey = (str) => {
+  if (!str) return '';
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .replace(/\u0640/g, '') // remove Arabic tatweel (kashida)
+    .replace(/[إأآا]/g, 'ا'); // normalize Arabic Alif
+};
+
+// Helper: robustly extract expected matching key for an item from correctAnswer text
+export const getMatchingCorrectAnswer = (correctAnswerText, itemNum) => {
+  if (!correctAnswerText || itemNum === undefined || itemNum === null) return null;
+  const numWestern = String(itemNum).trim().replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+  const numArabic = String(itemNum).trim().replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+  const numPattern = numWestern === numArabic ? numWestern : `${numWestern}|${numArabic}`;
+  try {
+    // Note: '-' is safely placed at start of character class [-:] to avoid Range out of order SyntaxError
+    const regex = new RegExp(`(?:\\(|^|\\s)(?:${numPattern})\\s*(?:➔|→|->|[-:])\\s*([^),;،\\n\\r]+)\\)?`);
+    const m = String(correctAnswerText).match(regex);
+    return m ? m[1].trim() : null;
+  } catch (e) {
+    console.error('Error parsing matching correct answer:', e);
+    return null;
+  }
+};
+
 export default function LessonWorksheetModal({
   isOpen,
   onClose,
@@ -486,10 +513,8 @@ export default function LessonWorksheetModal({
         let matchedCorrectly = 0;
         q.columnA?.forEach(itemA => {
           const studentChoice = userAns?.[itemA.num];
-          const regex = new RegExp(`\\(${itemA.num}\\s*[➔->:]\\s*([^)]+)\\)`);
-          const m = (q.correctAnswer || '').match(regex);
-          const correctChoice = m ? m[1].trim() : null;
-          if (studentChoice && correctChoice && studentChoice === correctChoice) {
+          const correctChoice = getMatchingCorrectAnswer(q.correctAnswer, itemA.num);
+          if (studentChoice && correctChoice && normalizeAnswerKey(studentChoice) === normalizeAnswerKey(correctChoice)) {
             matchedCorrectly += 1;
           }
         });
@@ -2262,10 +2287,10 @@ export default function LessonWorksheetModal({
                             // Check teacher match key
                             let matchKey = null;
                             if (itemA && q.correctAnswer) {
-                              const regex = new RegExp(`\\(${itemA.num}\\s*[➔->:]\\s*([^)]+)\\)`);
-                              const m = q.correctAnswer.match(regex);
-                              if (m) matchKey = m[1].trim();
+                              matchKey = getMatchingCorrectAnswer(q.correctAnswer, itemA.num);
                             }
+                            const studentAnsVal = studentAnswers[idx]?.[itemA.num];
+                            const isMatchCorrect = studentSubmitted && matchKey && studentAnsVal && normalizeAnswerKey(studentAnsVal) === normalizeAnswerKey(matchKey);
 
                             return (
                               <tr key={rIdx} style={{
@@ -2285,7 +2310,7 @@ export default function LessonWorksheetModal({
                                       {activeTab === 'student' ? (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                           <select
-                                            value={studentAnswers[idx]?.[itemA.num] || ''}
+                                            value={studentAnsVal || ''}
                                             onChange={(e) => {
                                               const val = e.target.value;
                                               setStudentAnswers(prev => ({
@@ -2302,10 +2327,10 @@ export default function LessonWorksheetModal({
                                               padding: '0 6px',
                                               borderRadius: '6px',
                                               border: studentSubmitted
-                                                ? (matchKey && studentAnswers[idx]?.[itemA.num] === matchKey ? '2px solid #10b981' : '2px solid #ef4444')
+                                                ? (isMatchCorrect ? '2px solid #10b981' : '2px solid #ef4444')
                                                 : '1.5px solid #0e7490',
                                               background: studentSubmitted
-                                                ? (matchKey && studentAnswers[idx]?.[itemA.num] === matchKey ? '#ecfdf5' : '#fef2f2')
+                                                ? (isMatchCorrect ? '#ecfdf5' : '#fef2f2')
                                                 : 'white',
                                               fontWeight: 'bold',
                                               fontSize: '12px',
@@ -2324,9 +2349,9 @@ export default function LessonWorksheetModal({
                                             <span style={{
                                               fontSize: '11px',
                                               fontWeight: 'bold',
-                                              color: studentAnswers[idx]?.[itemA.num] === matchKey ? '#059669' : '#dc2626'
+                                              color: isMatchCorrect ? '#059669' : '#dc2626'
                                             }}>
-                                              {studentAnswers[idx]?.[itemA.num] === matchKey ? '✓ صحيح' : `✗ (الصحيح: ${matchKey})`}
+                                              {isMatchCorrect ? '✓ صحيح' : `✗ (الصحيح: ${matchKey})`}
                                             </span>
                                           )}
                                         </div>
