@@ -424,9 +424,16 @@ export default function LessonWorksheetModal({
     URL.revokeObjectURL(url);
   };
 
-  // Print worksheet
+  // Print worksheet with clean document title
   const handlePrint = () => {
+    const originalTitle = document.title;
+    const cleanLesson = (lessonTitle || 'الدرس').replace(/[/\\?%*:|"<>]/g, '_').trim();
+    const cleanSubject = (subject || '').replace(/[/\\?%*:|"<>]/g, '_').trim();
+    document.title = `ورقة_عمل_${cleanLesson}_${cleanSubject}`;
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   };
 
   if (!isOpen) return null;
@@ -1145,6 +1152,7 @@ export default function LessonWorksheetModal({
               return (
                 <div 
                   key={q.id || idx}
+                  className="worksheet-question-card"
                   style={{
                     background: 'white',
                     border: '1px solid #e2e8f0',
@@ -1152,7 +1160,8 @@ export default function LessonWorksheetModal({
                     padding: '16px',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
                     position: 'relative',
-                    pageBreakInside: 'avoid'
+                    pageBreakInside: 'avoid',
+                    breakInside: 'avoid'
                   }}
                 >
                   {/* Question Header */}
@@ -1233,6 +1242,7 @@ export default function LessonWorksheetModal({
                       {canEdit && activeTab !== 'studio' && (
                         <button
                           type="button"
+                          className="no-print"
                           onClick={() => {
                             setActiveTab('studio');
                             setEditingQIndex(idx);
@@ -1289,6 +1299,7 @@ export default function LessonWorksheetModal({
                       {canEdit && activeTab === 'studio' && (
                         <button
                           type="button"
+                          className="no-print"
                           onClick={() => removeQuestion(idx)}
                           style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#ef4444', cursor: 'pointer', padding: '5px', borderRadius: '6px' }}
                           title="حذف هذا السؤال"
@@ -1878,7 +1889,7 @@ export default function LessonWorksheetModal({
 
             {/* Add Question Button in Studio Mode */}
             {canEdit && activeTab === 'studio' && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              <div className="no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                 <button
                   type="button"
                   onClick={() => addNewQuestion('mcq')}
@@ -1997,14 +2008,16 @@ export default function LessonWorksheetModal({
 
           {/* Printable Footer & Signatures */}
           <div style={{
-            marginTop: '30px',
+            marginTop: '24px',
             borderTop: '2px solid #e2e8f0',
-            paddingTop: '16px',
+            paddingTop: '14px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             fontSize: '13px',
-            color: '#475569'
+            color: '#475569',
+            pageBreakInside: 'avoid',
+            breakInside: 'avoid'
           }}>
             <div>توقيع معلم المادة: ....................................</div>
             <div style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>
@@ -2094,40 +2107,110 @@ export default function LessonWorksheetModal({
           animation: spin 1s linear infinite;
         }
         @media print {
-          body * {
-            visibility: hidden !important;
+          *, *:before, *:after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
           }
-          .worksheet-modal-root,
-          .worksheet-modal-root * {
-            visibility: visible !important;
-          }
-          .worksheet-modal-root {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
+          html, body {
             height: auto !important;
-            background: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
+            min-height: 100% !important;
             overflow: visible !important;
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-size: 11pt !important;
           }
-          .no-print {
+          /* Completely hide EVERYTHING under body except the worksheet modal container so NO blank pages exist! */
+          body > *:not(.worksheet-modal-root) {
             display: none !important;
           }
-          #printable-worksheet-content {
-            padding: 10mm 15mm !important;
+          .no-print, .no-print * {
+            display: none !important;
+          }
+          button, .btn {
+            display: none !important;
+          }
+          .worksheet-modal-root {
+            position: static !important;
+            inset: auto !important;
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            min-height: auto !important;
             width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
+            display: block !important;
+            backdrop-filter: none !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: auto !important;
+          }
+          .worksheet-modal-root .glass-panel {
+            position: static !important;
+            inset: auto !important;
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            min-height: auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            display: block !important;
+          }
+          #printable-worksheet-content,
+          #printable-worksheet-content * {
+            visibility: visible !important;
+          }
+          #printable-worksheet-content {
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: #ffffff !important;
+            display: block !important;
             box-sizing: border-box !important;
+          }
+          #printable-worksheet-content > div {
+            display: block !important;
           }
           .worksheet-question-card {
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            border: 1.5px solid #cbd5e1 !important;
+            box-shadow: none !important;
+            margin-bottom: 12px !important;
+            padding: 12px 16px !important;
+            display: block !important;
+            background: #ffffff !important;
           }
           .question-image-container img {
             max-height: 180px !important;
             max-width: 100% !important;
             object-fit: contain !important;
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 10mm 12mm 12mm 12mm;
           }
         }
       `}</style>
