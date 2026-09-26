@@ -812,5 +812,61 @@ body {
   }
 }
 
+/* ========================================================
+   🌐 Multi-Language & Google Translate Seamless Integration
+   ======================================================== */
 
+/* Google Translate Silent Integration: Zero layout shifts, no top banners */
+.goog-te-banner-frame.skiptranslate,
+.goog-te-banner-frame,
+iframe.goog-te-banner-frame,
+.goog-te-banner {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  border: none !important;
+}
 
+body {
+  top: 0px !important;
+  position: static !important;
+}
+
+#goog-gt-tt,
+.goog-te-balloon-frame {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+#google_translate_element {
+  display: none !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+}
+
+.skiptranslate:not(.allowed-translate) {
+  display: none !important;
+}
+
+/* Dropdown Animation */
+@keyframes langDropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.language-switcher-btn:hover .lang-globe-icon {
+  transform: rotate(25deg);
+}

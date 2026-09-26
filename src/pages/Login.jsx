@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import AboutSchoolModal from '../components/AboutSchoolModal';
 import QiyasPlatformModal from '../components/QiyasPlatformModal';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import './Login.css';
 
 const ROLE_NAMES = {
@@ -582,6 +583,16 @@ export default function Login() {
             <span>من نحن</span>
             <Sparkles size={13} color="#38bdf8" />
           </button>
+
+          {/* Multi-Language Switcher (AR / EN / ZH) */}
+          <div style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            zIndex: 25
+          }}>
+            <LanguageSwitcher variant="login" />
+          </div>
 
           <div className="login-header">
             <div className="logo-container" style={{ width: '100px', height: '100px', background: 'transparent', boxShadow: 'none' }}>

@@ -1,3 +1,5 @@
+import { zhTranslations } from './zh';
+
 export const translations = {
   "ar": {
     "header.arabic": "عربي",
@@ -1545,5 +1547,6 @@ export const translations = {
     "staff.customRolePlaceholder": "e.g. Learning Resource Specialist, Activity Leader...",
     "staff.applyTemplate": "Apply Template",
     "staff.quickActions": "Quick Actions to Expand or Reduce Permissions"
-  }
+  },
+  "zh": zhTranslations
 };
