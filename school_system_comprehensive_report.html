@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>التقرير الشامل والموسوعي لمنظومة الإدارة المدرسية والتعليم الذكي</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+
+    @page {
+      size: A4;
+      margin: 15mm 15mm 15mm 15mm;
+      @bottom-center {
+        content: "صفحة " counter(page);
+        font-family: 'Cairo', sans-serif;
+        font-size: 10pt;
+        color: #64748b;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+      color: #1e293b;
+      line-height: 1.6;
+      font-size: 11pt;
+      direction: rtl;
+      text-align: right;
+    }
+
+    /* Cover / Header Section */
+    .header-banner {
+      background: linear-gradient(135deg, #0e7490 0%, #155e75 50%, #083344 100%);
+      color: #ffffff;
+      padding: 30px;
+      border-radius: 16px;
+      margin-bottom: 25px;
+      box-shadow: 0 10px 25px -5px rgba(14, 116, 144, 0.25);
+      border: 1px solid #164e63;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+    }
+
+    .ministry-title {
+      font-size: 11pt;
+      line-height: 1.4;
+      font-weight: 600;
+      color: #e0f2fe;
+    }
+
+    .report-badge {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 9.5pt;
+      font-weight: bold;
+      color: #f0fdfa;
+      letter-spacing: 0.5px;
+    }
+
+    .main-title {
+      font-size: 24pt;
+      font-weight: 900;
+      margin: 0 0 10px 0;
+      color: #ffffff;
+      line-height: 1.3;
+    }
+
+    .subtitle {
+      font-size: 13pt;
+      font-weight: 500;
+      color: #bae6fd;
+      margin: 0 0 20px 0;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 14px 18px;
+      border-radius: 10px;
+      font-size: 9.5pt;
+    }
+
+    .meta-item strong {
+      color: #67e8f9;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    /* Section Styling */
+    .section-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 22px;
+      margin-bottom: 22px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+      page-break-inside: avoid;
+    }
+
+    .section-title {
+      font-size: 15pt;
+      font-weight: 800;
+      color: #0e7490;
+      border-bottom: 2px solid #e0f2fe;
+      padding-bottom: 10px;
+      margin-top: 0;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title .icon {
+      font-size: 18pt;
+    }
+
+    h3 {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #1e293b;
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin: 0 0 10px 0;
+      color: #334155;
+      text-align: justify;
+    }
+
+    /* Cards Grid */
+    .portals-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .portal-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      background: #f8fafc;
+    }
+
+    .portal-box.cyan { border-right: 4px solid #0e7490; }
+    .portal-box.emerald { border-right: 4px solid #059669; }
+    .portal-box.purple { border-right: 4px solid #7c3aed; }
+    .portal-box.amber { border-right: 4px solid #d97706; }
+    .portal-box.blue { border-right: 4px solid #2563eb; }
+    .portal-box.rose { border-right: 4px solid #e11d48; }
+
+    .portal-header {
+      font-weight: 800;
+      font-size: 11pt;
+      color: #0f172a;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .portal-desc {
+      font-size: 9.5pt;
+      color: #475569;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    /* Feature Lists */
+    ul {
+      margin: 6px 0 12px 0;
+      padding-right: 20px;
+      color: #334155;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    /* Comparison Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 9.5pt;
+    }
+
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 8px 12px;
+      text-align: right;
+    }
+
+    th {
+      background-color: #f1f5f9;
+      color: #0e7490;
+      font-weight: 800;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    /* Badges & Tags */
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 8.5pt;
+      font-weight: bold;
+      margin-left: 6px;
+    }
+
+    .badge-cyan { background: #e0f2fe; color: #0369a1; }
+    .badge-green { background: #dcfce7; color: #15803d; }
+    .badge-purple { background: #f3e8ff; color: #7e22ce; }
+    .badge-amber { background: #fef3c7; color: #b45309; }
+
+    /* Visual Feature Callout */
+    .callout {
+      background: #f0fdfa;
+      border: 1.5px solid #99f6e4;
+      border-right: 5px solid #0d9488;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 14px 0;
+      font-size: 10pt;
+      color: #115e59;
+    }
+
+    .callout strong {
+      color: #0f766e;
+    }
+
+    .page-break {
+      page-break-after: always;
+    }
+
+    /* Signature Box at end */
+    .footer-signatures {
+      display: flex;
+      justify-content: space-between;
+      border-top: 2px solid #cbd5e1;
+      padding-top: 20px;
+      margin-top: 30px;
+      font-size: 10pt;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cover / Header Banner -->
+  <div class="header-banner">
+    <div class="header-top">
+      <div class="ministry-title">
+        المملكة العربية السعودية • وزارة التعليم<br>
+        منظومة التحول التعليمي والإدارة المدرسية المتقدمة
+      </div>
+      <div class="report-badge">
+        وثيقة تقنية وهندسية شاملة • الإصدار 2026
+      </div>
+    </div>
+    <h1 class="main-title">التقرير الشامل والموسوعي لمنظومة الإدارة المدرسية والتعليم الذكي</h1>
+    <p class="subtitle">Architecture, AI Pedagogical Engines, Multi-Role Portals & Enterprise Print Capabilities</p>
+    <div class="meta-grid">
+      <div class="meta-item">
+        <strong>بيئة التطوير والتنفيذ:</strong>
+        React 19 • Vite 8 • Firebase
+      </div>
+      <div class="meta-item">
+        <strong>البوابات المستقلة:</strong>
+        7 بوابات إدارية وتربوية متكاملة
+      </div>
+      <div class="meta-item">
+        <strong>محركات الذكاء الاصطناعي:</strong>
+        أوراق العمل • الخطط • القياس النفسي
+      </div>
+      <div class="meta-item">
+        <strong>منظومة الطباعة والتوثيق:</strong>
+        A4 قياسي • وورد (.doc) • باركود
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 1: Strategic Vision -->
+  <div class="section-card">
+    <h2 class="section-title"><span class="icon">🎯</span> 1. الرؤية الاستراتيجية ومعمارية المنظومة</h2>
+    <p>
+      تمثل هذه المنظومة طفرة نوعية في إدارة المدارس والتحول الرقمي التعليمي، حيث تم بناؤها وفق أحدث المعايير البرمجية لتقديم تجربة متكاملة تتوافق حرفياً مع متطلبات <strong>وزارة التعليم وهيئة تقويم التعليم والتدريب (قياس) بالمملكة العربية السعودية</strong>.
+    </p>
+    <p>
+      المنصة لا تكتفي بمهام الرصد الإداري التقليدي، بل تعمل كـ <strong>بيئة حية ذكية</strong> تعتمد على الذكاء الاصطناعي لدعم اتخاذ القرار، وإعداد الخطط التدريسية، وتوليد أوراق العمل التفاعلية الموجهة بالأهداف السلوكية ومستويات بلوم، وتحليل الاختبارات إحصائياً وسيكومترياً بما يضمن الشفافية والعدالة ودقة المخرجات.
+    </p>
+    <div class="callout">
+      <strong>💎 القيمة الجوهرية المضافة:</strong>
+      تحقيق التكامل الرقمي الكامل بين الطالب والمعلم وولي الأمر والقيادة المدرسية في بيئة سحابية لحظية آمنة خالية من الأخطاء التراكمية.
+    </div>
+  </div>
+
+  <!-- Section 2: The 7 Portals -->
+  <div class="section-card">
+    <h2 class="section-title"><span class="icon">🏛️</span> 2. هيكلية البوابات السبع المستقلة (Role-Based Portals)</h2>
+    <p>
+      تعتمد معمارية النظام على عزل الصلاحيات الدقيق (RBAC)، مما يمنح كل مستخدم واجهة عمل مخصصة تلبي احتياجاته اليومية دون تشتيت:
+    </p>
+
+    <div class="portals-grid">
+      <div class="portal-box cyan">
+        <div class="portal-header">👑 1. بوابة القيادة والمدير (Admin)</div>
+        <p class="portal-desc">
+          لوحة قيادة ومؤشرات حية، إدارة الشعب، الجداول المدرسية، إسناد المواد، اعتماد التحاضير وأوراق العمل، ومتابعة معايير الاعتماد والتميز المدرسي.
+        </p>
+      </div>
+
+      <div class="portal-box emerald">
+        <div class="portal-header">👨‍🏫 2. بوابة المعلم الفائقة (Teacher)</div>
+        <p class="portal-desc">
+          مساعد التحضير الذكي، استوديو أوراق العمل بالذكاء الاصطناعي، رصد الدرجات السريع (Excel-like Grid)، بنك الأسئلة المشترك، وملف الإنجاز المهني.
+        </p>
+      </div>
+
+      <div class="portal-box purple">
+        <div class="portal-header">🎓 3. بوابة الطالب التفاعلية (Student)</div>
+        <p class="portal-desc">
+          الجدول الدراسي اليومي، الخطة الأسبوعية والواجبات، حل أوراق العمل والاختبارات، شروحات المعلمين، ونظام النقاط والشارات التحفيزية (Gamification).
+        </p>
+      </div>
+
+      <div class="portal-box amber">
+        <div class="portal-header">👨‍👩‍👧 4. بوابة ولي الأمر (Parent)</div>
+        <p class="portal-desc">
+          متابعة فورية متعددة لجميع الأبناء، سجل الحضور والغياب اليومي مع التبرير، تقارير نتائج الاختبارات البيانية، والاطلاع على أوراق العمل والخطط.
+        </p>
+      </div>
+
+      <div class="portal-box blue">
+        <div class="portal-header">🔍 5. بوابة الإشراف التربوي (Supervisor)</div>
+        <p class="portal-desc">
+          تقييم أداء المعلمين بالزيارات الصفية المقننة، تحليل نواتج التعلم وتوزيع مستويات بلوم، وإحصائيات المقارنة والتباين بين الشعب الدراسية.
+        </p>
+      </div>
+
+      <div class="portal-box rose">
+        <div class="portal-header">📑 6. بوابة الكادر الإداري والسكرتارية (Staff)</div>
+        <p class="portal-desc">
+          سجل القيد والبيانات الشاملة للطلاب، تصدير المشاهد والخطابات الرسمية، التكامل مع نظام نور المركزي، وإدارة الوارد والصادر المدرسي.
+        </p>
+      </div>
+    </div>
+
+    <div style="margin-top: 14px;" class="portal-box">
+      <div class="portal-header">🌐 7. بوابة الإدارة العامة متعددة المدارس (SuperAdmin & Multi-Tenancy)</div>
+      <p class="portal-desc">
+        إدارة شبكة مجمعات ومدارس متعددة مع عزل أمني تام للبيانات، تخصيص الهوية والشعار واللغة لكل مدرسة، وأدوات الترحيل والنسخ الاحتياطي السحابي.
+      </p>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- Section 3: AI Innovations & Question Types -->
+  <div class="section-card">
+    <h2 class="section-title"><span class="icon">✨</span> 3. محركات الذكاء الاصطناعي والتفردات التربوية</h2>
+    
+    <h3>أ) محرك توليد أوراق العمل الذكي الموجه بالأهداف (aiWorksheetGenerator)</h3>
+    <p>
+      ابتكار حصري يقوم بقراءة الأهداف السلوكية للدرس وتحويلها إلى أسئلة مقننة تغطي المستويات المعرفية لهرم بلوم (تذكر، فهم، تطبيق، تحليل، تقويم):
+    </p>
+
+    <ul>
+      <li><strong>1. أسئلة الاختيار من متعدد (MCQ):</strong> 4 خيارات تربوية موزونة بعناية، مع تعليل علمي لسبب صحة الخيار المعتمد.</li>
+      <li><strong>2. أسئلة الصواب والخطأ (True/False):</strong> عبارات محكمة تصحح المفاهيم الخاطئة الشائعة وتبرهن الحقيقة العلمية.</li>
+      <li><strong>3. إكمال الفراغ والمصطلحات (Fill in Blanks):</strong> ترسيخ المفردات العلمية والقوانين والمصطلحات التخصصية.</li>
+      <li><strong>4. أسئلة المزاوجة والربط (Matching Questions - صل بين العمود أ والعمود ب):</strong>
+        <br>
+        مصفوفة ثنائية الأبعاد تقابل بين المفاهيم في العمود (أ) وما يطابقها من تعريفات وقوانين في العمود (ب)، مع توليد دليل الربط النموذجي التلقائي <code>(١ ➔ ب)، (٢ ➔ أ)...</code>، وعرض أقواس مخصصة لكتابة الطالب.
+      </li>
+      <li><strong>5. مسائل التفكير الناقد والمقالي (Problem Solving):</strong> تتضمن خطوات الحل النموذجي التدريجي ومساحة مخصصة للحل الإنشائي.</li>
+      <li><strong>⭐ سؤال التحدي والمهارات العليا (Bonus Challenge):</strong> سؤال إبداعي يربط الدرس بتطبيقات الحياة اليومية ورؤية المستقبل.</li>
+    </ul>
+
+    <h3>ب) محرك الجداول والخطط الأسبوعية الآلية (aiPlanGenerator)</h3>
+    <p>
+      أتمتة بناء الجداول والحصص الأسبوعية ومنع تضارب القاعات أو المعلمين مع مراعاة النصاب الأسبوعي للأنصبة التعليمية المعتمدة.
+    </p>
+
+    <h3>ج) محرك التلعيب والتحفيز المؤسسي (Gamification Engine)</h3>
+    <p>
+      نظام تفاعلي يحسب معدلات النشاط اليومي للمعلمين والطلاب، ويمنح شارات استحقاق ورتباً تقديرية ترفع التنافسية والإيجابية داخل المدرسة.
+    </p>
+  </div>
+
+  <!-- Section 4: Seamless Branching & UX -->
+  <div class="section-card">
+    <h2 class="section-title"><span class="icon">🧭</span> 4. سهولة التفرع وانسيابية تجربة المستخدم (UX / Navigation)</h2>
+    <ul>
+      <li><strong>نظام النوافذ المحمولة (Smart React Portals):</strong> يستطيع المعلم أو المدير إجراء التعديلات، إعداد أوراق العمل، رصد الدرجات، أو فحص الشواهد عبر نوافذ تفاعلية ذكية تطفو فوق الصفحة دون مغادرة سياق العمل ودون تحميل بطيء.</li>
+      <li><strong>انعدام التيه الرقمي:</strong> هيكل تنقل شجري هرمي يبقي المستخدم دائماً على دراية بموقعه عبر مسارات تتبع واضحة ومؤشرات حالة حية.</li>
+      <li><strong>التطبيق الهاتفي والويب التقدمي (PWA & Capacitor Android):</strong> تجربة هاتفية أصيلة تتيح للمعلمين وأولياء الأمور استخدام النظام كتطبيق هاتف ذكي مباشر بدون أي تعقيد.</li>
+      <li><strong>تحديث البيانات التزامني (Realtime Listeners):</strong> ظهور فوري لبيانات الحضور، الدرجات، وأوراق العمل دون الحاجة لإعادة تحميل المتصفح.</li>
+    </ul>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- Section 5: Advanced Printing & Word Export -->
+  <div class="section-card">
+    <h2 class="section-title"><span class="icon">🖨️</span> 5. منظومة الطباعة الفائقة والتصدير المكتبي (A4 & Word)</h2>
+    <p>
+      صُممت مخرجات الطباعة لتكون متطابقة تماماً مع مواصفات الاختبارات والوثائق الرسمية لوزارة التعليم:
+    </p>
+    <ul>
+      <li><strong>عزل أنماط الطباعة المخصص (@media print):</strong> إخفاء كافة الأزرار وأشرطة التمرير والواجهات الجانبية تلقائياً، والتركيز على المحتوى الأبيض النقي بدقة A4 مثالية.</li>
+      <li><strong>الترويسة الرسمية المعتمدة:</strong> تتضمن شعار الوزارة، اسم إدارة التعليم، اسم المدرسة، ورقم السجل الأكاديمي، وخانات رصد الدرجات المعتمدة.</li>
+      <li><strong>منع انقسام الأسئلة (page-break-inside: avoid):</strong> تقنية تضمن عدم تجزئة أي سؤال أو جدول مزاوجة عبر فواصل الصفحات.</li>
+      <li><strong>التصدير المباشر إلى Microsoft Word (.doc):</strong> تحويل أوراق العمل والاختبارات بضغطة زر إلى ملفات Word منسقة بترميز UTF-8 وجداول أصلية قابلة للتعديل والطباعة دون اتصال.</li>
+      <li><strong>شفرة التحقق الرقمي والباركود:</strong> تضمين باركود إلكتروني موثق في أسفل أوراق العمل والسجلات لتسهيل الأرشفة والتدقيق الرقمي.</li>
+    </ul>
+  </div>
+
+  <!-- Section 6: Languages & Mathematics -->
+  <div class="section-card">
+    <h2 class="section-title"><span class="icon">🌐</span> 6. ثنائية اللغة والتحكم المتقدم بالرموز الرياضية</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px;">
+        <strong style="color: #0e7490;">🇸🇦 المسار الوطني (عربي - RTL):</strong>
+        <p style="font-size: 9.5pt; margin-top: 6px;">
+          • الرموز والمتغيرات: س، ص، ع، ف، ز.<br>
+          • الأرقام: مشرقية (١، ٢، ٣، ٤، ٥).<br>
+          • اتجاه المعادلات: من اليمين للياسر.<br>
+          • القوانين: ط = ١/٢ ك ع² • ع = ف / ز.
+        </p>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px;">
+        <strong style="color: #0e7490;">🇬🇧 المسار العالمي (English - LTR):</strong>
+        <p style="font-size: 9.5pt; margin-top: 6px;">
+          • Variables: x, y, z, v, d, t.<br>
+          • Numbers: Western standard (1, 2, 3).<br>
+          • Equation flow: Left-to-Right.<br>
+          • Formulas: KE = 1/2 m v² • y = mx + b.
+        </p>
+      </div>
+    </div>
+    <p style="margin-top: 12px;">
+      <strong>التعرف الذكي على المدارس الدولية:</strong> يقوم النظام بالتعرف الآلي على أسماء المدارس العالمية (International, American, عالمية) ويقوم بضبط اللغة الافتراضية على الإنجليزية فورياً مع الحفاظ على إمكانية التبديل بنقرة واحدة.
+    </p>
+  </div>
+
+  <!-- Section 7: Psychometrics & National Integrations -->
+  <div class="section-card">
+    <h2 class="section-title"><span class="icon">📊</span> 7. التحليل السيكومتري والربط مع المنصات الوطنية</h2>
+    <ul>
+      <li><strong>معامل السهولة والصعوبة (Item Difficulty - p-value):</strong> قياس مدى ملاءمة كل سؤال للمرحلة العمرية.</li>
+      <li><strong>معامل التمييز (Discrimination Index):</strong> قياس قدرة السؤال على الفرز بين الطلاب المتفوقين والمتعثرين.</li>
+      <li><strong>ثبات الاختبار (Cronbach's Alpha):</strong> قياس الاتساق الداخلي وموثوقية الاختبار علمياً.</li>
+      <li><strong>معامل ارتباط بيرسون:</strong> فحص العلاقة بين التقويم المستمر والاختبارات النهائية لكشف الفجوات التقييمية.</li>
+      <li><strong>التكامل مع نظام نور:</strong> مطابقة كشوف الدرجات والبيانات الأكاديمية مع المعايير الوزارية.</li>
+      <li><strong>محاكاة منصة قياس:</strong> توفير نماذج قياس والقدرات والتحصيلي لتهيئة الطلاب للجامعات.</li>
+    </ul>
+  </div>
+
+  <!-- Comparison Matrix -->
+  <div class="section-card">
+    <h2 class="section-title"><span class="icon">🏆</span> 8. مصفوفة المقارنة والتفوق التنافسي</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>المعيار</th>
+          <th>منظومتنا الذكية المتطورة</th>
+          <th>الأنظمة المدرسية التقليدية</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>أوراق العمل</strong></td>
+          <td>ذكاء اصطناعي مربوط بالأهداف، بلوم، و5 أنماط أسئلة متكاملة</td>
+          <td>قوالب جامدة ومكررة دون ارتباط بالأهداف</td>
+        </tr>
+        <tr>
+          <td><strong>أسئلة المزاوجة والربط</strong></td>
+          <td>مدعومة بالكامل بجدولين متقابلين ودليل حل وتصحيح فوري</td>
+          <td>غير مدعومة أو نصوص نصية بدائية غير منسقة</td>
+        </tr>
+        <tr>
+          <td><strong>منظومة الطباعة</strong></td>
+          <td>A4 قياسي فوري بدون تشويه + تصدير Word (.doc) أصيل</td>
+          <td>طباعة الويب المشوهة للقوائم والإطارات</td>
+        </tr>
+        <tr>
+          <td><strong>اللغات والرموز</strong></td>
+          <td>دعم ثنائي (عربي/إنجليزي) مع رموز رياضية س،ص و x,y</td>
+          <td>لغة واحدة أو أخطاء مستمرة في اتجاه المعادلات</td>
+        </tr>
+        <tr>
+          <td><strong>التحليل السيكومتري</strong></td>
+          <td>معاملات الصعوبة والتمييز وكرونباخ ألفا وبيرسون آلياً</td>
+          <td>حساب متوسط درجات حسابي بسيط فقط</td>
+        </tr>
+        <tr>
+          <td><strong>الهيكلية وسهولة التفرع</strong></td>
+          <td>7 بوابات مستقلة ونوافذ ذكية تمنع مغادرة سياق العمل</td>
+          <td>صفحات متداخلة وروابط معقدة تشتت المستخدم</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Signatures & Official Validation Footer -->
+  <div class="footer-signatures">
+    <div><strong>إعداد وتطوير:</strong> المنظومة الذكية لإدارة المدارس والتحول الرقمي</div>
+    <div><strong>التاريخ:</strong> 26 سبتمبر 2026 م</div>
+    <div><strong>الاعتماد الرقمي:</strong> معتمد وموثق سحابياً بالباركود الرقمي ✔</div>
+  </div>
+
+</body>
+</html>
