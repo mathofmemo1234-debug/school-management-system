@@ -63,25 +63,18 @@ const SUBJECT_GENERATION_MATRICES = {
               ? `${objPrefix}Which mathematical expression represents a linear equation in variables (${varX}) and (${varY})?`
               : `${objPrefix}ما هو التعبير الرياضي الصحيح الذي يمثل العلاقة الخطية بالمتغيرين (${varX}) و (${varY})؟`,
             options: isFullEn ? [
-              `A) ${varY} = m${varX} + b (where m is slope, b is y-intercept)`,
-              `B) ${varY} = ${varX}² + 4`,
-              `C) ${varY} / ${varX} = sqrt(${varX})`,
-              `D) ${varY} = 1 / (${varX} - 1)`
-            ] : (isAr ? [
-              `أ) ${varY} = م ${varX} + جـ (حيث م الميل، وجـ المقطع الصادي)`,
-              `ب) ${varY} = ${varX}² + ٤`,
-              `جـ) ${varY} / ${varX} = جذر(${varX})`,
-              `د) ${varY} = ١ / (${varX} - ١)`
+              `A) $${varY} = m${varX} + b$ (where m is slope, b is y-intercept)`,
+              `B) $${varY} = ${varX}^2 + 4$`,
+              `C) $\\frac{${varY}}{${varX}} = \\sqrt{${varX}}$`,
+              `D) $${varY} = \\frac{1}{${varX} - 1}$`
             ] : [
-              `أ) ${varY} = m${varX} + b (حيث m يمثل الميل، و b المقطع من المحور ${varY})`,
-              `ب) ${varY} = ${varX}² + 4`,
-              `جـ) ${varY} / ${varX} = sqrt(${varX})`,
-              `د) ${varY} = 1 / (${varX} - 1)`
-            ]),
+              `أ) $${varY} = m${varX} + b$ (حيث m يمثل الميل، و b المقطع من المحور ${varY})`,
+              `ب) $${varY} = ${varX}^2 + 4$`,
+              `جـ) $\\frac{${varY}}{${varX}} = \\sqrt{${varX}}$`,
+              `د) $${varY} = \\frac{1}{${varX} - 1}$`
+            ],
             correctOption: 0,
-            correctAnswer: isFullEn
-              ? `${varY} = m${varX} + b`
-              : (isAr ? `${varY} = م ${varX} + جـ` : `${varY} = m${varX} + b`),
+            correctAnswer: `$${varY} = m${varX} + b$`,
             explanation: isFullEn 
               ? `A linear equation is of degree one where the power of variable (${varX}) equals 1.`
               : `المعادلة الخطية تكون من الدرجة الأولى بحيث يكون أس المتغير (${varX}) مساوياً لواحد.`,
@@ -101,24 +94,24 @@ const SUBJECT_GENERATION_MATRICES = {
 
           return {
             question: isFullEn
-              ? `${objPrefix}Given the equation: ${varX} + ${valB} = ${valA}, what is the exact value of variable (${varX})?`
-              : `${objPrefix}إذا كانت المعادلة الرياضية هي: ${varX} + ${numB} = ${numA}، فما هي قيمة المتغير (${varX})؟`,
+              ? `${objPrefix}Given the equation: $${varX} + ${valB} = ${valA}$, what is the exact value of variable (${varX})?`
+              : `${objPrefix}إذا كانت المعادلة الرياضية هي: $${varX} + ${valB} = ${valA}$، فما هي قيمة المتغير (${varX})؟`,
             options: isFullEn ? [
-              `A) ${varX} = ${sol}`,
-              `B) ${varX} = ${sol + 2}`,
-              `C) ${varX} = ${sol - 1}`,
-              `D) ${varX} = ${valA + valB}`
+              `A) $${varX} = ${sol}$`,
+              `B) $${varX} = ${sol + 2}$`,
+              `C) $${varX} = ${sol - 1}$`,
+              `D) $${varX} = ${valA + valB}$`
             ] : [
-              `أ) ${varX} = ${numSol}`,
-              `ب) ${varX} = ${numSol2}`,
-              `جـ) ${varX} = ${numSolSub1}`,
-              `د) ${varX} = ${numSum}`
+              `أ) $${varX} = ${sol}$`,
+              `ب) $${varX} = ${sol + 2}$`,
+              `جـ) $${varX} = ${sol - 1}$`,
+              `د) $${varX} = ${valA + valB}$`
             ],
             correctOption: 0,
-            correctAnswer: `${varX} = ${numSol}`,
+            correctAnswer: `$${varX} = ${sol}$`,
             explanation: isFullEn
-              ? `Subtracting ${valB} from both sides yields: ${varX} = ${valA} - ${valB} = ${sol}.`
-              : `بطرح ${numB} من طرفي المعادلة نجد أن: ${varX} = ${numA} - ${numB} = ${numSol}.`,
+              ? `Subtracting ${valB} from both sides yields: $${varX} = ${valA} - ${valB} = ${sol}$.`
+              : `بطرح ${valB} من طرفي المعادلة نجد أن: $${varX} = ${valA} - ${valB} = ${sol}$.`,
             points: 2
           };
         }
@@ -202,15 +195,13 @@ const SUBJECT_GENERATION_MATRICES = {
           question: isFullEn
             ? `Application Problem${objTag}:\n` +
               `Find the solution set for the following equation, showing step-by-step mathematical working:\n` +
-              `2(${varX} - 3) + 4 = 14`
+              `$$2(${varX} - 3) + 4 = 14$$`
             : `مسألة تطبيقية (تفكير وحل مشكلات)${objTag}:\n` +
               `أوجد مجموعة حل المعادلة التالية موضحاً خطوات الحل الرياضي بدقة:\n` +
-              `${isAr ? `٢(${varX} - ٣) + ٤ = ${formatNumberBySymbol(14, 'ar')}` : `2(${varX} - 3) + 4 = 14`}`,
+              `$$2(${varX} - 3) + 4 = 14$$`,
           correctAnswer: isFullEn 
-            ? `Step-by-step Solution:\n1) Expand brackets: 2${varX} - 6 + 4 = 14\n2) Simplify: 2${varX} - 2 = 14\n3) Add 2 to both sides: 2${varX} = 16\n4) Divide by 2: ${varX} = 8`
-            : (isAr 
-                ? `خطوات الحل النموذجي:\n1) فك الأقواس: ٢${varX} - ٦ + ٤ = ١٤\n2) التبسيط: ٢${varX} - ٢ = ١٤\n3) إضافة ٢ للطرفين: ٢${varX} = ١٦\n4) القسمة على ٢: ${varX} = ٨`
-                : `خطوات الحل النموذجي:\n1) فك الأقواس: 2${varX} - 6 + 4 = 14\n2) التبسيط: 2${varX} - 2 = 14\n3) إضافة 2 للطرفين: 2${varX} = 16\n4) القسمة على 2: ${varX} = 8`),
+            ? `Step-by-step Solution:\n1) Expand brackets: $2${varX} - 6 + 4 = 14$\n2) Simplify: $2${varX} - 2 = 14$\n3) Add 2 to both sides: $2${varX} = 16$\n4) Divide by 2: $${varX} = 8$`
+            : `خطوات الحل النموذجي:\n1) فك الأقواس: $2${varX} - 6 + 4 = 14$\n2) التبسيط: $2${varX} - 2 = 14$\n3) إضافة 2 للطرفين: $2${varX} = 16$\n4) القسمة على 2: $${varX} = 8$`,
           explanation: isFullEn 
             ? 'Apply the distributive property, combine like terms, and isolate the variable.'
             : 'تطبيق خاصية التوزيع ثم جمع الحدود المتشابهة ثم عزل المتغير.',
@@ -220,8 +211,119 @@ const SUBJECT_GENERATION_MATRICES = {
     }
   },
 
+  chemistry: {
+    keywords: ['كيمياء', 'الكيمياء', 'Chemistry', 'كيميائي', 'تفاعلات', 'مركبات'],
+    generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false, showObjectives = false) => {
+      const isFullEn = Boolean(isInternational);
+      const objPrefix = showObjectives ? (isFullEn ? `[Objective: ${objective}] ` : `[الهدف: ${objective}] `) : '';
+      const objTag = showObjectives ? (isFullEn ? ` [Objective: ${objective}]` : ` [الهدف: ${objective}]`) : '';
+
+      if (type === 'mcq') {
+        return {
+          question: isFullEn
+            ? `${objPrefix}Which of the following balanced chemical equations correctly represents the combustion of methane in oxygen?`
+            : `${objPrefix}أي المعادلات الكيميائية الموزونة التالية تمثل تفاعل احتراق غاز الميثان في الأكسجين بشكل صحيح ودقيق؟`,
+          options: isFullEn ? [
+            `A) $\\ce{CH4 + 2O2 -> CO2 + 2H2O}$`,
+            `B) $\\ce{CH4 + O2 -> CO + H2O}$`,
+            `C) $\\ce{2CH4 + 3O2 -> 2CO2 + 4H2}$`,
+            `D) $\\ce{CH4 + 4O2 -> CO4 + 2H2O}$`
+          ] : [
+            `أ) $\\ce{CH4 + 2O2 -> CO2 + 2H2O}$`,
+            `ب) $\\ce{CH4 + O2 -> CO + H2O}$`,
+            `جـ) $\\ce{2CH4 + 3O2 -> 2CO2 + 4H2}$`,
+            `د) $\\ce{CH4 + 4O2 -> CO4 + 2H2O}$`
+          ],
+          correctOption: 0,
+          correctAnswer: `$\\ce{CH4 + 2O2 -> CO2 + 2H2O}$`,
+          explanation: isFullEn
+            ? `Combustion of methane consumes 1 molecule of CH4 and 2 molecules of O2 to form 1 molecule of CO2 and 2 molecules of H2O.`
+            : `احتراق غاز الميثان يستهلك جزيئاً واحداً من الميثان وجزيئين من الأكسجين لإنتاج جزيء ثاني أكسيد الكربون وجزيئين ماء طبقاً لحفظ الكتلة.`,
+          points: 1
+        };
+      } else if (type === 'true_false') {
+        const isTrue = qIndex % 2 === 0;
+        return {
+          question: isFullEn
+            ? (isTrue
+                ? `${objPrefix}In pure water at 25°C, $[\\ce{H3O+}] = [\\ce{OH-}] = 1.0 \\times 10^{-7} \\text{ M}$, indicating a neutral solution.`
+                : `${objPrefix}The decomposition of limestone, $\\ce{CaCO3 ->[\\Delta] CaO + CO2 ^}$, results in no gas production.`)
+            : (isTrue
+                ? `${objPrefix}في الماء النقي عند درجة حرارة $25^\\circ\\text{C}$، يكون $[\\ce{H3O+}] = [\\ce{OH-}] = 1.0 \\times 10^{-7} \\text{ M}$ مما يدل على تعادل المحلول.`
+                : `${objPrefix}عند تفكك كربونات الكالسيوم بالحرارة $\\ce{CaCO3 ->[\\Delta] CaO + CO2 ^}$ لا ينتج أي غاز.`),
+          options: isFullEn ? ['True', 'False'] : ['صح (True)', 'خطأ (False)'],
+          correctOption: isTrue ? 0 : 1,
+          correctAnswer: isFullEn ? (isTrue ? 'True' : 'False') : (isTrue ? 'صح' : 'خطأ'),
+          explanation: isFullEn
+            ? (isTrue ? 'Pure water is neutral with pH = 7.' : 'Statement is false: carbon dioxide gas is evolved (CO2 ^).')
+            : (isTrue ? 'الماء النقي متعادل وقيمة الرقم الهيدروجيني pH = 7.' : 'العبارة خاطئة؛ التفاعل ينتج غاز ثاني أكسيد الكربون $\\ce{CO2 ^}$.'),
+          points: 1
+        };
+      } else if (type === 'fill_blank') {
+        return {
+          question: isFullEn
+            ? `Fill in the chemical blank${objTag}:\nIn the acid-base neutralization reaction: $\\ce{HCl (aq) + NaOH (aq) -> ............ + H2O (l)}$, the produced salt is:`
+            : `أكمل الفراغ بالصيغة الكيميائية المناسبة${objTag}:\nفي تفاعل التعادل بين حمض الهيدروكلوريك وهيدروكسيد الصوديوم: $\\ce{HCl (aq) + NaOH (aq) -> ............ + H2O (l)}$، الملح الناتج هو:`,
+          correctAnswer: `$\\ce{NaCl (aq)}$`,
+          explanation: isFullEn
+            ? 'Reaction of hydrochloric acid with sodium hydroxide produces sodium chloride (table salt) and water.'
+            : 'تفاعل حمض الهيدروكلوريك مع هيدروكسيد الصوديوم ينتج كلوريد الصوديوم $\\ce{NaCl}$ والماء.',
+          points: 1
+        };
+      } else if (type === 'matching') {
+        return {
+          question: isFullEn
+            ? `Match each chemical formula in Column (A) with its property or use in Column (B)${objTag}:`
+            : `صل بين كل صيغة كيميائية في العمود (أ) وما يناسبها من استخدام أو خاصية في العمود (ب)${objTag}:`,
+          columnA: isFullEn ? [
+            { id: '1', num: '1', text: `$\\ce{H2SO4}$` },
+            { id: '2', num: '2', text: `$\\ce{CaCO3}$` },
+            { id: '3', num: '3', text: `$\\ce{C6H12O6}$` },
+            { id: '4', num: '4', text: `$\\ce{NaOH}$` }
+          ] : [
+            { id: '1', num: '١', text: `حمض الكبريتيك $\\ce{H2SO4}$` },
+            { id: '2', num: '٢', text: `كربونات الكالسيوم $\\ce{CaCO3}$` },
+            { id: '3', num: '٣', text: `الجلوكوز $\\ce{C6H12O6}$` },
+            { id: '4', num: '٤', text: `هيدروكسيد الصوديوم $\\ce{NaOH}$` }
+          ],
+          columnB: isFullEn ? [
+            { id: 'a', label: 'A', text: 'Strong mineral acid used in lead-acid automotive batteries.' },
+            { id: 'b', label: 'B', text: 'Primary chemical component of limestone, marble, and eggshells.' },
+            { id: 'c', label: 'C', text: 'Essential monosaccharide sugar powering cellular respiration.' },
+            { id: 'd', label: 'D', text: 'Caustic alkaline base widely used in soap and paper manufacturing.' }
+          ] : [
+            { id: 'a', label: 'أ', text: 'حمض قوي مركز يدخل في صناعة بطاريات السيارات والأسمدة.' },
+            { id: 'b', label: 'ب', text: 'المكون الرئيسي للحجر الجيري والرخام وأصداف الكائنات الحية.' },
+            { id: 'c', label: 'جـ', text: 'سكر أحادي يمثل المصدر الأساسي للطاقة في التنفس الخلوي.' },
+            { id: 'd', label: 'د', text: 'قاعدة قلوية كاوية تستخدم في صناعة الصابون والمنظفات.' }
+          ],
+          correctAnswer: isFullEn
+            ? 'Matching Key:\n(1 ➔ A), (2 ➔ B), (3 ➔ C), (4 ➔ D)'
+            : 'دليل المزاوجة الصحيح:\n(١ ➔ أ)، (٢ ➔ ب)، (٣ ➔ جـ)، (٤ ➔ د)',
+          explanation: isFullEn
+            ? 'Chemical compounds mapped to their verified scientific roles.'
+            : 'ربط كل صيغة كيميائية باستخداماتها وخواصها العلمية الدقيقة.',
+          points: 2
+        };
+      } else {
+        return {
+          question: isFullEn
+            ? `Chemical Reaction Problem & Balancing${objTag}:\nBalance the following iron oxidation reaction in oxygen:\n$$\\ce{Fe + O2 -> Fe2O3}$$`
+            : `مسألة كيميائية في وزن المعادلات والتكافؤ${objTag}:\nقم بوزن معادلة أكسدة الحديد التالية بالتفصيل:\n$$\\ce{Fe + O2 -> Fe2O3}$$`,
+          correctAnswer: isFullEn
+            ? `Balanced Equation:\n$$\\ce{4Fe (s) + 3O2 (g) -> 2Fe2O3 (s)}$$\nAtom Count: 4 Fe, 6 O on both sides.`
+            : `المعادلة الموزونة نموذجياً:\n$$\\ce{4Fe (s) + 3O2 (g) -> 2Fe2O3 (s)}$$\nخطوات الحل: ضبط معاملات المتفاعلات والنواتج ليتساوى عدد ذرات الحديد (4) والأكسجين (6) في الطرفين.`,
+          explanation: isFullEn
+            ? 'Apply the law of conservation of mass so that atoms of each element are equal.'
+            : 'تطبيق قانون حفظ الكتلة لمساواة أعداد ذرات كل عنصر في طرفي التفاعل.',
+          points: 3
+        };
+      }
+    }
+  },
+
   science: {
-    keywords: ['علوم', 'فيزياء', 'كيمياء', 'أحياء', 'علم بيئة', 'جيولوجيا', 'طبيعة', 'Science', 'Physics', 'Chemistry', 'Biology'],
+    keywords: ['علوم', 'فيزياء', 'أحياء', 'علم بيئة', 'جيولوجيا', 'طبيعة', 'Science', 'Physics', 'Biology'],
     generateQuestion: (objective, bloomLevel, type, symbolLang, qIndex, isInternational = false, showObjectives = false) => {
       const isAr = symbolLang === 'ar';
       const isFullEn = Boolean(isInternational);
@@ -269,19 +371,19 @@ const SUBJECT_GENERATION_MATRICES = {
           correctOption: isTrue ? 0 : 1,
           correctAnswer: isFullEn ? (isTrue ? 'True' : 'False') : (isTrue ? 'صح' : 'خطأ'),
           explanation: isFullEn
-            ? (isTrue ? 'Statement is true according to international scientific standards.' : 'Statement is false: kinetic energy is directly proportional (KE = 1/2 m v^2).')
-            : (isTrue ? 'العبارة صحيحة ومتوافقة مع المعايير العلمية الدولية.' : `العبارة خاطئة؛ التناسب طردي (${isAr ? 'ط = ١/٢ ك ع²' : 'KE = 1/2 m v²'}).`),
+            ? (isTrue ? 'Statement is true according to international scientific standards.' : 'Statement is false: kinetic energy is directly proportional: $KE = \\frac{1}{2} m v^2$.')
+            : (isTrue ? 'العبارة صحيحة ومتوافقة مع المعايير العلمية الدولية.' : `العبارة خاطئة؛ التناسب طردي: $KE = \\frac{1}{2} m v^2$.`),
           points: 1
         };
       } else if (type === 'fill_blank') {
         return {
           question: isFullEn
-            ? `Write the accurate scientific term${objTag}:\n(............................): The rate of change of velocity per unit of elapsed time.`
-            : `اكتب المصطلح العلمي المناسب مكان النقط${objTag}:\n(............................): مقدار التغير في السرعة المتجهة مقسوماً على الفترة الزمنية التي حدث خلالها هذا التغير (${isAr ? 'ت = دلتا ع / دلتا ز' : 'a = Δv / Δt'}).`,
+            ? `Write the accurate scientific term${objTag}:\n(............................): The rate of change of velocity per unit of elapsed time ($a = \\frac{\\Delta v}{\\Delta t}$).`
+            : `اكتب المصطلح العلمي المناسب مكان النقط${objTag}:\n(............................): مقدار التغير في السرعة المتجهة مقسوماً على الفترة الزمنية التي حدث خلالها هذا التغير ($a = \\frac{\\Delta v}{\\Delta t}$).`,
           correctAnswer: isFullEn ? 'Acceleration' : (isAr ? 'التسارع (العجلة)' : 'التسارع (Acceleration - a)'),
           explanation: isFullEn
-            ? 'Acceleration = Delta v / Delta t.'
-            : (isAr ? 'التسارع = التغير في السرعة / التغير في الزمن (ت = دلتا ع / دلتا ز).' : 'التسارع = التغير في السرعة / التغير في الزمن (a = Δv / Δt).'),
+            ? 'Acceleration: $a = \\frac{\\Delta v}{\\Delta t}$.'
+            : (isAr ? 'التسارع = التغير في السرعة / التغير في الزمن ($a = \\frac{\\Delta v}{\\Delta t}$).' : 'التسارع = التغير في السرعة / التغير في الزمن ($a = \\frac{\\Delta v}{\\Delta t}$).'),
           points: 1
         };
       } else if (type === 'matching') {
@@ -312,12 +414,12 @@ const SUBJECT_GENERATION_MATRICES = {
             { id: 'd', label: 'D', text: 'Mass is neither created nor destroyed during chemical reaction.' }
           ] : (isAr ? [
             { id: 'a', label: 'أ', text: 'معدل التغير في السرعة المتجهة مقسوماً على زمن التغير (م/ث²).' },
-            { id: 'b', label: 'ب', text: 'الطاقة التي يمتلكها الجسم بسبب حركته (تعتمد على كتلته وسرعته).' },
+            { id: 'b', label: 'ب', text: 'الطاقة التي يمتلكها الجسم بسبب حركته وتساوي ($KE = \\frac{1}{2} m v^2$).' },
             { id: 'c', label: 'جـ', text: 'الإزاحة المقطوعة خلال وحدة الزمن في اتجاه محدد (م/ث).' },
             { id: 'd', label: 'د', text: 'المادة لا تفنى ولا تستحدث في التفاعل الكيميائي بل تتحول.' }
           ] : [
             { id: 'a', label: 'أ', text: 'معدل التغير في السرعة المتجهة مقسوماً على زمن التغير (m/s²).' },
-            { id: 'b', label: 'ب', text: 'الطاقة التي يمتلكها الجسم بسبب حركته وتساوي (1/2 m v²).' },
+            { id: 'b', label: 'ب', text: 'الطاقة التي يمتلكها الجسم بسبب حركته وتساوي ($KE = \\frac{1}{2} m v^2$).' },
             { id: 'c', label: 'جـ', text: 'الإزاحة المقطوعة خلال وحدة الزمن في اتجاه محدد (m/s).' },
             { id: 'd', label: 'د', text: 'المادة لا تفنى ولا تستحدث في التفاعل الكيميائي بل تتحول.' }
           ]),
@@ -325,8 +427,8 @@ const SUBJECT_GENERATION_MATRICES = {
             ? 'Matching Key:\n(1 ➔ C), (2 ➔ A), (3 ➔ D), (4 ➔ B)'
             : (isAr ? 'دليل المزاوجة الصحيح:\n(١ ➔ جـ)، (٢ ➔ أ)، (٣ ➔ د)، (٤ ➔ ب)' : 'دليل المزاوجة الصحيح:\n(1 ➔ جـ)، (2 ➔ أ)، (3 ➔ د)، (4 ➔ ب)'),
           explanation: isFullEn
-            ? 'Velocity is m/s, Acceleration is m/s², mass is conserved, Kinetic Energy is 1/2mv².'
-            : (isAr ? 'السرعة المتجهة تقاس بـ م/ث، والتسارع بـ م/ث²، وحفظ الكتلة ثبات كتلة المواد، والطاقة الحركية ط = ١/٢ ك ع².' : 'السرعة المتجهة تقاس بـ m/s، والتسارع بـ m/s²، وحفظ الكتلة ثبات كتلة المواد، والطاقة الحركية KE = 1/2 m v².'),
+            ? 'Velocity is m/s, Acceleration is m/s², mass is conserved, Kinetic Energy is $KE = \\frac{1}{2}mv^2$.'
+            : (isAr ? 'السرعة المتجهة تقاس بـ م/ث، والتسارع بـ م/ث²، وحفظ الكتلة ثبات كتلة المواد، والطاقة الحركية $KE = \\frac{1}{2} m v^2$.' : 'السرعة المتجهة تقاس بـ m/s، والتسارع بـ m/s²، وحفظ الكتلة ثبات كتلة المواد، والطاقة الحركية $KE = \\frac{1}{2} m v^2$.'),
           points: 2
         };
       } else {

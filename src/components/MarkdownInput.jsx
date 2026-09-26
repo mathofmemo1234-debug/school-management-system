@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import MarkdownViewer from './MarkdownViewer';
-import { Image as ImageIcon, Loader } from 'lucide-react';
+import LatexMathToolbar from './LatexMathToolbar';
+import { Image as ImageIcon, Loader, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { compressImageToDataUrl } from '../utils/imageCompressor';
 
@@ -9,16 +10,18 @@ export default function MarkdownInput({ label, value, onChange, placeholder, hei
   const textareaRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [compressNotice, setCompressNotice] = useState('');
+  const [showLatexToolbar, setShowLatexToolbar] = useState(false);
 
   const insertTextAtCursor = (textToInsert) => {
     const textarea = textareaRef.current;
     if (!textarea) {
-      onChange(value + textToInsert);
+      onChange((value || '') + textToInsert);
       return;
     }
-    const startPos = textarea.selectionStart;
-    const endPos = textarea.selectionEnd;
-    const newText = value.substring(0, startPos) + textToInsert + value.substring(endPos);
+    const startPos = textarea.selectionStart ?? (value || '').length;
+    const endPos = textarea.selectionEnd ?? (value || '').length;
+    const curVal = value || '';
+    const newText = curVal.substring(0, startPos) + textToInsert + curVal.substring(endPos);
     onChange(newText);
     
     setTimeout(() => {
@@ -79,24 +82,68 @@ export default function MarkdownInput({ label, value, onChange, placeholder, hei
 
   return (
     <div className="form-group" style={{ marginBottom: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <label style={{ margin: 0 }}>{label} <span style={{fontSize:'12px', color:'#666'}}>{t('markdownInput.latexSupport')}</span></label>
-        <div style={{ position: 'relative' }}>
-          <input 
-            type="file" 
-            accept="image/*" 
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
-            onChange={handleFileSelect}
-            title={t('markdownInput.insertImage')}
-          />
-          <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '12px', background: '#e2e8f0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px' }}>
-            {isUploading ? <Loader size={14} className="spin" /> : <ImageIcon size={14} />}
-            {isUploading ? t('markdownInput.uploading') : t('markdownInput.insertImage')}
+      {/* Label and Tool Buttons Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+        <label style={{ margin: 0 }}>
+          {label} <span style={{ fontSize: '12px', color: '#0e7490', fontWeight: 'bold' }}>{t('markdownInput.latexSupport') || '✓ يدعم LaTeX والمعادلات الرياضية والكيميائية'}</span>
+        </label>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Toggle LaTeX Math & Chemistry Toolbar */}
+          <button
+            type="button"
+            onClick={() => setShowLatexToolbar(prev => !prev)}
+            className="btn"
+            style={{
+              padding: '6px 12px',
+              fontSize: '12px',
+              background: showLatexToolbar ? '#ecfeff' : '#f1f5f9',
+              color: showLatexToolbar ? '#0e7490' : '#334155',
+              border: showLatexToolbar ? '1.5px solid #0e7490' : '1px solid #cbd5e1',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: showLatexToolbar ? 'bold' : 'normal',
+              transition: 'all 0.15s ease'
+            }}
+            title="إظهار أو إخفاء لوحة إدراج الرموز والمعادلات الرياضية والكيميائية (LaTeX)"
+          >
+            <Sparkles size={14} color={showLatexToolbar ? '#0e7490' : '#64748b'} />
+            {showLatexToolbar ? 'إخفاء لوحة LaTeX' : '📐 معادلات ورموز (LaTeX)'}
+            {showLatexToolbar ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
+
+          {/* Insert Image Button */}
+          <div style={{ position: 'relative' }}>
+            <input 
+              type="file" 
+              accept="image/*" 
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+              onChange={handleFileSelect}
+              title={t('markdownInput.insertImage')}
+            />
+            <button
+              type="button" 
+              className="btn" 
+              style={{ padding: '6px 12px', fontSize: '12px', background: '#e2e8f0', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', cursor: 'pointer' }}
+            >
+              {isUploading ? <Loader size={14} className="spin" /> : <ImageIcon size={14} />}
+              {isUploading ? t('markdownInput.uploading') : t('markdownInput.insertImage')}
+            </button>
+          </div>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: '20px', height }}>
-        <div style={{ flex: 1, position: 'relative' }}>
+
+      {/* Conditionally rendered LaTeX Math & Chemistry Toolbar */}
+      {showLatexToolbar && (
+        <LatexMathToolbar onInsert={(code) => insertTextAtCursor(code)} />
+      )}
+
+      {/* Textarea + Live Preview side-by-side */}
+      <div style={{ display: 'flex', gap: '16px', height, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 320px', position: 'relative' }}>
           <textarea 
             ref={textareaRef}
             className="input-field" 
@@ -104,7 +151,7 @@ export default function MarkdownInput({ label, value, onChange, placeholder, hei
             value={value}
             onChange={e => onChange(e.target.value)}
             onPaste={handlePaste}
-            placeholder={placeholder + "\n" + t('markdownInput.pasteImageHint')}
+            placeholder={placeholder + "\n" + (t('markdownInput.pasteImageHint') || 'يمكنك كتابة صيغ رياضية $x^2$ أو كيميائية $\\ce{H2O}$ أو لصق صور مباشرة')}
           />
           {isUploading && (
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(2px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10, borderRadius: '8px' }}>
@@ -115,9 +162,9 @@ export default function MarkdownInput({ label, value, onChange, placeholder, hei
             </div>
           )}
         </div>
-        <div style={{ flex: 1, border: '1px solid var(--color-border)', borderRadius: '8px', padding: '16px', background: '#fff', overflowY: 'auto' }}>
-          <h4 style={{ margin: '0 0 10px 0', color: 'var(--color-text-muted)' }}>{t('markdownInput.livePreview')}</h4>
-          <MarkdownViewer content={value || t('markdownInput.empty')} />
+        <div style={{ flex: '1 1 320px', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '16px', background: '#fff', overflowY: 'auto' }}>
+          <h4 style={{ margin: '0 0 10px 0', color: 'var(--color-text-muted)' }}>{t('markdownInput.livePreview') || 'المعاينة الفورية المباشرة'}</h4>
+          <MarkdownViewer content={value || (t('markdownInput.empty') || 'اكتب في الحقل المجاور لمشاهدة المعاينة الفورية...')} />
         </div>
       </div>
     </div>
