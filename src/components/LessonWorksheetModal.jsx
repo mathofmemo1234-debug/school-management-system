@@ -11,6 +11,7 @@ import {
 import { generateWorksheetAI, formatNumberBySymbol, BLOOM_LEVELS, isInternationalSchool } from '../utils/aiWorksheetGenerator';
 import { compressImageToDataUrl } from '../utils/imageCompressor';
 import MarkdownViewer from './MarkdownViewer';
+import MarkdownInput from './MarkdownInput';
 import LatexMathToolbar from './LatexMathToolbar';
 import QuickLatexToolbar from './QuickLatexToolbar';
 import { useAuth } from '../contexts/AuthContext';
@@ -405,6 +406,88 @@ export default function LessonWorksheetModal({
     return sum;
   }, [questions, bonusQuestion]);
 
+  // Helper to convert external or blob image URLs to embedded Base64 (saving images directly without external links)
+  const convertExternalImageUrlsToBase64 = async (text) => {
+    if (!text || typeof text !== 'string') return text;
+    const imgRegex = /!\[(.*?)\]\((https?:\/\/[^\s\)]+|blob:[^\s\)]+)\)/g;
+    let match;
+    let updatedText = text;
+    const matches = [];
+    while ((match = imgRegex.exec(text)) !== null) {
+      matches.push({ full: match[0], alt: match[1], url: match[2] });
+    }
+
+    for (const item of matches) {
+      try {
+        const response = await fetch(item.url, { mode: 'cors' });
+        const blob = await response.blob();
+        let base64 = await compressImageToDataUrl(blob, {
+          maxWidth: 1000,
+          maxHeight: 1000,
+          quality: 0.78
+        });
+        if (!base64) {
+          base64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        }
+        if (base64) {
+          updatedText = updatedText.replace(item.full, `![${item.alt}](${base64})`);
+        }
+      } catch (err) {
+        console.warn('Could not convert external image to Base64 in worksheet:', item.url, err);
+      }
+    }
+    return updatedText;
+  };
+
+  // Helper for matching cells to handle clipboard image paste (Ctrl+V)
+  const handleMatchingPasteImage = async (qIdx, col, rIdx, e) => {
+    const items = e.clipboardData?.items;
+    let file = null;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.indexOf('image') !== -1) {
+          file = items[i].getAsFile();
+          break;
+        }
+      }
+    }
+    if (!file && e.clipboardData?.files?.length > 0) {
+      const f = e.clipboardData.files[0];
+      if (f.type && f.type.startsWith('image/')) file = f;
+    }
+    if (file) {
+      e.preventDefault();
+      try {
+        const dataUrl = await compressImageToDataUrl(file, { maxWidth: 800, maxHeight: 800, quality: 0.80 });
+        if (dataUrl) {
+          const currentText = col === 'columnA' ? (questions[qIdx]?.columnA?.[rIdx]?.text || '') : (questions[qIdx]?.columnB?.[rIdx]?.text || '');
+          updateMatchingItem(qIdx, col, rIdx, (currentText ? currentText + ' ' : '') + `![صورة](${dataUrl})`);
+        }
+      } catch (err) {
+        console.error('Error pasting image to matching item:', err);
+      }
+    }
+  };
+
+  // Helper to upload image for matching cell via file picker
+  const handleMatchingFileUpload = async (qIdx, col, rIdx, file) => {
+    if (!file) return;
+    try {
+      const dataUrl = await compressImageToDataUrl(file, { maxWidth: 800, maxHeight: 800, quality: 0.80 });
+      if (dataUrl) {
+        const currentText = col === 'columnA' ? (questions[qIdx]?.columnA?.[rIdx]?.text || '') : (questions[qIdx]?.columnB?.[rIdx]?.text || '');
+        updateMatchingItem(qIdx, col, rIdx, (currentText ? currentText + ' ' : '') + `![صورة](${dataUrl})`);
+      }
+    } catch (err) {
+      console.error('Error uploading image to matching item:', err);
+    }
+  };
+
   // Handle Save (Draft or Published)
   const handleSave = async (desiredStatus = status) => {
     setIsSaving(true);
@@ -412,6 +495,46 @@ export default function LessonWorksheetModal({
       // When saving draft directed to students, answers and time are explicitly hidden by default
       const finalShowAnswers = desiredStatus === 'draft' ? false : Boolean(showAnswers);
       const finalShowTime = desiredStatus === 'draft' ? false : Boolean(showTime);
+
+      // Convert any external/blob image URLs in questions and options to Base64 dataUrls
+      const processedQuestions = await Promise.all(questions.map(async (q) => {
+        const processedQ = { ...q };
+        if (processedQ.question) {
+          processedQ.question = await convertExternalImageUrlsToBase64(processedQ.question);
+        }
+        if (processedQ.text) {
+          processedQ.text = await convertExternalImageUrlsToBase64(processedQ.text);
+        }
+        if (Array.isArray(processedQ.options)) {
+          processedQ.options = await Promise.all(processedQ.options.map(opt => convertExternalImageUrlsToBase64(opt)));
+        }
+        if (processedQ.correctAnswer) {
+          processedQ.correctAnswer = await convertExternalImageUrlsToBase64(processedQ.correctAnswer);
+        }
+        if (Array.isArray(processedQ.columnA)) {
+          processedQ.columnA = await Promise.all(processedQ.columnA.map(async item => ({
+            ...item,
+            text: await convertExternalImageUrlsToBase64(item.text)
+          })));
+        }
+        if (Array.isArray(processedQ.columnB)) {
+          processedQ.columnB = await Promise.all(processedQ.columnB.map(async item => ({
+            ...item,
+            text: await convertExternalImageUrlsToBase64(item.text)
+          })));
+        }
+        return processedQ;
+      }));
+
+      let processedBonus = bonusQuestion ? { ...bonusQuestion } : null;
+      if (processedBonus) {
+        if (processedBonus.question) {
+          processedBonus.question = await convertExternalImageUrlsToBase64(processedBonus.question);
+        }
+        if (processedBonus.modelAnswer) {
+          processedBonus.modelAnswer = await convertExternalImageUrlsToBase64(processedBonus.modelAnswer);
+        }
+      }
 
       const payload = {
         lessonTitle,
@@ -435,8 +558,8 @@ export default function LessonWorksheetModal({
         totalMarks,
         status: desiredStatus,
         objectives: effectiveObjectives,
-        questions,
-        bonusQuestion,
+        questions: processedQuestions,
+        bonusQuestion: processedBonus,
         instructions,
         updatedAt: new Date().toISOString()
       };
@@ -1731,49 +1854,17 @@ export default function LessonWorksheetModal({
 
                       <div style={{ flex: 1 }}>
                         {canEdit && activeTab === 'studio' ? (
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '11px', color: '#0e7490', fontWeight: 'bold' }}>نص السؤال (يدعم صياغة LaTeX والمعادلات تلقائياً):</span>
-                            </div>
-                            <QuickLatexToolbar
-                              title="معادلات السؤال:"
-                              onInsert={(code) => updateQuestion(idx, 'question', (q.question || '') + (q.question ? ' ' : '') + code)}
-                              showFullToggle={true}
-                              isFullOpen={latexEditingIdx === idx}
-                              onToggleFull={() => setLatexEditingIdx(latexEditingIdx === idx ? null : idx)}
-                            />
-                            {latexEditingIdx === idx && (
-                              <LatexMathToolbar 
-                                onInsert={(code) => {
-                                  updateQuestion(idx, 'question', (q.question || '') + (q.question ? ' ' : '') + code);
-                                }} 
-                                compact 
-                              />
-                            )}
-                            <textarea
-                              className="input-field"
-                              rows={2}
-                              style={{
-                                margin: '4px 0 0 0',
-                                padding: '8px 12px',
-                                fontSize: '14px',
-                                width: '100%',
-                                fontWeight: '600',
-                                lineHeight: '1.5',
-                                resize: 'vertical',
-                                borderRadius: '8px',
-                                border: '1.5px solid #cbd5e1'
+                          <div style={{ marginBottom: '8px' }}>
+                            <MarkdownInput
+                              label={`نص السؤال ${qNum} (رأس السؤال)`}
+                              value={q.question || q.text || ''}
+                              onChange={(val) => {
+                                updateQuestion(idx, 'question', val);
+                                updateQuestion(idx, 'text', val);
                               }}
-                              value={q.question}
-                              placeholder="اكتب نص السؤال هنا (يدعم تلقائياً الكسور والجذور والأسس ورموز الكيمياء والفيزياء)..."
-                              onChange={(e) => updateQuestion(idx, 'question', e.target.value)}
+                              placeholder="اكتب نص السؤال هنا (يدعم LaTeX والمعادلات وصيغ الكيمياء ولصق صور مباشرة من الحافظة Ctrl+V)..."
+                              height="140px"
                             />
-                            {q.question && (
-                              <div style={{ marginTop: '4px', padding: '6px 10px', background: '#f8fafc', borderRadius: '6px', border: '1px dashed #cbd5e1', fontSize: '13px' }}>
-                                <span style={{ fontSize: '11px', color: '#0e7490', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>معاينة السؤال الحية (تنسيق LaTeX التلقائي):</span>
-                                <MarkdownViewer content={q.question} />
-                              </div>
-                            )}
                           </div>
                         ) : (
                           <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#0f172a', lineHeight: '1.6' }}>
@@ -1986,197 +2077,226 @@ export default function LessonWorksheetModal({
                   {/* 1. Multiple Choice (MCQ) */}
                   {q.type === 'mcq' && q.options && (
                     <div style={{ marginRight: '34px' }}>
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                        gap: '10px'
-                      }}>
-                        {q.options.map((opt, oIdx) => {
-                          const isCorrect = q.correctOption === oIdx;
-                          const showAsCorrect = ((activeTab === 'teacher' && isCorrect) || (studentSubmitted && isCorrect)) && showAnswers;
-                          const isSelectedByStudent = studentAnswers[idx] === oIdx;
-                          const isStudentWrong = studentSubmitted && isSelectedByStudent && !isCorrect && showAnswers;
+                      {canEdit && activeTab === 'studio' ? (
+                        <div>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                            gap: '14px',
+                            marginTop: '12px'
+                          }}>
+                            {q.options.map((opt, oIdx) => {
+                              const isCorrect = q.correctOption === oIdx;
+                              const defaultOptLetter = symbolLanguage === 'ar'
+                                ? ['( أ )', '( ب )', '( جـ )', '( د )', '( هـ )', '( و )'][oIdx] || `( ${oIdx + 1} )`
+                                : `( ${String.fromCharCode(65 + oIdx)} )`;
 
-                          let cardBorder = '1px solid #e2e8f0';
-                          let cardBg = '#f8fafc';
-                          let textColor = '#334155';
+                              return (
+                                <div 
+                                  key={oIdx} 
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    background: isCorrect ? 'rgba(16, 185, 129, 0.08)' : '#f8fafc',
+                                    padding: '12px',
+                                    borderRadius: '10px',
+                                    border: isCorrect ? '2px solid #10b981' : '1.5px solid #cbd5e1',
+                                    boxShadow: isCorrect ? '0 2px 8px rgba(16, 185, 129, 0.12)' : 'none',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      background: isCorrect ? '#059669' : '#0f172a',
+                                      color: '#ffffff',
+                                      fontWeight: '800',
+                                      fontSize: '13px',
+                                      padding: '3px 12px',
+                                      borderRadius: '6px',
+                                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                    }}>
+                                      {defaultOptLetter}
+                                    </span>
 
-                          if (showAsCorrect) {
-                            cardBorder = '2px solid #10b981';
-                            cardBg = '#ecfdf5';
-                            textColor = '#065f46';
-                          } else if (isStudentWrong) {
-                            cardBorder = '2px solid #ef4444';
-                            cardBg = '#fef2f2';
-                            textColor = '#991b1b';
-                          } else if (isSelectedByStudent && !studentSubmitted) {
-                            cardBorder = '2px solid #0e7490';
-                            cardBg = '#f0fdfa';
-                            textColor = '#0e7490';
-                          }
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <label style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        margin: 0,
+                                        cursor: 'pointer',
+                                        color: isCorrect ? '#059669' : '#475569',
+                                        fontWeight: 'bold',
+                                        fontSize: '12px'
+                                      }}>
+                                        <input
+                                          type="radio"
+                                          name={`correct_opt_${idx}`}
+                                          checked={isCorrect}
+                                          onChange={() => {
+                                            updateQuestion(idx, 'correctOption', oIdx);
+                                            updateQuestion(idx, 'correctAnswer', opt);
+                                          }}
+                                          style={{ accentColor: '#10b981', cursor: 'pointer', width: '15px', height: '15px' }}
+                                        />
+                                        {isCorrect ? '✓ الإجابة الصحيحة' : 'تحديد كإجابة صحيحة'}
+                                      </label>
 
-                          return (
-                            <div 
-                              key={oIdx}
+                                      {q.options.length > 2 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const nextOpts = q.options.filter((_, i) => i !== oIdx);
+                                            let nextCorr = q.correctOption;
+                                            if (nextCorr === oIdx) nextCorr = 0;
+                                            else if (nextCorr > oIdx) nextCorr -= 1;
+                                            updateQuestion(idx, 'options', nextOpts);
+                                            updateQuestion(idx, 'correctOption', nextCorr);
+                                          }}
+                                          style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px' }}
+                                          title="حذف هذا الخيار"
+                                        >
+                                          <X size={15} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <MarkdownInput
+                                    label=""
+                                    value={opt}
+                                    onChange={(val) => {
+                                      updateOption(idx, oIdx, val);
+                                      if (isCorrect) updateQuestion(idx, 'correctAnswer', val);
+                                    }}
+                                    placeholder={`نص أو صورة المشتت ${defaultOptLetter} (الصق صورة من الحافظة مباشرة Ctrl+V)...`}
+                                    height="95px"
+                                    compact
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div style={{ marginTop: '12px' }}>
+                            <button
+                              type="button"
                               onClick={() => {
-                                if (activeTab === 'student' && !studentSubmitted) {
-                                  setStudentAnswers(prev => ({ ...prev, [idx]: oIdx }));
-                                }
+                                const nextOpts = [...(q.options || [])];
+                                const nextLetter = symbolLanguage === 'ar' 
+                                  ? ['أ', 'ب', 'جـ', 'د', 'هـ', 'و'][nextOpts.length] || `خيار ${nextOpts.length + 1}`
+                                  : String.fromCharCode(65 + nextOpts.length);
+                                nextOpts.push(`${nextLetter}) `);
+                                updateQuestion(idx, 'options', nextOpts);
                               }}
                               style={{
-                                padding: '10px 14px',
-                                borderRadius: '8px',
-                                border: cardBorder,
-                                background: cardBg,
-                                display: 'flex',
+                                background: '#f0fdfa',
+                                border: '1.5px dashed #0e7490',
+                                borderRadius: '6px',
+                                padding: '6px 14px',
+                                fontSize: '12px',
+                                color: '#0e7490',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
                                 alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '10px',
-                                fontSize: '13px',
-                                cursor: (activeTab === 'student' && !studentSubmitted) ? 'pointer' : 'default',
-                                transition: 'all 0.15s ease'
+                                gap: '6px'
                               }}
                             >
-                              {canEdit && activeTab === 'studio' ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0 }} title="تحديد كإجابة صحيحة">
-                                      <input
-                                        type="radio"
-                                        name={`correct_opt_${idx}`}
-                                        checked={q.correctOption === oIdx}
-                                        onChange={() => {
-                                          updateQuestion(idx, 'correctOption', oIdx);
-                                          updateQuestion(idx, 'correctAnswer', opt);
-                                        }}
-                                        style={{ accentColor: '#10b981', cursor: 'pointer' }}
-                                      />
-                                      <span style={{ fontSize: '11px', fontWeight: 'bold', color: q.correctOption === oIdx ? '#059669' : '#64748b' }}>
-                                        {q.correctOption === oIdx ? '✓ صحيحة' : 'صحيحة؟'}
+                              <Plus size={14} /> إضافة خيار / مشتت جديد للسؤال
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                          gap: '10px'
+                        }}>
+                          {q.options.map((opt, oIdx) => {
+                            const isCorrect = q.correctOption === oIdx;
+                            const showAsCorrect = ((activeTab === 'teacher' && isCorrect) || (studentSubmitted && isCorrect)) && showAnswers;
+                            const isSelectedByStudent = studentAnswers[idx] === oIdx;
+                            const isStudentWrong = studentSubmitted && isSelectedByStudent && !isCorrect && showAnswers;
+
+                            let cardBorder = '1px solid #e2e8f0';
+                            let cardBg = '#f8fafc';
+                            let textColor = '#334155';
+
+                            if (showAsCorrect) {
+                              cardBorder = '2px solid #10b981';
+                              cardBg = '#ecfdf5';
+                              textColor = '#065f46';
+                            } else if (isStudentWrong) {
+                              cardBorder = '2px solid #ef4444';
+                              cardBg = '#fef2f2';
+                              textColor = '#991b1b';
+                            } else if (isSelectedByStudent && !studentSubmitted) {
+                              cardBorder = '2px solid #0e7490';
+                              cardBg = '#f0fdfa';
+                              textColor = '#0e7490';
+                            }
+
+                            return (
+                              <div 
+                                key={oIdx}
+                                className="worksheet-option-card"
+                                onClick={() => {
+                                  if (activeTab === 'student' && !studentSubmitted) {
+                                    setStudentAnswers(prev => ({ ...prev, [idx]: oIdx }));
+                                  }
+                                }}
+                                style={{
+                                  padding: '10px 14px',
+                                  borderRadius: '8px',
+                                  border: cardBorder,
+                                  background: cardBg,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '10px',
+                                  fontSize: '13px',
+                                  cursor: (activeTab === 'student' && !studentSubmitted) ? 'pointer' : 'default',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span style={{
+                                    width: '18px',
+                                    height: '18px',
+                                    borderRadius: '50%',
+                                    border: (isSelectedByStudent || showAsCorrect)
+                                      ? `5px solid ${showAsCorrect ? '#10b981' : (isStudentWrong ? '#ef4444' : '#0e7490')}`
+                                      : '1.5px solid #94a3b8',
+                                    display: 'inline-block',
+                                    flexShrink: 0
+                                  }} />
+                                  <span style={{ fontWeight: (showAsCorrect || isSelectedByStudent) ? 'bold' : 'normal', color: textColor }}>
+                                    <MarkdownViewer content={opt} inline />
+                                  </span>
+                                </div>
+
+                                {studentSubmitted && showAnswers && (
+                                  <div style={{ flexShrink: 0 }}>
+                                    {isCorrect && (
+                                      <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#059669', background: '#d1fae5', padding: '2px 8px', borderRadius: '6px' }}>
+                                        ✓ الإجابة النموذجية
                                       </span>
-                                    </label>
-                                    <input
-                                      type="text"
-                                      style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: '6px', padding: '4px 8px', fontSize: '13px' }}
-                                      value={opt}
-                                      placeholder="نص الخيار (يدعم $x^2$ أو $\ce{H2O}$)..."
-                                      onChange={(e) => updateOption(idx, oIdx, e.target.value)}
-                                    />
-                                    {q.options.length > 2 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const nextOpts = q.options.filter((_, i) => i !== oIdx);
-                                          let nextCorr = q.correctOption;
-                                          if (nextCorr === oIdx) nextCorr = 0;
-                                          else if (nextCorr > oIdx) nextCorr -= 1;
-                                          updateQuestion(idx, 'options', nextOpts);
-                                          updateQuestion(idx, 'correctOption', nextCorr);
-                                        }}
-                                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px' }}
-                                        title="حذف هذا الخيار"
-                                      >
-                                        <X size={14} />
-                                      </button>
+                                    )}
+                                    {isStudentWrong && (
+                                      <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#dc2626', background: '#fee2e2', padding: '2px 8px', borderRadius: '6px' }}>
+                                        ✗ اختيارك
+                                      </span>
                                     )}
                                   </div>
-
-                                  {/* Quick LaTeX Equation Insertion on Every Option */}
-                                  <QuickLatexToolbar
-                                    compact
-                                    title="معادلات الخيار:"
-                                    onInsert={(code) => updateOption(idx, oIdx, (opt || '') + (opt ? ' ' : '') + code)}
-                                    showFullToggle={true}
-                                    isFullOpen={activeOptionLatex?.qIdx === idx && activeOptionLatex?.optIdx === oIdx}
-                                    onToggleFull={() => {
-                                      if (activeOptionLatex?.qIdx === idx && activeOptionLatex?.optIdx === oIdx) {
-                                        setActiveOptionLatex(null);
-                                      } else {
-                                        setActiveOptionLatex({ qIdx: idx, optIdx: oIdx });
-                                      }
-                                    }}
-                                  />
-                                  {activeOptionLatex?.qIdx === idx && activeOptionLatex?.optIdx === oIdx && (
-                                    <LatexMathToolbar
-                                      compact
-                                      onInsert={(code) => updateOption(idx, oIdx, (opt || '') + (opt ? ' ' : '') + code)}
-                                    />
-                                  )}
-
-                                  {opt && (
-                                    <div style={{ fontSize: '11px', color: '#0e7490', background: '#f0fdfa', padding: '2px 8px', borderRadius: '4px', border: '1px dashed #99f6e4' }}>
-                                      معاينة الخيار: <MarkdownViewer content={opt} inline />
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <span style={{
-                                      width: '18px',
-                                      height: '18px',
-                                      borderRadius: '50%',
-                                      border: (isSelectedByStudent || showAsCorrect)
-                                        ? `5px solid ${showAsCorrect ? '#10b981' : (isStudentWrong ? '#ef4444' : '#0e7490')}`
-                                        : '1.5px solid #94a3b8',
-                                      display: 'inline-block',
-                                      flexShrink: 0
-                                    }} />
-                                    <span style={{ fontWeight: (showAsCorrect || isSelectedByStudent) ? 'bold' : 'normal', color: textColor }}>
-                                      <MarkdownViewer content={opt} inline />
-                                    </span>
-                                  </div>
-
-                                  {studentSubmitted && showAnswers && (
-                                    <div style={{ flexShrink: 0 }}>
-                                      {isCorrect && (
-                                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#059669', background: '#d1fae5', padding: '2px 8px', borderRadius: '6px' }}>
-                                          ✓ الإجابة النموذجية
-                                        </span>
-                                      )}
-                                      {isStudentWrong && (
-                                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#dc2626', background: '#fee2e2', padding: '2px 8px', borderRadius: '6px' }}>
-                                          ✗ اختيارك
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Add Option Button in Studio Mode */}
-                      {canEdit && activeTab === 'studio' && (
-                        <div style={{ marginTop: '8px' }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextOpts = [...(q.options || [])];
-                              const nextLetter = symbolLanguage === 'ar' 
-                                ? ['أ', 'ب', 'جـ', 'د', 'هـ', 'و'][nextOpts.length] || `خيار ${nextOpts.length + 1}`
-                                : String.fromCharCode(65 + nextOpts.length);
-                              nextOpts.push(`${nextLetter}) `);
-                              updateQuestion(idx, 'options', nextOpts);
-                            }}
-                            style={{
-                              background: '#f8fafc',
-                              border: '1px dashed #cbd5e1',
-                              borderRadius: '6px',
-                              padding: '4px 10px',
-                              fontSize: '11px',
-                              color: '#0e7490',
-                              fontWeight: 'bold',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <Plus size={13} /> إضافة خيار جديد
-                          </button>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -2319,38 +2439,15 @@ export default function LessonWorksheetModal({
                         </div>
                       )}
                       {canEdit && activeTab === 'studio' && (
-                        <div style={{ marginTop: '8px' }}>
-                          <label style={{ display: 'block', fontSize: '11px', color: '#0e7490', fontWeight: 'bold', marginBottom: '4px' }}>
-                            الإجابة الصحيحة المقررة للفراغ (يدعم LaTeX تلقائياً):
-                          </label>
-                          <input
-                            type="text"
-                            className="input-field"
-                            style={{ margin: 0, fontSize: '13px', maxWidth: '460px' }}
+                        <div style={{ marginTop: '8px', maxWidth: '600px' }}>
+                          <MarkdownInput
+                            label="الإجابة الصحيحة المقررة للفراغ"
                             value={q.correctAnswer || ''}
-                            placeholder="المصطلح أو المعادلة الرياضية المقررة للفراغ..."
-                            onChange={(e) => updateQuestion(idx, 'correctAnswer', e.target.value)}
-                          />
-                          <QuickLatexToolbar
+                            onChange={(val) => updateQuestion(idx, 'correctAnswer', val)}
+                            placeholder="المصطلح أو المعادلة أو الصق صورة من الحافظة مباشرة Ctrl+V..."
+                            height="85px"
                             compact
-                            title="معادلات الفراغ:"
-                            onInsert={(code) => updateQuestion(idx, 'correctAnswer', (q.correctAnswer || '') + (q.correctAnswer ? ' ' : '') + code)}
-                            showFullToggle={true}
-                            isFullOpen={activeBlankLatex === idx}
-                            onToggleFull={() => setActiveBlankLatex(activeBlankLatex === idx ? null : idx)}
                           />
-                          {activeBlankLatex === idx && (
-                            <LatexMathToolbar
-                              compact
-                              onInsert={(code) => updateQuestion(idx, 'correctAnswer', (q.correctAnswer || '') + (q.correctAnswer ? ' ' : '') + code)}
-                            />
-                          )}
-                          {q.correctAnswer && (
-                            <div style={{ marginTop: '4px', fontSize: '12px', color: '#0e7490', background: '#f0fdfa', padding: '3px 8px', borderRadius: '4px', border: '1px dashed #99f6e4', display: 'inline-block' }}>
-                              <span style={{ fontSize: '10px', color: '#0f766e', fontWeight: 'bold', display: 'inline-block', marginInlineEnd: '6px' }}>معاينة الفراغ:</span>
-                              <MarkdownViewer content={q.correctAnswer} inline />
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
@@ -2410,37 +2507,14 @@ export default function LessonWorksheetModal({
                       )}
                       {canEdit && activeTab === 'studio' && (
                         <div style={{ marginTop: '8px' }}>
-                          <label style={{ display: 'block', fontSize: '11px', color: '#0e7490', fontWeight: 'bold', marginBottom: '4px' }}>
-                            دليل وخطوات الحل النموذجي (يدعم LaTeX تلقائياً):
-                          </label>
-                          <textarea
-                            rows={3}
-                            className="input-field"
-                            style={{ margin: 0, fontSize: '13px', resize: 'vertical' }}
+                          <MarkdownInput
+                            label="دليل وخطوات الحل النموذجي"
                             value={q.correctAnswer || ''}
-                            placeholder="اكتب خطوات الحل النموذجي المفصل..."
-                            onChange={(e) => updateQuestion(idx, 'correctAnswer', e.target.value)}
-                          />
-                          <QuickLatexToolbar
+                            onChange={(val) => updateQuestion(idx, 'correctAnswer', val)}
+                            placeholder="اكتب خطوات الحل النموذجي المفصل (يدعم LaTeX وصيغ المعادلات ولصق صور الحل من الحافظة Ctrl+V)..."
+                            height="130px"
                             compact
-                            title="معادلات خطوات الحل:"
-                            onInsert={(code) => updateQuestion(idx, 'correctAnswer', (q.correctAnswer || '') + (q.correctAnswer ? ' ' : '') + code)}
-                            showFullToggle={true}
-                            isFullOpen={activeProblemLatex === idx}
-                            onToggleFull={() => setActiveProblemLatex(activeProblemLatex === idx ? null : idx)}
                           />
-                          {activeProblemLatex === idx && (
-                            <LatexMathToolbar
-                              compact
-                              onInsert={(code) => updateQuestion(idx, 'correctAnswer', (q.correctAnswer || '') + (q.correctAnswer ? ' ' : '') + code)}
-                            />
-                          )}
-                          {q.correctAnswer && (
-                            <div style={{ marginTop: '4px', fontSize: '12px', color: '#0e7490', background: '#f0fdfa', padding: '4px 10px', borderRadius: '4px', border: '1px dashed #99f6e4' }}>
-                              <span style={{ fontSize: '10px', color: '#0f766e', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>معاينة الحل النموذجي:</span>
-                              <MarkdownViewer content={q.correctAnswer} />
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
@@ -2591,19 +2665,50 @@ export default function LessonWorksheetModal({
                                       {/* Item Text or Edit Input */}
                                       {canEdit && activeTab === 'studio' ? (
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                          <input
-                                            type="text"
-                                            value={itemA.text}
-                                            onChange={(e) => updateMatchingItem(idx, 'columnA', rIdx, e.target.value)}
-                                            style={{
-                                              width: '100%',
-                                              border: '1px solid #cbd5e1',
-                                              borderRadius: '6px',
-                                              padding: '4px 8px',
-                                              fontSize: '13px'
-                                            }}
-                                            placeholder="نص المفاهيم (أ)..."
-                                          />
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <input
+                                              type="text"
+                                              value={itemA.text}
+                                              onChange={(e) => updateMatchingItem(idx, 'columnA', rIdx, e.target.value)}
+                                              onPaste={(e) => handleMatchingPasteImage(idx, 'columnA', rIdx, e)}
+                                              style={{
+                                                flex: 1,
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                padding: '4px 8px',
+                                                fontSize: '13px'
+                                              }}
+                                              placeholder="نص أو صورة المفاهيم (أ) (يدعم لصق صور من الحافظة Ctrl+V)..."
+                                            />
+                                            <label
+                                              style={{
+                                                padding: '4px 8px',
+                                                fontSize: '11px',
+                                                background: '#f1f5f9',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                margin: 0,
+                                                color: '#334155'
+                                              }}
+                                              title="إدراج صورة أو الصق من الحافظة Ctrl+V"
+                                            >
+                                              <input
+                                                type="file"
+                                                accept="image/*"
+                                                style={{ display: 'none' }}
+                                                onChange={(e) => {
+                                                  handleMatchingFileUpload(idx, 'columnA', rIdx, e.target.files?.[0]);
+                                                  e.target.value = null;
+                                                }}
+                                              />
+                                              <ImageIcon size={12} />
+                                              <span style={{ fontSize: '10px' }}>صورة</span>
+                                            </label>
+                                          </div>
                                           <QuickLatexToolbar
                                             compact
                                             title="معادلات:"
@@ -2662,19 +2767,50 @@ export default function LessonWorksheetModal({
                                       {/* Item Text or Edit Input */}
                                       {canEdit && activeTab === 'studio' ? (
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                          <input
-                                            type="text"
-                                            value={itemB.text}
-                                            onChange={(e) => updateMatchingItem(idx, 'columnB', rIdx, e.target.value)}
-                                            style={{
-                                              width: '100%',
-                                              border: '1px solid #cbd5e1',
-                                              borderRadius: '6px',
-                                              padding: '4px 8px',
-                                              fontSize: '13px'
-                                            }}
-                                            placeholder="نص التعريفات (ب)..."
-                                          />
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <input
+                                              type="text"
+                                              value={itemB.text}
+                                              onChange={(e) => updateMatchingItem(idx, 'columnB', rIdx, e.target.value)}
+                                              onPaste={(e) => handleMatchingPasteImage(idx, 'columnB', rIdx, e)}
+                                              style={{
+                                                flex: 1,
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                padding: '4px 8px',
+                                                fontSize: '13px'
+                                              }}
+                                              placeholder="نص أو صورة التعريفات (ب) (يدعم لصق صور من الحافظة Ctrl+V)..."
+                                            />
+                                            <label
+                                              style={{
+                                                padding: '4px 8px',
+                                                fontSize: '11px',
+                                                background: '#f1f5f9',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                margin: 0,
+                                                color: '#334155'
+                                              }}
+                                              title="إدراج صورة أو الصق من الحافظة Ctrl+V"
+                                            >
+                                              <input
+                                                type="file"
+                                                accept="image/*"
+                                                style={{ display: 'none' }}
+                                                onChange={(e) => {
+                                                  handleMatchingFileUpload(idx, 'columnB', rIdx, e.target.files?.[0]);
+                                                  e.target.value = null;
+                                                }}
+                                              />
+                                              <ImageIcon size={12} />
+                                              <span style={{ fontSize: '10px' }}>صورة</span>
+                                            </label>
+                                          </div>
                                           <QuickLatexToolbar
                                             compact
                                             title="معادلات:"
@@ -2859,37 +2995,13 @@ export default function LessonWorksheetModal({
 
                 {canEdit && activeTab === 'studio' ? (
                   <div style={{ marginBottom: '10px' }}>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#b45309', fontWeight: 'bold', marginBottom: '4px' }}>
-                      نص سؤال التحدي والتفكير الإبداعي (يدعم LaTeX تلقائياً):
-                    </label>
-                    <textarea
-                      rows={2}
-                      className="input-field"
-                      style={{ margin: 0, fontSize: '13px' }}
+                    <MarkdownInput
+                      label="نص سؤال التحدي والتفكير الإبداعي"
                       value={bonusQuestion.question || ''}
-                      placeholder="اكتب نص سؤال التحدي..."
-                      onChange={(e) => setBonusQuestion(prev => ({ ...prev, question: e.target.value }))}
+                      onChange={(val) => setBonusQuestion(prev => ({ ...prev, question: val }))}
+                      placeholder="اكتب نص سؤال التحدي (يدعم LaTeX وصيغ المعادلات ولصق صور من الحافظة Ctrl+V)..."
+                      height="120px"
                     />
-                    <QuickLatexToolbar
-                      compact
-                      title="معادلات سؤال التحدي:"
-                      onInsert={(code) => setBonusQuestion(prev => ({ ...prev, question: (prev.question || '') + (prev.question ? ' ' : '') + code }))}
-                      showFullToggle={true}
-                      isFullOpen={activeBonusLatex === 'question'}
-                      onToggleFull={() => setActiveBonusLatex(activeBonusLatex === 'question' ? null : 'question')}
-                    />
-                    {activeBonusLatex === 'question' && (
-                      <LatexMathToolbar
-                        compact
-                        onInsert={(code) => setBonusQuestion(prev => ({ ...prev, question: (prev.question || '') + (prev.question ? ' ' : '') + code }))}
-                      />
-                    )}
-                    {bonusQuestion.question && (
-                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#92400e', background: '#fffdf5', padding: '4px 10px', borderRadius: '4px', border: '1px dashed #fcd34d' }}>
-                        <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>معاينة نص التحدي:</span>
-                        <MarkdownViewer content={bonusQuestion.question} />
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <div style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#78350f', lineHeight: '1.6' }}>
@@ -2936,38 +3048,15 @@ export default function LessonWorksheetModal({
                     )}
                   </div>
                 ) : canEdit && activeTab === 'studio' ? (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '4px' }}>
-                      معيار ودليل التصحيح النموذجي للتحدي (يدعم LaTeX تلقائياً):
-                    </label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      style={{ margin: 0, fontSize: '12px' }}
+                  <div style={{ marginTop: '10px' }}>
+                    <MarkdownInput
+                      label="معيار ودليل التصحيح النموذجي للتحدي"
                       value={bonusQuestion.modelAnswer || ''}
-                      placeholder="اكتب المعيار أو صيغة الحل النموذجية..."
-                      onChange={(e) => setBonusQuestion(prev => ({ ...prev, modelAnswer: e.target.value }))}
-                    />
-                    <QuickLatexToolbar
+                      onChange={(val) => setBonusQuestion(prev => ({ ...prev, modelAnswer: val }))}
+                      placeholder="اكتب المعيار أو صيغة الحل النموذجية (يدعم المعادلات ولصق صور من الحافظة Ctrl+V)..."
+                      height="90px"
                       compact
-                      title="معادلات معيار الحل:"
-                      onInsert={(code) => setBonusQuestion(prev => ({ ...prev, modelAnswer: (prev.modelAnswer || '') + (prev.modelAnswer ? ' ' : '') + code }))}
-                      showFullToggle={true}
-                      isFullOpen={activeBonusLatex === 'modelAnswer'}
-                      onToggleFull={() => setActiveBonusLatex(activeBonusLatex === 'modelAnswer' ? null : 'modelAnswer')}
                     />
-                    {activeBonusLatex === 'modelAnswer' && (
-                      <LatexMathToolbar
-                        compact
-                        onInsert={(code) => setBonusQuestion(prev => ({ ...prev, modelAnswer: (prev.modelAnswer || '') + (prev.modelAnswer ? ' ' : '') + code }))}
-                      />
-                    )}
-                    {bonusQuestion.modelAnswer && (
-                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#854d0e', background: '#fefce8', padding: '4px 10px', borderRadius: '4px', border: '1px dashed #fef08a' }}>
-                        <span style={{ fontSize: '10px', color: '#a16207', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>معاينة معيار الحل:</span>
-                        <MarkdownViewer content={bonusQuestion.modelAnswer} />
-                      </div>
-                    )}
                   </div>
                 ) : (
                   (showAnswers || (activeTab === 'teacher' && showAnswers)) && bonusQuestion.modelAnswer ? (
@@ -3203,6 +3292,19 @@ export default function LessonWorksheetModal({
         .spin {
           animation: spin 1s linear infinite;
         }
+        .worksheet-option-card img {
+          max-height: 120px !important;
+          max-width: 100% !important;
+          object-fit: contain !important;
+          border-radius: 6px !important;
+          display: inline-block !important;
+        }
+        .worksheet-question-card .markdown-content img {
+          max-height: 280px;
+          max-width: 100%;
+          object-fit: contain;
+          border-radius: 6px;
+        }
         @media print {
           *, *:before, *:after {
             -webkit-print-color-adjust: exact !important;
@@ -3297,6 +3399,20 @@ export default function LessonWorksheetModal({
             padding: 8px 12px !important;
             display: block !important;
             background: #ffffff !important;
+          }
+          .worksheet-option-card img {
+            max-height: 90px !important;
+            max-width: 100% !important;
+            object-fit: contain !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .worksheet-question-card .markdown-content img {
+            max-height: 140px !important;
+            max-width: 100% !important;
+            object-fit: contain !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           .question-image-container img {
             max-height: 140px !important;
