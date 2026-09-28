@@ -55,6 +55,7 @@ export default function LessonPreparation() {
   // Tabs and History states
   const [activeTab, setActiveTab] = useState('form'); // 'form' | 'list'
   const [allPreparations, setAllPreparations] = useState([]);
+  const [listFilter, setListFilter] = useState('all'); // 'all' | 'draft_ws' | 'published_ws'
   const [previewPrep, setPreviewPrep] = useState(null);
   const [printingPrep, setPrintingPrep] = useState(null);
   const [worksheetModalOpen, setWorksheetModalOpen] = useState(false);
@@ -195,6 +196,20 @@ export default function LessonPreparation() {
     });
     return () => unsub();
   }, [teacherDocId, userData]);
+
+  // Filter preparations by worksheet status
+  const filteredPreparations = useMemo(() => {
+    if (listFilter === 'draft_ws') {
+      return allPreparations.filter(p => p.hasWorksheet && p.worksheetStatus === 'draft');
+    }
+    if (listFilter === 'published_ws') {
+      return allPreparations.filter(p => p.hasWorksheet && p.worksheetStatus === 'published');
+    }
+    return allPreparations;
+  }, [allPreparations, listFilter]);
+
+  const draftWsCount = useMemo(() => allPreparations.filter(p => p.hasWorksheet && p.worksheetStatus === 'draft').length, [allPreparations]);
+  const publishedWsCount = useMemo(() => allPreparations.filter(p => p.hasWorksheet && p.worksheetStatus === 'published').length, [allPreparations]);
 
   // 4. Detect Stage when Class changes
   useEffect(() => {
@@ -1757,16 +1772,90 @@ export default function LessonPreparation() {
       {/* Preparations Record Tab */}
       {activeTab === 'list' && (
         <div>
-          {allPreparations.length === 0 ? (
+          {/* Quick Filter Bar for Worksheets and Preparations */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            marginBottom: '18px',
+            background: '#f8fafc',
+            padding: '10px 16px',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+                تصفية حسب أوراق العمل:
+              </span>
+              <button
+                type="button"
+                onClick={() => setListFilter('all')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: listFilter === 'all' ? '1.5px solid #0e7490' : '1px solid #cbd5e1',
+                  background: listFilter === 'all' ? '#0e7490' : '#ffffff',
+                  color: listFilter === 'all' ? '#ffffff' : '#475569',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                جميع التحاضير ({allPreparations.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setListFilter('draft_ws')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: listFilter === 'draft_ws' ? '1.5px solid #d97706' : '1px solid #fde68a',
+                  background: listFilter === 'draft_ws' ? '#f59e0b' : '#fffbeb',
+                  color: listFilter === 'draft_ws' ? '#ffffff' : '#b45309',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                🔒 مسودات أوراق العمل ({draftWsCount})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setListFilter('published_ws')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: listFilter === 'published_ws' ? '1.5px solid #059669' : '1px solid #a7f3d0',
+                  background: listFilter === 'published_ws' ? '#10b981' : '#ecfdf5',
+                  color: listFilter === 'published_ws' ? '#ffffff' : '#047857',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                🌍 أوراق عمل منشورة ({publishedWsCount})
+              </button>
+            </div>
+
+            <div style={{ fontSize: '12px', color: '#64748b' }}>
+              المعروض: <strong>{filteredPreparations.length}</strong> تحضير
+            </div>
+          </div>
+
+          {filteredPreparations.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '50px 20px', background: '#f8fafc', borderRadius: '12px' }}>
-              لا توجد تحاضير محفوظة حتى الآن.
+              {listFilter === 'draft_ws' ? 'لا توجد مسودات أوراق عمل محفوظة حالياً.' : 'لا توجد تحاضير مطابقة حتى الآن.'}
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {allPreparations.map(p => (
+              {filteredPreparations.map(p => (
                 <div key={p.id} style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
                       <h3 style={{ margin: 0, color: 'var(--color-primary-dark)' }}>
                         {p.lessonTitle ? `${p.lessonTitle} - ` : ''}{p.subject}
                       </h3>
@@ -1776,6 +1865,22 @@ export default function LessonPreparation() {
                       {p.stage && (
                         <span style={{ background: '#f8fafc', color: '#0284c7', border: '1px solid #bae6fd', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
                           {p.stage}
+                        </span>
+                      )}
+                      {p.hasWorksheet && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          background: p.worksheetStatus === 'draft' ? '#fffbeb' : '#ecfdf5',
+                          color: p.worksheetStatus === 'draft' ? '#b45309' : '#047857',
+                          border: `1px solid ${p.worksheetStatus === 'draft' ? '#fde68a' : '#a7f3d0'}`,
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: 'bold'
+                        }}>
+                          {p.worksheetStatus === 'draft' ? '🔒 مسودة ورقة عمل' : '🌍 ورقة عمل منشورة'}
                         </span>
                       )}
                       {p.semester && (
@@ -1791,14 +1896,20 @@ export default function LessonPreparation() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <button 
                       className="btn" 
                       style={{ 
                         padding: '8px 14px', 
-                        background: p.hasWorksheet ? '#ecfdf5' : '#f5f3ff', 
-                        color: p.hasWorksheet ? '#047857' : '#7c3aed', 
-                        border: `1px solid ${p.hasWorksheet ? '#a7f3d0' : '#ddd6fe'}`,
+                        background: p.hasWorksheet 
+                          ? (p.worksheetStatus === 'draft' ? '#fffbeb' : '#ecfdf5') 
+                          : '#f5f3ff', 
+                        color: p.hasWorksheet 
+                          ? (p.worksheetStatus === 'draft' ? '#b45309' : '#047857') 
+                          : '#7c3aed', 
+                        border: `1px solid ${p.hasWorksheet 
+                          ? (p.worksheetStatus === 'draft' ? '#fde68a' : '#a7f3d0') 
+                          : '#ddd6fe'}`,
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: '6px', 
@@ -1806,9 +1917,9 @@ export default function LessonPreparation() {
                         fontWeight: 'bold' 
                       }} 
                       onClick={() => handleOpenWorksheet(p)} 
-                      title="ورقة عمل الدرس (AI)"
+                      title={p.hasWorksheet ? 'استعراض وتعديل ورقة العمل' : 'توليد ورقة عمل بالذكاء الاصطناعي'}
                     >
-                      <Sparkles size={15} /> {p.hasWorksheet ? '📄 ورقة العمل' : '✨ ورقة عمل'}
+                      <Sparkles size={15} /> {p.hasWorksheet ? (p.worksheetStatus === 'draft' ? '🔒 مسودة ورقة العمل' : '📄 ورقة عمل (منشورة)') : '✨ ورقة عمل (AI)'}
                     </button>
                     <button className="btn" style={{ padding: '8px 14px', background: '#0e7490', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 'bold' }} onClick={() => setPrintingPrep(p)} title="طباعة التحضير (PDF)">
                       <Printer size={16} /> طباعة (PDF)
@@ -1853,14 +1964,20 @@ export default function LessonPreparation() {
                     gap: '6px',
                     padding: '6px 14px',
                     fontSize: '13px',
-                    background: '#f5f3ff',
-                    color: '#7c3aed',
-                    border: '1px solid #ddd6fe',
+                    background: previewPrep.hasWorksheet 
+                      ? (previewPrep.worksheetStatus === 'draft' ? '#fffbeb' : '#ecfdf5')
+                      : '#f5f3ff',
+                    color: previewPrep.hasWorksheet 
+                      ? (previewPrep.worksheetStatus === 'draft' ? '#b45309' : '#047857')
+                      : '#7c3aed',
+                    border: `1px solid ${previewPrep.hasWorksheet 
+                      ? (previewPrep.worksheetStatus === 'draft' ? '#fde68a' : '#a7f3d0')
+                      : '#ddd6fe'}`,
                     fontWeight: 'bold'
                   }}
                   onClick={() => handleOpenWorksheet(previewPrep)}
                 >
-                  <Sparkles size={16} /> 📄 ورقة عمل الدرس
+                  <Sparkles size={16} /> {previewPrep.hasWorksheet ? (previewPrep.worksheetStatus === 'draft' ? '🔒 مسودة ورقة العمل' : '📄 ورقة عمل (منشورة)') : '✨ ورقة عمل الدرس'}
                 </button>
                 <button
                   className="btn btn-primary"
