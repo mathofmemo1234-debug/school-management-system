@@ -669,13 +669,13 @@ export default function LessonWorksheetModal({
       font-family: 'Simplified Arabic', 'Traditional Arabic', 'Segoe UI', Arial, sans-serif;
       direction: ${isAr ? 'rtl' : 'ltr'};
       text-align: ${isAr ? 'right' : 'left'};
-      padding: 20px;
+      padding: 10px;
     }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-    th, td { border: 1px solid #333; padding: 6px 10px; font-size: 13px; }
-    img { max-height: 65px; height: auto; vertical-align: middle; }
-    .header-box { border: 2px solid #0e7490; padding: 12px; margin-bottom: 20px; text-align: center; }
-    .question-box { margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px dashed #ccc; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    th, td { border: 1px solid #333; padding: 4px 8px; font-size: 11px; }
+    img { max-height: 38px; height: auto; vertical-align: middle; }
+    .header-box { border: 1.5px solid #0e7490; padding: 6px; margin-bottom: 8px; text-align: center; }
+    .question-box { margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed #ccc; }
     .badge { font-weight: bold; color: #0e7490; }
   </style>
 </head>
@@ -1500,39 +1500,38 @@ export default function LessonWorksheetModal({
         )}
 
         {/* Printable / Viewable Worksheet Body */}
-        <div id="printable-worksheet-content" style={{ padding: '30px 40px', flex: 1 }}>
+        <div id="printable-worksheet-content" style={{ padding: '16px 20px', flex: 1 }}>
           
-          {/* Official Ministry & School Printable Header */}
+          {/* Official Ministry & School Printable Header (Ultra Compact) */}
           <div style={{
-            borderBottom: '3px double #0e7490',
-            paddingBottom: '16px',
-            marginBottom: '20px',
+            borderBottom: '2px solid #0e7490',
+            paddingBottom: '6px',
+            marginBottom: '8px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             textAlign: 'center',
-            gap: '16px'
+            gap: '10px'
           }}>
             {/* Right: Kingdom & Ministry Hierarchy */}
-            <div style={{ textAlign: 'right', fontSize: '13px', color: '#1e293b', lineHeight: '1.6', flex: '1 1 0' }}>
+            <div style={{ textAlign: 'right', fontSize: '10.5px', color: '#1e293b', lineHeight: '1.35', flex: '1 1 0' }}>
               <div style={{ fontWeight: 'bold' }}>المملكة العربية السعودية</div>
-              <div>وزارة التعليم</div>
-              <div>الإدارة العامة للتعليم</div>
-              <div style={{ fontWeight: 'bold', color: '#0e7490' }}>
+              <div>وزارة التعليم • إدارة التعليم</div>
+              <div style={{ fontWeight: 'bold', color: '#0e7490', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {userData?.schoolName || prepData?.schoolName || existingWorksheet?.schoolName || 'المدارس المتقدمة الذكية'}
               </div>
             </div>
 
-            {/* Center: Official Ministry Logo & School Logo + Title */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: '2 1 0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', marginBottom: '8px' }}>
+            {/* Center: Compact Official Ministry Logo & School Logo + Title */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: '1.8 1 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '3px' }}>
                 <img
                   src={`${import.meta.env.BASE_URL}minst.svg`}
                   alt="وزارة التعليم"
                   style={{
-                    height: '65px',
+                    height: '36px',
                     width: 'auto',
-                    maxWidth: '115px',
+                    maxWidth: '75px',
                     objectFit: 'contain',
                     display: 'block'
                   }}
@@ -1541,14 +1540,14 @@ export default function LessonWorksheetModal({
                     e.target.src = `${import.meta.env.BASE_URL}default_logo.png`;
                   }}
                 />
-                <div style={{ width: '1.5px', height: '42px', background: '#cbd5e1' }}></div>
+                <div style={{ width: '1px', height: '24px', background: '#cbd5e1' }}></div>
                 <img
                   src={userData?.logoUrl || `${import.meta.env.BASE_URL}logo.webp`}
                   alt="شعار المدرسة"
                   style={{
-                    height: '58px',
+                    height: '32px',
                     width: 'auto',
-                    maxWidth: '95px',
+                    maxWidth: '65px',
                     objectFit: 'contain',
                     display: 'block'
                   }}
@@ -1561,58 +1560,54 @@ export default function LessonWorksheetModal({
 
               <div style={{
                 display: 'inline-block',
-                border: '2px solid #0e7490',
-                padding: '5px 22px',
-                borderRadius: '8px',
+                border: '1.5px solid #0e7490',
+                padding: '2px 14px',
+                borderRadius: '6px',
                 background: '#f0fdfa',
                 color: '#0e7490',
                 fontWeight: '900',
-                fontSize: '18px',
-                marginBottom: '6px'
+                fontSize: '13px',
+                lineHeight: '1.2',
+                marginBottom: '2px'
               }}>
-                ورقة عمل تقويمية وتفاعلية
+                ورقة عمل تقويمية: {lessonTitle}
               </div>
-              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a' }}>
-                موضوع الدرس: {lessonTitle}
-              </div>
-              <div style={{ fontSize: '13px', color: '#64748b' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', lineHeight: '1.2' }}>
                 مادة: {subject} • {className || stage} • {semester}
               </div>
             </div>
 
             {/* Left: Metadata & Grade */}
-            <div style={{ textAlign: 'left', fontSize: '12px', color: '#1e293b', lineHeight: '1.6', flex: '1 1 0' }}>
+            <div style={{ textAlign: 'left', fontSize: '10.5px', color: '#1e293b', lineHeight: '1.35', flex: '1 1 0' }}>
               <div>معلم المادة: <strong>{effectiveTeacherName}</strong></div>
               {showTime && (
                 <div>الزمن المقترح: <strong>{estimatedMinutes}</strong></div>
               )}
               <div>الدرجة الكلية: <strong>[ {totalMarks} درجات ]</strong></div>
-              <div style={{ marginTop: '4px', fontSize: '11px', color: '#64748b' }}>
-                التاريخ: {prepData?.date || existingWorksheet?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]}
-              </div>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                العام الدراسي: 1447 / 1448 هـ
+              <div style={{ color: '#64748b' }}>
+                {prepData?.date || existingWorksheet?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]} • 1447 / 1448 هـ
               </div>
             </div>
           </div>
 
-          {/* Student Info Box (For Student Print / Solve) */}
+          {/* Student Info Box (For Student Print / Solve - Ultra Compact) */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '8px',
+            gap: '6px',
             background: '#f8fafc',
-            border: '1.5px solid #cbd5e1',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            marginBottom: '20px',
-            fontSize: '13px'
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            padding: '4px 10px',
+            marginBottom: '8px',
+            fontSize: '11px',
+            alignItems: 'center'
           }}>
             <div><strong>اسم الطالب:</strong> {effectiveStudentName || '....................................'}</div>
             <div><strong>الصف / الفصل:</strong> {effectiveClassName || '....................'}</div>
             <div><strong>الرقم الأكاديمي:</strong> {effectiveStudentNid || '....................'}</div>
             <div style={{ textAlign: 'left', fontWeight: 'bold', color: '#0e7490' }}>
-              <strong>الدرجة المستحقة:</strong> [ {studentSubmitted ? `${submissionScore} / ${totalMarks}` : `...... / ${totalMarks}`} ]
+              <strong>الدرجة:</strong> [ {studentSubmitted ? `${submissionScore} / ${totalMarks}` : `...... / ${totalMarks}`} ]
             </div>
           </div>
 
@@ -1620,71 +1615,72 @@ export default function LessonWorksheetModal({
           {studentSubmitted && (
             <div className="no-print" style={{
               background: 'linear-gradient(135deg, #ecfdf5, #f0fdf4)',
-              border: '2px solid #10b981',
-              borderRadius: '10px',
-              padding: '14px 18px',
-              marginBottom: '20px',
+              border: '1.5px solid #10b981',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              marginBottom: '10px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: '12px'
+              gap: '10px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '26px' }}>🎉</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '20px' }}>🎉</span>
                 <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#065f46' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#065f46' }}>
                     تم تسليم إجابات ورقة العمل واعتماد درجتك بنجاح!
                   </div>
-                  <div style={{ fontSize: '12px', color: '#047857' }}>
+                  <div style={{ fontSize: '11px', color: '#047857' }}>
                     {timerEnded ? 'انتهى الوقت المحدد للمؤقت وتم الاعتماد التلقائي.' : 'تم إنهاء الحل وتسليمه للمعلم.'} {showAnswers ? 'تم فتح دليل التصحيح والتعليل لمراجعة أدائك ذاتياً.' : 'تم حفظ وتسليم إجاباتك بنجاح بانتظار مراجعة المعلم.'}
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ background: 'white', border: '1.5px solid #10b981', borderRadius: '8px', padding: '6px 14px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>الدرجة المحققة</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#059669' }}>{submissionScore} / {totalMarks}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ background: 'white', border: '1px solid #10b981', borderRadius: '6px', padding: '4px 10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', color: '#64748b' }}>الدرجة المحققة</div>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#059669' }}>{submissionScore} / {totalMarks}</div>
                 </div>
-                <div style={{ background: 'white', border: '1.5px solid #10b981', borderRadius: '8px', padding: '6px 14px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>النسبة</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: submissionPercentage >= 70 ? '#059669' : '#d97706' }}>{submissionPercentage}%</div>
+                <div style={{ background: 'white', border: '1px solid #10b981', borderRadius: '6px', padding: '4px 10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', color: '#64748b' }}>النسبة</div>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: submissionPercentage >= 70 ? '#059669' : '#d97706' }}>{submissionPercentage}%</div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Instructions Box */}
+          {/* Instructions Box (Compact) */}
           <div style={{
-            background: '#fffbeb',
+            background: '#fffdf5',
             border: '1px solid #fef3c7',
-            padding: '8px 14px',
-            borderRadius: '6px',
-            marginBottom: '20px',
-            fontSize: '12px',
-            color: '#92400e'
+            padding: '3px 8px',
+            borderRadius: '4px',
+            marginBottom: '8px',
+            fontSize: '10.5px',
+            color: '#92400e',
+            lineHeight: '1.35'
           }}>
-            <strong>📌 تعليمات وتوجيهات ورقة العمل:</strong> {instructions.join(' • ')}
+            <strong>📌 توجيهات:</strong> {instructions.join(' • ')}
           </div>
 
-          {/* Target Objectives Box (Visible ONLY if teacher explicitly enables showObjectives) */}
+          {/* Target Objectives Box (Visible ONLY if teacher explicitly enables showObjectives - Compact) */}
           {showObjectives && effectiveObjectives.length > 0 && (
             <div style={{
               background: '#f0fdfa',
-              border: '1.5px solid #99f6e4',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              marginBottom: '20px',
-              fontSize: '12px',
+              border: '1px solid #99f6e4',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              marginBottom: '8px',
+              fontSize: '10.5px',
               color: '#0f766e',
               pageBreakInside: 'avoid'
             }}>
-              <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                🎯 الأهداف التعليمية المستهدفة لورقة العمل:
+              <strong style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
+                🎯 الأهداف المستهدفة:
               </strong>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                 {effectiveObjectives.map((obj, i) => (
-                  <span key={i} style={{ background: '#ccfbf1', border: '1px solid #5eead4', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', color: '#115e59', fontWeight: 500 }}>
+                  <span key={i} style={{ background: '#ccfbf1', border: '1px solid #5eead4', padding: '1px 6px', borderRadius: '4px', fontSize: '10px', color: '#115e59', fontWeight: 500 }}>
                     • {obj}
                   </span>
                 ))}
@@ -3295,15 +3291,15 @@ export default function LessonWorksheetModal({
           .worksheet-question-card {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            border: 1.5px solid #cbd5e1 !important;
+            border: 1px solid #cbd5e1 !important;
             box-shadow: none !important;
-            margin-bottom: 12px !important;
-            padding: 12px 16px !important;
+            margin-bottom: 8px !important;
+            padding: 8px 12px !important;
             display: block !important;
             background: #ffffff !important;
           }
           .question-image-container img {
-            max-height: 180px !important;
+            max-height: 140px !important;
             max-width: 100% !important;
             object-fit: contain !important;
             page-break-inside: avoid !important;
@@ -3311,7 +3307,7 @@ export default function LessonWorksheetModal({
           }
           @page {
             size: A4 portrait;
-            margin: 10mm 12mm 12mm 12mm;
+            margin: 6mm 8mm 8mm 8mm;
           }
         }
       `}</style>
