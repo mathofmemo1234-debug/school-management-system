@@ -7,8 +7,9 @@ import 'katex/dist/contrib/mhchem.min.js';
 
 /**
  * Pre-processes text to ensure mathematical and chemical LaTeX notations
- * (such as \(...\), \[...\], and standalone \ce{...}) are converted into
- * standard Markdown LaTeX delimiters ($...$ and $$...$$).
+ * are automatically recognized and converted into standard Markdown LaTeX delimiters ($...$ and $$...$$).
+ * Supports IMPLICIT LaTeX: Automatically detects raw LaTeX commands (\frac, \sqrt, etc.),
+ * math powers/subscripts (x^2, y_1), and chemical formulas (\ce{...}) without needing manual $ wrapping.
  */
 export function normalizeLatex(text) {
   if (!text || typeof text !== 'string') return text || '';
@@ -19,10 +20,37 @@ export function normalizeLatex(text) {
   // 2. Convert \( ... \) inline math to $ ... $
   normalized = normalized.replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => `$${math.trim()}$`);
 
-  // 3. Convert standalone \ce{...} that isn't surrounded by $ to $\ce{...}$
-  // Avoid double dollar if already inside $...$ or $$...$$
-  normalized = normalized.replace(/(?<!\$)\\ce\{([^{}]+(?:\d|[a-zA-Z\s+\-><=^().[\]{}])*)\}(?!\$)/g, (match) => {
+  // Protect already existing math blocks ($$...$$ and $...$) so we don't double-wrap or alter them
+  const mathPlaceholders = [];
+  normalized = normalized.replace(/\$\$([\s\S]*?)\$\$|\$([^$\n]+?)\$/g, (match) => {
+    const id = `__MATH_PROTECTED_${mathPlaceholders.length}__`;
+    mathPlaceholders.push(match);
+    return id;
+  });
+
+  // 3. Convert standalone \ce{...} to $\ce{...}$
+  normalized = normalized.replace(/\\ce\{([^{}]+(?:\d|[a-zA-Z\s+\-><=^().[\]{}])*)\}/g, (match) => {
     return `$${match}$`;
+  });
+
+  // 4. Implicit LaTeX: Auto-wrap standalone LaTeX math commands and their mathematical arguments
+  // Matches commands like \frac{...}{...}, \sqrt{...}, \pm, \times, \div, \sum, \int, \alpha, \pi, etc.
+  const latexCommandPattern = /\\(?:frac\{[^{}]*\}\{[^{}]*\}|sqrt(?:\[[^{}]*\])?\{[^{}]*\}|left[([{|.]|right[)\]}|.]|sum(?:_\{[^{}]*\}\^\{[^{}]*\}|_\{[^{}]*\}|\^[^{}]*)?|int(?:_\{[^{}]*\}\^\{[^{}]*\}|_\{[^{}]*\}|\^[^{}]*)?|lim(?:_\{[^{}]*\})?|vec\{[^{}]*\}|mathbf\{[^{}]*\}|mathrm\{[^{}]*\}|text\{[^{}]*\}|alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Delta|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega|times|div|pm|mp|cdot|circ|bullet|approx|neq|le|ge|equiv|sim|ll|gg|infty|partial|nabla|angle|perp|parallel|forall|exists|in|notin|subset|supset|cup|cap|to|leftarrow|rightarrow|Rightarrow|Leftarrow|Leftrightarrow|degree)(?:(?:\s*[\+\-\*\/=><^_\s]\s*|\s+)(?:\\?[a-zA-Z0-9_{}()]+|\{[^{}]*\}|\d+(?:\.\d+)?))*/g;
+
+  normalized = normalized.replace(latexCommandPattern, (match) => {
+    return `$${match.trim()}$`;
+  });
+
+  // 5. Implicit variable powers/subscripts (e.g. x^2, y_1, x^2 + 4, a^2 + b^2 = c^2)
+  const varPowerPattern = /(?<![a-zA-Z0-9_\\])(?:[a-zA-Z](?:\^[0-9a-zA-Z{}]+|_[0-9a-zA-Z{}]+)(?:\s*[\+\-\*\/=><]\s*(?:[a-zA-Z0-9]+(?:\^[0-9a-zA-Z{}]+|_[0-9a-zA-Z{}]+)?|\d+))*)(?![a-zA-Z0-9_\\])/g;
+
+  normalized = normalized.replace(varPowerPattern, (match) => {
+    return `$${match.trim()}$`;
+  });
+
+  // 6. Restore protected math blocks
+  mathPlaceholders.forEach((orig, idx) => {
+    normalized = normalized.replace(`__MATH_PROTECTED_${idx}__`, orig);
   });
 
   return normalized;

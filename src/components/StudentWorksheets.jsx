@@ -367,7 +367,7 @@ export default function StudentWorksheets({ studentClassOverride = null, schoolI
                 {/* Specs Pill Grid */}
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gridTemplateColumns: ws.showTime === false ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
                   gap: '6px',
                   background: '#f8fafc',
                   border: '1px solid #e2e8f0',
@@ -379,14 +379,16 @@ export default function StudentWorksheets({ studentClassOverride = null, schoolI
                     <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>الأسئلة</span>
                     <strong style={{ fontSize: '13px', color: '#0e7490' }}>{qCount} أسئلة</strong>
                   </div>
-                  <div style={{ borderRight: '1px solid #e2e8f0', borderLeft: '1px solid #e2e8f0' }}>
+                  <div style={{ borderRight: '1px solid #e2e8f0', borderLeft: ws.showTime === false ? 'none' : '1px solid #e2e8f0' }}>
                     <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>الدرجة</span>
                     <strong style={{ fontSize: '13px', color: '#15803d' }}>{points} درجة</strong>
                   </div>
-                  <div>
-                    <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>الزمن</span>
-                    <strong style={{ fontSize: '12px', color: '#6366f1' }}>{timeEst}</strong>
-                  </div>
+                  {ws.showTime !== false && (
+                    <div>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>الزمن</span>
+                      <strong style={{ fontSize: '12px', color: '#6366f1' }}>{timeEst}</strong>
+                    </div>
+                  )}
                 </div>
 
                 {/* Action Buttons */}

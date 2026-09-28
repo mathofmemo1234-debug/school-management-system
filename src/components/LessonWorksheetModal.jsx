@@ -12,6 +12,7 @@ import { generateWorksheetAI, formatNumberBySymbol, BLOOM_LEVELS, isInternationa
 import { compressImageToDataUrl } from '../utils/imageCompressor';
 import MarkdownViewer from './MarkdownViewer';
 import LatexMathToolbar from './LatexMathToolbar';
+import QuickLatexToolbar from './QuickLatexToolbar';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -121,6 +122,12 @@ export default function LessonWorksheetModal({
   // Show/Hide Objectives Option (Defaults to false: hidden from student)
   const [showObjectives, setShowObjectives] = useState(existingWorksheet?.showObjectives || false);
 
+  // Show/Hide Solution Answers Key (Defaults to false for student worksheets & drafts)
+  const [showAnswers, setShowAnswers] = useState(existingWorksheet?.showAnswers !== undefined ? Boolean(existingWorksheet.showAnswers) : false);
+
+  // Show/Hide Estimated Time and Timer Bar (Defaults to false for drafts & student worksheets)
+  const [showTime, setShowTime] = useState(existingWorksheet?.showTime !== undefined ? Boolean(existingWorksheet.showTime) : false);
+
   // Active View Tab: 'student' (Student Worksheet) | 'teacher' (Model Answer Key) | 'studio' (AI Editor)
   const [activeTab, setActiveTab] = useState(userRole === 'student' ? 'student' : (existingWorksheet ? 'student' : 'studio'));
 
@@ -128,6 +135,11 @@ export default function LessonWorksheetModal({
   const [uploadingImgQIndex, setUploadingImgQIndex] = useState(null);
   const [editingQIndex, setEditingQIndex] = useState(null);
   const [latexEditingIdx, setLatexEditingIdx] = useState(null);
+  const [activeOptionLatex, setActiveOptionLatex] = useState(null); // { qIdx, optIdx }
+  const [activeBlankLatex, setActiveBlankLatex] = useState(null); // qIdx
+  const [activeMatchingLatex, setActiveMatchingLatex] = useState(null); // { qIdx, col, itemIdx }
+  const [activeProblemLatex, setActiveProblemLatex] = useState(null); // qIdx
+  const [activeBonusLatex, setActiveBonusLatex] = useState(null); // 'question' | 'modelAnswer'
 
   // Worksheet Content State
   const [questions, setQuestions] = useState(existingWorksheet?.questions || []);
@@ -185,6 +197,8 @@ export default function LessonWorksheetModal({
       setSymbolLanguage(existingWorksheet.symbolLanguage || 'ar');
       setCurriculumTrack(existingWorksheet.curriculumTrack || (existingWorksheet.isInternational ? 'international' : 'national'));
       setShowObjectives(existingWorksheet.showObjectives || false);
+      setShowAnswers(existingWorksheet.showAnswers !== undefined ? Boolean(existingWorksheet.showAnswers) : false);
+      setShowTime(existingWorksheet.showTime !== undefined ? Boolean(existingWorksheet.showTime) : false);
       setWorksheetDocId(existingWorksheet.id || null);
     }
   }, [existingWorksheet]);
@@ -395,6 +409,10 @@ export default function LessonWorksheetModal({
   const handleSave = async (desiredStatus = status) => {
     setIsSaving(true);
     try {
+      // When saving draft directed to students, answers and time are explicitly hidden by default
+      const finalShowAnswers = desiredStatus === 'draft' ? false : Boolean(showAnswers);
+      const finalShowTime = desiredStatus === 'draft' ? false : Boolean(showTime);
+
       const payload = {
         lessonTitle,
         subject,
@@ -409,6 +427,8 @@ export default function LessonWorksheetModal({
         curriculumTrack,
         isInternational: curriculumTrack === 'international',
         showObjectives,
+        showAnswers: finalShowAnswers,
+        showTime: finalShowTime,
         cognitiveDistribution,
         selectedTypes,
         estimatedMinutes,
@@ -433,6 +453,10 @@ export default function LessonWorksheetModal({
       }
 
       setStatus(desiredStatus);
+      if (desiredStatus === 'draft') {
+        setShowAnswers(false);
+        setShowTime(false);
+      }
 
       // Link with preparation document if prepId exists
       if (prepId) {
@@ -455,7 +479,7 @@ export default function LessonWorksheetModal({
       if (desiredStatus === 'published') {
         alert('✓ تم اعتماد ونشر ورقة العمل بنجاح!\nأصبحت الآن متاحة وفورية للطالب وولي الأمر والكادر التعليمي والإدارة.');
       } else {
-        alert('✓ تم حفظ ورقة العمل كمسودة خاصة للمعلم بنجاح.');
+        alert('✓ تم حفظ ورقة العمل كمسودة موجهة للطالب بنجاح.\n(تم إخفاء الإجابات وحجب مؤقت الزمن تلقائياً، مع تفعيل رموز ومعادلات LaTeX ضمنياً).');
       }
     } catch (err) {
       console.error('Error saving worksheet:', err);
@@ -649,6 +673,7 @@ export default function LessonWorksheetModal({
     }
     table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
     th, td { border: 1px solid #333; padding: 6px 10px; font-size: 13px; }
+    img { max-height: 65px; height: auto; vertical-align: middle; }
     .header-box { border: 2px solid #0e7490; padding: 12px; margin-bottom: 20px; text-align: center; }
     .question-box { margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px dashed #ccc; }
     .badge { font-weight: bold; color: #0e7490; }
@@ -944,7 +969,8 @@ export default function LessonWorksheetModal({
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '13px', color: '#64748b', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: '#64748b', flexWrap: 'wrap' }}>
+            {/* Show / Hide Objectives Toggle */}
             <button
               type="button"
               onClick={() => setShowObjectives(prev => !prev)}
@@ -953,29 +979,80 @@ export default function LessonWorksheetModal({
                 border: `1.5px solid ${showObjectives ? '#0e7490' : '#cbd5e1'}`,
                 color: showObjectives ? '#0e7490' : '#64748b',
                 borderRadius: '8px',
-                padding: '5px 12px',
+                padding: '5px 10px',
                 fontSize: '12px',
                 fontWeight: 'bold',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '5px',
                 boxShadow: showObjectives ? '0 2px 6px rgba(14, 116, 144, 0.15)' : 'none'
               }}
               title="التبديل بين إظهار أو إخفاء أهداف الدرس في ورقة العمل"
             >
-              {showObjectives ? <Eye size={14} color="#0e7490" /> : <EyeOff size={14} color="#64748b" />}
-              <span>أهداف الدرس: {showObjectives ? 'معروضة 👁️' : 'مخفية 🔒'}</span>
+              {showObjectives ? <Eye size={13} color="#0e7490" /> : <EyeOff size={13} color="#64748b" />}
+              <span>الأهداف: {showObjectives ? 'معروضة 👁️' : 'مخفية 🔒'}</span>
             </button>
-            <span>عدد الأسئلة: <strong>{questions.length}</strong></span>
-            <span>الدرجة الكلية: <strong>{totalMarks} درجات</strong></span>
-            <span>الزمن المقترح: <strong>{estimatedMinutes}</strong></span>
+
+            {/* Show / Hide Answers Key Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowAnswers(prev => !prev)}
+              style={{
+                background: showAnswers ? '#ecfdf5' : '#ffffff',
+                border: `1.5px solid ${showAnswers ? '#10b981' : '#cbd5e1'}`,
+                color: showAnswers ? '#047857' : '#64748b',
+                borderRadius: '8px',
+                padding: '5px 10px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                boxShadow: showAnswers ? '0 2px 6px rgba(16, 185, 129, 0.15)' : 'none'
+              }}
+              title="التحكم في إظهار أو إخفاء الإجابات النموذجية ودليل الحل في ورقة العمل"
+            >
+              {showAnswers ? <CheckCircle2 size={13} color="#059669" /> : <EyeOff size={13} color="#64748b" />}
+              <span>الإجابات: {showAnswers ? 'معروضة 👁️' : 'مخفية 🔒'}</span>
+            </button>
+
+            {/* Show / Hide Time Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowTime(prev => !prev)}
+              style={{
+                background: showTime ? '#eff6ff' : '#ffffff',
+                border: `1.5px solid ${showTime ? '#3b82f6' : '#cbd5e1'}`,
+                color: showTime ? '#1d4ed8' : '#64748b',
+                borderRadius: '8px',
+                padding: '5px 10px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                boxShadow: showTime ? '0 2px 6px rgba(59, 130, 246, 0.15)' : 'none'
+              }}
+              title="التحكم في إظهار أو حجب الزمن والمؤقت الزمني"
+            >
+              {showTime ? <Clock size={13} color="#2563eb" /> : <EyeOff size={13} color="#64748b" />}
+              <span>الزمن: {showTime ? 'معروض ⏱️' : 'مخفي 🔒'}</span>
+            </button>
+
+            <span>الأسئلة: <strong>{questions.length}</strong></span>
+            <span>الدرجة: <strong>{totalMarks}</strong></span>
+            {showTime && (
+              <span>الزمن المقترح: <strong>{estimatedMinutes}</strong></span>
+            )}
             <span>الرموز: <strong>{symbolLanguage === 'ar' ? '🇸🇦 عربية (س، ص)' : '🇬🇧 إنجليزية (x, y)'}</strong></span>
           </div>
         </div>
 
         {/* Student Interactive Solving & Countdown Timer Bar */}
-        {activeTab === 'student' && (
+        {activeTab === 'student' && showTime && (
           <div className="no-print" style={{
             background: timeRemaining <= 180 && !studentSubmitted ? '#fef2f2' : '#f0fdfa',
             borderBottom: `2px solid ${timeRemaining <= 180 && !studentSubmitted ? '#f87171' : '#99f6e4'}`,
@@ -1433,22 +1510,59 @@ export default function LessonWorksheetModal({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            textAlign: 'center'
+            textAlign: 'center',
+            gap: '16px'
           }}>
-            {/* Right: Kingdom & Ministry */}
-            <div style={{ textAlign: 'right', fontSize: '13px', color: '#1e293b', lineHeight: '1.5' }}>
+            {/* Right: Kingdom & Ministry Hierarchy */}
+            <div style={{ textAlign: 'right', fontSize: '13px', color: '#1e293b', lineHeight: '1.6', flex: '1 1 0' }}>
               <div style={{ fontWeight: 'bold' }}>المملكة العربية السعودية</div>
               <div>وزارة التعليم</div>
-              <div>إدارة التعليم بمحافظة جدة</div>
-              <div style={{ fontWeight: 'bold', color: '#0e7490' }}>{userData?.schoolName || 'المدارس المتقدمة الذكية'}</div>
+              <div>الإدارة العامة للتعليم</div>
+              <div style={{ fontWeight: 'bold', color: '#0e7490' }}>
+                {userData?.schoolName || prepData?.schoolName || existingWorksheet?.schoolName || 'المدارس المتقدمة الذكية'}
+              </div>
             </div>
 
-            {/* Center: Title & Subject */}
-            <div>
+            {/* Center: Official Ministry Logo & School Logo + Title */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: '2 1 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', marginBottom: '8px' }}>
+                <img
+                  src={`${import.meta.env.BASE_URL}minst.svg`}
+                  alt="وزارة التعليم"
+                  style={{
+                    height: '65px',
+                    width: 'auto',
+                    maxWidth: '115px',
+                    objectFit: 'contain',
+                    display: 'block'
+                  }}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `${import.meta.env.BASE_URL}default_logo.png`;
+                  }}
+                />
+                <div style={{ width: '1.5px', height: '42px', background: '#cbd5e1' }}></div>
+                <img
+                  src={userData?.logoUrl || `${import.meta.env.BASE_URL}logo.webp`}
+                  alt="شعار المدرسة"
+                  style={{
+                    height: '58px',
+                    width: 'auto',
+                    maxWidth: '95px',
+                    objectFit: 'contain',
+                    display: 'block'
+                  }}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `${import.meta.env.BASE_URL}default_logo.png`;
+                  }}
+                />
+              </div>
+
               <div style={{
                 display: 'inline-block',
                 border: '2px solid #0e7490',
-                padding: '6px 24px',
+                padding: '5px 22px',
                 borderRadius: '8px',
                 background: '#f0fdfa',
                 color: '#0e7490',
@@ -1467,12 +1581,17 @@ export default function LessonWorksheetModal({
             </div>
 
             {/* Left: Metadata & Grade */}
-            <div style={{ textAlign: 'left', fontSize: '12px', color: '#1e293b', lineHeight: '1.5' }}>
+            <div style={{ textAlign: 'left', fontSize: '12px', color: '#1e293b', lineHeight: '1.6', flex: '1 1 0' }}>
               <div>معلم المادة: <strong>{effectiveTeacherName}</strong></div>
-              <div>الزمن المقترح: <strong>{estimatedMinutes}</strong></div>
+              {showTime && (
+                <div>الزمن المقترح: <strong>{estimatedMinutes}</strong></div>
+              )}
               <div>الدرجة الكلية: <strong>[ {totalMarks} درجات ]</strong></div>
               <div style={{ marginTop: '4px', fontSize: '11px', color: '#64748b' }}>
                 التاريخ: {prepData?.date || existingWorksheet?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]}
+              </div>
+              <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                العام الدراسي: 1447 / 1448 هـ
               </div>
             </div>
           </div>
@@ -1518,7 +1637,7 @@ export default function LessonWorksheetModal({
                     تم تسليم إجابات ورقة العمل واعتماد درجتك بنجاح!
                   </div>
                   <div style={{ fontSize: '12px', color: '#047857' }}>
-                    {timerEnded ? 'انتهى الوقت المحدد للمؤقت وتم الاعتماد التلقائي.' : 'تم إنهاء الحل وتسليمه للمعلم.'} تم فتح دليل التصحيح والتعليل لمراجعة أدائك ذاتياً.
+                    {timerEnded ? 'انتهى الوقت المحدد للمؤقت وتم الاعتماد التلقائي.' : 'تم إنهاء الحل وتسليمه للمعلم.'} {showAnswers ? 'تم فتح دليل التصحيح والتعليل لمراجعة أدائك ذاتياً.' : 'تم حفظ وتسليم إجاباتك بنجاح بانتظار مراجعة المعلم.'}
                   </div>
                 </div>
               </div>
@@ -1618,32 +1737,19 @@ export default function LessonWorksheetModal({
                         {canEdit && activeTab === 'studio' ? (
                           <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '11px', color: '#64748b' }}>نص السؤال (يدعم LaTeX وصيغ الكيمياء):</span>
-                              <button
-                                type="button"
-                                onClick={() => setLatexEditingIdx(latexEditingIdx === idx ? null : idx)}
-                                style={{
-                                  background: latexEditingIdx === idx ? '#ecfeff' : '#f1f5f9',
-                                  border: latexEditingIdx === idx ? '1.5px solid #0e7490' : '1px solid #cbd5e1',
-                                  borderRadius: '6px',
-                                  padding: '2px 8px',
-                                  fontSize: '11px',
-                                  color: latexEditingIdx === idx ? '#0e7490' : '#475569',
-                                  fontWeight: 'bold',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}
-                              >
-                                <Sparkles size={12} color="#0e7490" />
-                                {latexEditingIdx === idx ? 'إخفاء لوحة LaTeX' : '📐 لوحة LaTeX للمعادلات'}
-                              </button>
+                              <span style={{ fontSize: '11px', color: '#0e7490', fontWeight: 'bold' }}>نص السؤال (يدعم صياغة LaTeX والمعادلات تلقائياً):</span>
                             </div>
+                            <QuickLatexToolbar
+                              title="معادلات السؤال:"
+                              onInsert={(code) => updateQuestion(idx, 'question', (q.question || '') + (q.question ? ' ' : '') + code)}
+                              showFullToggle={true}
+                              isFullOpen={latexEditingIdx === idx}
+                              onToggleFull={() => setLatexEditingIdx(latexEditingIdx === idx ? null : idx)}
+                            />
                             {latexEditingIdx === idx && (
                               <LatexMathToolbar 
                                 onInsert={(code) => {
-                                  updateQuestion(idx, 'question', (q.question || '') + ' ' + code);
+                                  updateQuestion(idx, 'question', (q.question || '') + (q.question ? ' ' : '') + code);
                                 }} 
                                 compact 
                               />
@@ -1652,7 +1758,7 @@ export default function LessonWorksheetModal({
                               className="input-field"
                               rows={2}
                               style={{
-                                margin: 0,
+                                margin: '4px 0 0 0',
                                 padding: '8px 12px',
                                 fontSize: '14px',
                                 width: '100%',
@@ -1663,12 +1769,12 @@ export default function LessonWorksheetModal({
                                 border: '1.5px solid #cbd5e1'
                               }}
                               value={q.question}
-                              placeholder="اكتب أو عدّل نص السؤال هنا (يدعم الرموز والمعادلات الرياضية والعلمية مثل $x^2$ أو $\ce{H2O}$)..."
+                              placeholder="اكتب نص السؤال هنا (يدعم تلقائياً الكسور والجذور والأسس ورموز الكيمياء والفيزياء)..."
                               onChange={(e) => updateQuestion(idx, 'question', e.target.value)}
                             />
-                            {q.question && (q.question.includes('$') || q.question.includes('\\ce{')) && (
+                            {q.question && (
                               <div style={{ marginTop: '4px', padding: '6px 10px', background: '#f8fafc', borderRadius: '6px', border: '1px dashed #cbd5e1', fontSize: '13px' }}>
-                                <span style={{ fontSize: '11px', color: '#0e7490', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>معاينة المعادلة المباشرة:</span>
+                                <span style={{ fontSize: '11px', color: '#0e7490', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>معاينة السؤال الحية (تنسيق LaTeX التلقائي):</span>
                                 <MarkdownViewer content={q.question} />
                               </div>
                             )}
@@ -1891,9 +1997,9 @@ export default function LessonWorksheetModal({
                       }}>
                         {q.options.map((opt, oIdx) => {
                           const isCorrect = q.correctOption === oIdx;
-                          const showAsCorrect = (activeTab === 'teacher' && isCorrect) || (studentSubmitted && isCorrect);
+                          const showAsCorrect = ((activeTab === 'teacher' && isCorrect) || (studentSubmitted && isCorrect)) && showAnswers;
                           const isSelectedByStudent = studentAnswers[idx] === oIdx;
-                          const isStudentWrong = studentSubmitted && isSelectedByStudent && !isCorrect;
+                          const isStudentWrong = studentSubmitted && isSelectedByStudent && !isCorrect && showAnswers;
 
                           let cardBorder = '1px solid #e2e8f0';
                           let cardBg = '#f8fafc';
@@ -1978,7 +2084,30 @@ export default function LessonWorksheetModal({
                                       </button>
                                     )}
                                   </div>
-                                  {opt && (opt.includes('$') || opt.includes('\\ce{')) && (
+
+                                  {/* Quick LaTeX Equation Insertion on Every Option */}
+                                  <QuickLatexToolbar
+                                    compact
+                                    title="معادلات الخيار:"
+                                    onInsert={(code) => updateOption(idx, oIdx, (opt || '') + (opt ? ' ' : '') + code)}
+                                    showFullToggle={true}
+                                    isFullOpen={activeOptionLatex?.qIdx === idx && activeOptionLatex?.optIdx === oIdx}
+                                    onToggleFull={() => {
+                                      if (activeOptionLatex?.qIdx === idx && activeOptionLatex?.optIdx === oIdx) {
+                                        setActiveOptionLatex(null);
+                                      } else {
+                                        setActiveOptionLatex({ qIdx: idx, optIdx: oIdx });
+                                      }
+                                    }}
+                                  />
+                                  {activeOptionLatex?.qIdx === idx && activeOptionLatex?.optIdx === oIdx && (
+                                    <LatexMathToolbar
+                                      compact
+                                      onInsert={(code) => updateOption(idx, oIdx, (opt || '') + (opt ? ' ' : '') + code)}
+                                    />
+                                  )}
+
+                                  {opt && (
                                     <div style={{ fontSize: '11px', color: '#0e7490', background: '#f0fdfa', padding: '2px 8px', borderRadius: '4px', border: '1px dashed #99f6e4' }}>
                                       معاينة الخيار: <MarkdownViewer content={opt} inline />
                                     </div>
@@ -2002,7 +2131,7 @@ export default function LessonWorksheetModal({
                                     </span>
                                   </div>
 
-                                  {studentSubmitted && (
+                                  {studentSubmitted && showAnswers && (
                                     <div style={{ flexShrink: 0 }}>
                                       {isCorrect && (
                                         <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#059669', background: '#d1fae5', padding: '2px 8px', borderRadius: '6px' }}>
@@ -2062,9 +2191,9 @@ export default function LessonWorksheetModal({
                     <div style={{ display: 'flex', gap: '20px', marginRight: '34px', marginTop: '8px', flexWrap: 'wrap' }}>
                       {['صح (True)', 'خطأ (False)'].map((choice, cIdx) => {
                         const isCorrect = q.correctOption === cIdx;
-                        const showAsCorrect = (activeTab === 'teacher' && isCorrect) || (studentSubmitted && isCorrect);
+                        const showAsCorrect = ((activeTab === 'teacher' && isCorrect) || (studentSubmitted && isCorrect)) && showAnswers;
                         const isSelectedByStudent = studentAnswers[idx] === cIdx;
-                        const isStudentWrong = studentSubmitted && isSelectedByStudent && !isCorrect;
+                        const isStudentWrong = studentSubmitted && isSelectedByStudent && !isCorrect && showAnswers;
 
                         let bdr = '1px solid #cbd5e1';
                         let bg = '#f8fafc';
@@ -2129,10 +2258,10 @@ export default function LessonWorksheetModal({
                                   <Square size={16} color="#94a3b8" />
                                 )}
                                 <span>{choice}</span>
-                                {studentSubmitted && isCorrect && (
+                                {studentSubmitted && showAnswers && isCorrect && (
                                   <span style={{ fontSize: '11px', color: '#059669', marginRight: '6px', fontWeight: 'bold' }}>✓ الصحيحة</span>
                                 )}
-                                {studentSubmitted && isStudentWrong && (
+                                {studentSubmitted && showAnswers && isStudentWrong && (
                                   <span style={{ fontSize: '11px', color: '#dc2626', marginRight: '6px', fontWeight: 'bold' }}>✗ اختيارك</span>
                                 )}
                               </>
@@ -2148,12 +2277,25 @@ export default function LessonWorksheetModal({
                     <div style={{ marginRight: '34px', marginTop: '10px' }}>
                       {activeTab === 'student' && (
                         <div>
+                          {!studentSubmitted && (
+                            <QuickLatexToolbar
+                              compact
+                              title="رموز ومعادلات سريعة للإجابة:"
+                              onInsert={(code) => {
+                                setStudentAnswers(prev => ({
+                                  ...prev,
+                                  [idx]: (prev[idx] || '') + (prev[idx] ? ' ' : '') + code
+                                }));
+                              }}
+                              showFullToggle={false}
+                            />
+                          )}
                           <input
                             type="text"
                             value={studentAnswers[idx] || ''}
                             onChange={(e) => setStudentAnswers(prev => ({ ...prev, [idx]: e.target.value }))}
                             disabled={studentSubmitted}
-                            placeholder="✍️ اكتب إجابتك أو المصطلح المناسب هنا..."
+                            placeholder="✍️ اكتب إجابتك أو المعادلة أو المصطلح المناسب هنا..."
                             style={{
                               width: '100%',
                               maxWidth: '460px',
@@ -2167,7 +2309,13 @@ export default function LessonWorksheetModal({
                               background: studentSubmitted ? '#f8fafc' : '#ffffff'
                             }}
                           />
-                          {studentSubmitted && (
+                          {studentAnswers[idx] && (
+                            <div style={{ marginTop: '4px', fontSize: '12px', color: '#0e7490', background: '#f0fdfa', padding: '3px 8px', borderRadius: '4px', border: '1px dashed #99f6e4', display: 'inline-block' }}>
+                              <span style={{ fontSize: '10px', color: '#0f766e', fontWeight: 'bold', display: 'inline-block', marginInlineEnd: '6px' }}>معاينة إجابتك:</span>
+                              <MarkdownViewer content={studentAnswers[idx]} inline />
+                            </div>
+                          )}
+                          {studentSubmitted && showAnswers && (
                             <div style={{ marginTop: '8px', fontSize: '12px', color: '#059669', background: '#ecfdf5', padding: '6px 12px', borderRadius: '6px', display: 'inline-block' }}>
                               💡 <strong>الإجابة النموذجية المقررة:</strong> <MarkdownViewer content={q.correctAnswer} inline />
                             </div>
@@ -2177,16 +2325,36 @@ export default function LessonWorksheetModal({
                       {canEdit && activeTab === 'studio' && (
                         <div style={{ marginTop: '8px' }}>
                           <label style={{ display: 'block', fontSize: '11px', color: '#0e7490', fontWeight: 'bold', marginBottom: '4px' }}>
-                            الإجابة الصحيحة المقررة:
+                            الإجابة الصحيحة المقررة للفراغ (يدعم LaTeX تلقائياً):
                           </label>
                           <input
                             type="text"
                             className="input-field"
-                            style={{ margin: 0, fontSize: '13px', maxWidth: '380px' }}
+                            style={{ margin: 0, fontSize: '13px', maxWidth: '460px' }}
                             value={q.correctAnswer || ''}
-                            placeholder="المصطلح أو الإجابة الصحيحة..."
+                            placeholder="المصطلح أو المعادلة الرياضية المقررة للفراغ..."
                             onChange={(e) => updateQuestion(idx, 'correctAnswer', e.target.value)}
                           />
+                          <QuickLatexToolbar
+                            compact
+                            title="معادلات الفراغ:"
+                            onInsert={(code) => updateQuestion(idx, 'correctAnswer', (q.correctAnswer || '') + (q.correctAnswer ? ' ' : '') + code)}
+                            showFullToggle={true}
+                            isFullOpen={activeBlankLatex === idx}
+                            onToggleFull={() => setActiveBlankLatex(activeBlankLatex === idx ? null : idx)}
+                          />
+                          {activeBlankLatex === idx && (
+                            <LatexMathToolbar
+                              compact
+                              onInsert={(code) => updateQuestion(idx, 'correctAnswer', (q.correctAnswer || '') + (q.correctAnswer ? ' ' : '') + code)}
+                            />
+                          )}
+                          {q.correctAnswer && (
+                            <div style={{ marginTop: '4px', fontSize: '12px', color: '#0e7490', background: '#f0fdfa', padding: '3px 8px', borderRadius: '4px', border: '1px dashed #99f6e4', display: 'inline-block' }}>
+                              <span style={{ fontSize: '10px', color: '#0f766e', fontWeight: 'bold', display: 'inline-block', marginInlineEnd: '6px' }}>معاينة الفراغ:</span>
+                              <MarkdownViewer content={q.correctAnswer} inline />
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -2197,6 +2365,19 @@ export default function LessonWorksheetModal({
                     <div style={{ marginRight: '34px', marginTop: '12px' }}>
                       {activeTab === 'student' && (
                         <div>
+                          {!studentSubmitted && (
+                            <QuickLatexToolbar
+                              compact
+                              title="معادلات ورموز الحل الرياضي:"
+                              onInsert={(code) => {
+                                setStudentAnswers(prev => ({
+                                  ...prev,
+                                  [idx]: (prev[idx] || '') + (prev[idx] ? ' ' : '') + code
+                                }));
+                              }}
+                              showFullToggle={false}
+                            />
+                          )}
                           <textarea
                             rows={3}
                             value={studentAnswers[idx] || ''}
@@ -2215,7 +2396,13 @@ export default function LessonWorksheetModal({
                               background: studentSubmitted ? '#f8fafc' : '#ffffff'
                             }}
                           />
-                          {studentSubmitted && (
+                          {studentAnswers[idx] && (
+                            <div style={{ marginTop: '4px', fontSize: '12px', color: '#0e7490', background: '#f0fdfa', padding: '4px 10px', borderRadius: '4px', border: '1px dashed #99f6e4', display: 'inline-block' }}>
+                              <span style={{ fontSize: '10px', color: '#0f766e', fontWeight: 'bold', display: 'inline-block', marginInlineEnd: '6px' }}>معاينة حلك:</span>
+                              <MarkdownViewer content={studentAnswers[idx]} />
+                            </div>
+                          )}
+                          {studentSubmitted && showAnswers && (
                             <div style={{ marginTop: '8px', fontSize: '12px', color: '#059669', background: '#ecfdf5', padding: '8px 12px', borderRadius: '6px' }}>
                               💡 <strong>خطوات ودليل الحل النموذجي:</strong>
                               <div style={{ marginTop: '4px' }}>
@@ -2228,7 +2415,7 @@ export default function LessonWorksheetModal({
                       {canEdit && activeTab === 'studio' && (
                         <div style={{ marginTop: '8px' }}>
                           <label style={{ display: 'block', fontSize: '11px', color: '#0e7490', fontWeight: 'bold', marginBottom: '4px' }}>
-                            دليل وخطوات الحل النموذجي:
+                            دليل وخطوات الحل النموذجي (يدعم LaTeX تلقائياً):
                           </label>
                           <textarea
                             rows={3}
@@ -2238,6 +2425,26 @@ export default function LessonWorksheetModal({
                             placeholder="اكتب خطوات الحل النموذجي المفصل..."
                             onChange={(e) => updateQuestion(idx, 'correctAnswer', e.target.value)}
                           />
+                          <QuickLatexToolbar
+                            compact
+                            title="معادلات خطوات الحل:"
+                            onInsert={(code) => updateQuestion(idx, 'correctAnswer', (q.correctAnswer || '') + (q.correctAnswer ? ' ' : '') + code)}
+                            showFullToggle={true}
+                            isFullOpen={activeProblemLatex === idx}
+                            onToggleFull={() => setActiveProblemLatex(activeProblemLatex === idx ? null : idx)}
+                          />
+                          {activeProblemLatex === idx && (
+                            <LatexMathToolbar
+                              compact
+                              onInsert={(code) => updateQuestion(idx, 'correctAnswer', (q.correctAnswer || '') + (q.correctAnswer ? ' ' : '') + code)}
+                            />
+                          )}
+                          {q.correctAnswer && (
+                            <div style={{ marginTop: '4px', fontSize: '12px', color: '#0e7490', background: '#f0fdfa', padding: '4px 10px', borderRadius: '4px', border: '1px dashed #99f6e4' }}>
+                              <span style={{ fontSize: '10px', color: '#0f766e', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>معاينة الحل النموذجي:</span>
+                              <MarkdownViewer content={q.correctAnswer} />
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -2326,12 +2533,12 @@ export default function LessonWorksheetModal({
                                               height: '28px',
                                               padding: '0 6px',
                                               borderRadius: '6px',
-                                              border: studentSubmitted
+                                              border: (studentSubmitted && showAnswers)
                                                 ? (isMatchCorrect ? '2px solid #10b981' : '2px solid #ef4444')
-                                                : '1.5px solid #0e7490',
-                                              background: studentSubmitted
+                                                : (studentSubmitted ? '1.5px solid #cbd5e1' : '1.5px solid #0e7490'),
+                                              background: (studentSubmitted && showAnswers)
                                                 ? (isMatchCorrect ? '#ecfdf5' : '#fef2f2')
-                                                : 'white',
+                                                : (studentSubmitted ? '#f8fafc' : 'white'),
                                               fontWeight: 'bold',
                                               fontSize: '12px',
                                               color: '#0e7490',
@@ -2345,7 +2552,7 @@ export default function LessonWorksheetModal({
                                               </option>
                                             ))}
                                           </select>
-                                          {studentSubmitted && matchKey && (
+                                          {studentSubmitted && matchKey && showAnswers && (
                                             <span style={{
                                               fontSize: '11px',
                                               fontWeight: 'bold',
@@ -2363,15 +2570,15 @@ export default function LessonWorksheetModal({
                                           minWidth: '40px',
                                           height: '24px',
                                           padding: '0 4px',
-                                          border: activeTab === 'teacher' && matchKey ? '1.5px solid #10b981' : '1.5px solid #94a3b8',
+                                          border: (activeTab === 'teacher' && showAnswers && matchKey) ? '1.5px solid #10b981' : '1.5px solid #94a3b8',
                                           borderRadius: '6px',
-                                          background: activeTab === 'teacher' && matchKey ? '#ecfdf5' : '#ffffff',
+                                          background: (activeTab === 'teacher' && showAnswers && matchKey) ? '#ecfdf5' : '#ffffff',
                                           fontWeight: 'bold',
                                           fontSize: '12px',
-                                          color: activeTab === 'teacher' && matchKey ? '#059669' : '#64748b',
+                                          color: (activeTab === 'teacher' && showAnswers && matchKey) ? '#059669' : '#64748b',
                                           flexShrink: 0
                                         }}>
-                                          (&nbsp;{matchKey || <span style={{ display: 'inline-block', width: '16px' }} />}&nbsp;)
+                                          (&nbsp;{(showAnswers && matchKey) ? matchKey : <span style={{ display: 'inline-block', width: '16px' }} />}&nbsp;)
                                         </span>
                                       )}
 
@@ -2387,18 +2594,40 @@ export default function LessonWorksheetModal({
 
                                       {/* Item Text or Edit Input */}
                                       {canEdit && activeTab === 'studio' ? (
-                                        <input
-                                          type="text"
-                                          value={itemA.text}
-                                          onChange={(e) => updateMatchingItem(idx, 'columnA', rIdx, e.target.value)}
-                                          style={{
-                                            flex: 1,
-                                            border: '1px solid #cbd5e1',
-                                            borderRadius: '6px',
-                                            padding: '4px 8px',
-                                            fontSize: '13px'
-                                          }}
-                                        />
+                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                          <input
+                                            type="text"
+                                            value={itemA.text}
+                                            onChange={(e) => updateMatchingItem(idx, 'columnA', rIdx, e.target.value)}
+                                            style={{
+                                              width: '100%',
+                                              border: '1px solid #cbd5e1',
+                                              borderRadius: '6px',
+                                              padding: '4px 8px',
+                                              fontSize: '13px'
+                                            }}
+                                            placeholder="نص المفاهيم (أ)..."
+                                          />
+                                          <QuickLatexToolbar
+                                            compact
+                                            title="معادلات:"
+                                            onInsert={(code) => updateMatchingItem(idx, 'columnA', rIdx, (itemA.text || '') + (itemA.text ? ' ' : '') + code)}
+                                            showFullToggle={true}
+                                            isFullOpen={activeMatchingLatex === `q${idx}_colA_${rIdx}`}
+                                            onToggleFull={() => setActiveMatchingLatex(activeMatchingLatex === `q${idx}_colA_${rIdx}` ? null : `q${idx}_colA_${rIdx}`)}
+                                          />
+                                          {activeMatchingLatex === `q${idx}_colA_${rIdx}` && (
+                                            <LatexMathToolbar
+                                              compact
+                                              onInsert={(code) => updateMatchingItem(idx, 'columnA', rIdx, (itemA.text || '') + (itemA.text ? ' ' : '') + code)}
+                                            />
+                                          )}
+                                          {itemA.text && (
+                                            <div style={{ fontSize: '11px', color: '#0e7490' }}>
+                                              <MarkdownViewer content={itemA.text} inline />
+                                            </div>
+                                          )}
+                                        </div>
                                       ) : (
                                         <span style={{ color: '#1e293b', fontSize: '13px', lineHeight: '1.5' }}>
                                           <MarkdownViewer content={itemA.text} inline />
@@ -2436,18 +2665,40 @@ export default function LessonWorksheetModal({
 
                                       {/* Item Text or Edit Input */}
                                       {canEdit && activeTab === 'studio' ? (
-                                        <input
-                                          type="text"
-                                          value={itemB.text}
-                                          onChange={(e) => updateMatchingItem(idx, 'columnB', rIdx, e.target.value)}
-                                          style={{
-                                            flex: 1,
-                                            border: '1px solid #cbd5e1',
-                                            borderRadius: '6px',
-                                            padding: '4px 8px',
-                                            fontSize: '13px'
-                                          }}
-                                        />
+                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                          <input
+                                            type="text"
+                                            value={itemB.text}
+                                            onChange={(e) => updateMatchingItem(idx, 'columnB', rIdx, e.target.value)}
+                                            style={{
+                                              width: '100%',
+                                              border: '1px solid #cbd5e1',
+                                              borderRadius: '6px',
+                                              padding: '4px 8px',
+                                              fontSize: '13px'
+                                            }}
+                                            placeholder="نص التعريفات (ب)..."
+                                          />
+                                          <QuickLatexToolbar
+                                            compact
+                                            title="معادلات:"
+                                            onInsert={(code) => updateMatchingItem(idx, 'columnB', rIdx, (itemB.text || '') + (itemB.text ? ' ' : '') + code)}
+                                            showFullToggle={true}
+                                            isFullOpen={activeMatchingLatex === `q${idx}_colB_${rIdx}`}
+                                            onToggleFull={() => setActiveMatchingLatex(activeMatchingLatex === `q${idx}_colB_${rIdx}` ? null : `q${idx}_colB_${rIdx}`)}
+                                          />
+                                          {activeMatchingLatex === `q${idx}_colB_${rIdx}` && (
+                                            <LatexMathToolbar
+                                              compact
+                                              onInsert={(code) => updateMatchingItem(idx, 'columnB', rIdx, (itemB.text || '') + (itemB.text ? ' ' : '') + code)}
+                                            />
+                                          )}
+                                          {itemB.text && (
+                                            <div style={{ fontSize: '11px', color: '#0e7490' }}>
+                                              <MarkdownViewer content={itemB.text} inline />
+                                            </div>
+                                          )}
+                                        </div>
                                       ) : (
                                         <span style={{ color: '#1e293b', fontSize: '13px', lineHeight: '1.5' }}>
                                           <MarkdownViewer content={itemB.text} inline />
@@ -2464,8 +2715,8 @@ export default function LessonWorksheetModal({
                     </div>
                   )}
 
-                  {/* Model Answer & Pedagogical Explanation Box (Visible in Teacher / Admin view, and revealed to Student after submission) */}
-                  {(activeTab === 'teacher' || studentSubmitted) && (
+                  {/* Model Answer & Pedagogical Explanation Box (Visible in Teacher / Admin view, and revealed to Student after submission if showAnswers is true) */}
+                  {((activeTab === 'teacher' && showAnswers) || (studentSubmitted && showAnswers)) && (
                     <div style={{
                       marginTop: '14px',
                       marginRight: '34px',
@@ -2513,6 +2764,11 @@ export default function LessonWorksheetModal({
                             placeholder="مثال: (١ ➔ ب)، (٢ ➔ أ)..."
                             onChange={(e) => updateQuestion(idx, 'correctAnswer', e.target.value)}
                           />
+                          <QuickLatexToolbar
+                            compact
+                            title="رموز وأسهم المزاوجة:"
+                            onInsert={(code) => updateQuestion(idx, 'correctAnswer', (q.correctAnswer || '') + (q.correctAnswer ? ' ' : '') + code)}
+                          />
                         </div>
                       )}
                       <div>
@@ -2526,6 +2782,11 @@ export default function LessonWorksheetModal({
                           value={q.explanation || ''}
                           placeholder="اكتب التعليل أو الإرشاد التربوي..."
                           onChange={(e) => updateQuestion(idx, 'explanation', e.target.value)}
+                        />
+                        <QuickLatexToolbar
+                          compact
+                          title="معادلات التعليل:"
+                          onInsert={(code) => updateQuestion(idx, 'explanation', (q.explanation || '') + (q.explanation ? ' ' : '') + code)}
                         />
                       </div>
                     </div>
@@ -2603,15 +2864,36 @@ export default function LessonWorksheetModal({
                 {canEdit && activeTab === 'studio' ? (
                   <div style={{ marginBottom: '10px' }}>
                     <label style={{ display: 'block', fontSize: '11px', color: '#b45309', fontWeight: 'bold', marginBottom: '4px' }}>
-                      نص سؤال التحدي والتفكير الإبداعي:
+                      نص سؤال التحدي والتفكير الإبداعي (يدعم LaTeX تلقائياً):
                     </label>
                     <textarea
                       rows={2}
                       className="input-field"
                       style={{ margin: 0, fontSize: '13px' }}
                       value={bonusQuestion.question || ''}
+                      placeholder="اكتب نص سؤال التحدي..."
                       onChange={(e) => setBonusQuestion(prev => ({ ...prev, question: e.target.value }))}
                     />
+                    <QuickLatexToolbar
+                      compact
+                      title="معادلات سؤال التحدي:"
+                      onInsert={(code) => setBonusQuestion(prev => ({ ...prev, question: (prev.question || '') + (prev.question ? ' ' : '') + code }))}
+                      showFullToggle={true}
+                      isFullOpen={activeBonusLatex === 'question'}
+                      onToggleFull={() => setActiveBonusLatex(activeBonusLatex === 'question' ? null : 'question')}
+                    />
+                    {activeBonusLatex === 'question' && (
+                      <LatexMathToolbar
+                        compact
+                        onInsert={(code) => setBonusQuestion(prev => ({ ...prev, question: (prev.question || '') + (prev.question ? ' ' : '') + code }))}
+                      />
+                    )}
+                    {bonusQuestion.question && (
+                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#92400e', background: '#fffdf5', padding: '4px 10px', borderRadius: '4px', border: '1px dashed #fcd34d' }}>
+                        <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>معاينة نص التحدي:</span>
+                        <MarkdownViewer content={bonusQuestion.question} />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#78350f', lineHeight: '1.6' }}>
@@ -2621,12 +2903,19 @@ export default function LessonWorksheetModal({
 
                 {activeTab === 'student' ? (
                   <div>
+                    <div className="no-print" style={{ marginBottom: '6px' }}>
+                      <QuickLatexToolbar
+                        compact
+                        title="أدوات كتابة الرموز والمعادلات لإجابتك:"
+                        onInsert={(code) => setStudentAnswers(prev => ({ ...prev, bonus: (prev.bonus || '') + (prev.bonus ? ' ' : '') + code }))}
+                      />
+                    </div>
                     <textarea
                       rows={3}
                       value={studentAnswers['bonus'] || ''}
                       onChange={(e) => setStudentAnswers(prev => ({ ...prev, bonus: e.target.value }))}
                       disabled={studentSubmitted}
-                      placeholder="✍️ اكتب فكرتك أو إجابتك الإبداعية لسؤال التحدي هنا..."
+                      placeholder="✍️ اكتب فكرتك أو إجابتك الإبداعية لسؤال التحدي هنا (يدعم المعادلات والرموز تلقائياً)..."
                       style={{
                         width: '100%',
                         border: '1.5px solid #d97706',
@@ -2638,7 +2927,13 @@ export default function LessonWorksheetModal({
                         resize: 'vertical'
                       }}
                     />
-                    {studentSubmitted && (
+                    {studentAnswers['bonus'] && (
+                      <div style={{ marginTop: '6px', fontSize: '12px', color: '#92400e', background: '#fffbeb', padding: '6px 12px', borderRadius: '6px', border: '1px dashed #fcd34d' }}>
+                        <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>معاينة إجابتك بالمعادلات:</span>
+                        <MarkdownViewer content={studentAnswers['bonus']} />
+                      </div>
+                    )}
+                    {studentSubmitted && showAnswers && bonusQuestion.modelAnswer && (
                       <div style={{ marginTop: '8px', fontSize: '12px', color: '#b45309', background: '#fffbeb', padding: '8px 12px', borderRadius: '6px' }}>
                         💡 <strong>معيار ودليل الإجابة النموذجية للتحدي:</strong> <MarkdownViewer content={bonusQuestion.modelAnswer} inline />
                       </div>
@@ -2647,20 +2942,43 @@ export default function LessonWorksheetModal({
                 ) : canEdit && activeTab === 'studio' ? (
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#854d0e', fontWeight: 'bold', marginBottom: '4px' }}>
-                      معيار ودليل التصحيح النموذجي للتحدي:
+                      معيار ودليل التصحيح النموذجي للتحدي (يدعم LaTeX تلقائياً):
                     </label>
                     <input
                       type="text"
                       className="input-field"
                       style={{ margin: 0, fontSize: '12px' }}
                       value={bonusQuestion.modelAnswer || ''}
+                      placeholder="اكتب المعيار أو صيغة الحل النموذجية..."
                       onChange={(e) => setBonusQuestion(prev => ({ ...prev, modelAnswer: e.target.value }))}
                     />
+                    <QuickLatexToolbar
+                      compact
+                      title="معادلات معيار الحل:"
+                      onInsert={(code) => setBonusQuestion(prev => ({ ...prev, modelAnswer: (prev.modelAnswer || '') + (prev.modelAnswer ? ' ' : '') + code }))}
+                      showFullToggle={true}
+                      isFullOpen={activeBonusLatex === 'modelAnswer'}
+                      onToggleFull={() => setActiveBonusLatex(activeBonusLatex === 'modelAnswer' ? null : 'modelAnswer')}
+                    />
+                    {activeBonusLatex === 'modelAnswer' && (
+                      <LatexMathToolbar
+                        compact
+                        onInsert={(code) => setBonusQuestion(prev => ({ ...prev, modelAnswer: (prev.modelAnswer || '') + (prev.modelAnswer ? ' ' : '') + code }))}
+                      />
+                    )}
+                    {bonusQuestion.modelAnswer && (
+                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#854d0e', background: '#fefce8', padding: '4px 10px', borderRadius: '4px', border: '1px dashed #fef08a' }}>
+                        <span style={{ fontSize: '10px', color: '#a16207', fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>معاينة معيار الحل:</span>
+                        <MarkdownViewer content={bonusQuestion.modelAnswer} />
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div style={{ background: '#fefce8', border: '1px solid #fef08a', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', color: '#854d0e' }}>
-                    <strong>معيار التصحيح للمعلم:</strong> <MarkdownViewer content={bonusQuestion.modelAnswer} inline />
-                  </div>
+                  (showAnswers || (activeTab === 'teacher' && showAnswers)) && bonusQuestion.modelAnswer ? (
+                    <div style={{ background: '#fefce8', border: '1px solid #fef08a', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', color: '#854d0e' }}>
+                      <strong>معيار التصحيح للمعلم:</strong> <MarkdownViewer content={bonusQuestion.modelAnswer} inline />
+                    </div>
+                  ) : null
                 )}
               </div>
             )}
@@ -2704,14 +3022,24 @@ export default function LessonWorksheetModal({
             gap: '12px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Clock size={18} color="#0e7490" />
-              <span style={{ fontSize: '13px', color: '#475569' }}>
-                {studentSubmitted ? (
-                  <strong style={{ color: '#059669' }}>✓ تم اعتماد وتسليم ورقة العمل</strong>
+              {showTime ? (
+                <>
+                  <Clock size={18} color="#0e7490" />
+                  <span style={{ fontSize: '13px', color: '#475569' }}>
+                    {studentSubmitted ? (
+                      <strong style={{ color: '#059669' }}>✓ تم اعتماد وتسليم ورقة العمل</strong>
+                    ) : (
+                      <span>الوقت المتبقي: <strong style={{ color: '#0e7490', fontFamily: 'monospace' }}>{formatTime(timeRemaining)}</strong></span>
+                    )}
+                  </span>
+                </>
+              ) : (
+                studentSubmitted ? (
+                  <strong style={{ color: '#059669', fontSize: '13px' }}>✓ تم اعتماد وتسليم ورقة العمل</strong>
                 ) : (
-                  <span>الوقت المتبقي: <strong style={{ color: '#0e7490', fontFamily: 'monospace' }}>{formatTime(timeRemaining)}</strong></span>
-                )}
-              </span>
+                  <span style={{ fontSize: '13px', color: '#64748b' }}>📝 ورقة عمل تدريبية بدون قيود زمنية</span>
+                )
+              )}
             </div>
 
             <div>
