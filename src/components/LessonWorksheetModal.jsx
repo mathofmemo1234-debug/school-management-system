@@ -6,10 +6,20 @@ import {
   Sparkles, Save, Printer, Download, Eye, EyeOff, Edit3, Trash2, Plus, 
   CheckCircle2, AlertCircle, Share2, Globe, Lock, BookOpen, Clock, 
   CheckSquare, Square, X, Award, HelpCircle, Layers, ArrowRight, RefreshCw, FileText,
-  ArrowLeftRight, Image as ImageIcon, Upload, Check, ChevronDown, ChevronUp, Loader
+  ArrowLeftRight, Image as ImageIcon, Upload, Check, ChevronDown, ChevronUp, Loader, Copy
 } from 'lucide-react';
-import { generateWorksheetAI, formatNumberBySymbol, BLOOM_LEVELS, isInternationalSchool } from '../utils/aiWorksheetGenerator';
+import { 
+  generateWorksheetAI, 
+  generateWorksheetFromAttachment, 
+  extractTextFromPdfArrayBuffer, 
+  formatNumberBySymbol, 
+  toArabicNumerals, 
+  toWesternNumerals, 
+  BLOOM_LEVELS, 
+  isInternationalSchool 
+} from '../utils/aiWorksheetGenerator';
 import { compressImageToDataUrl } from '../utils/imageCompressor';
+import { readFileAsDataUrl } from '../utils/fileStorageService';
 import MarkdownViewer from './MarkdownViewer';
 import MarkdownInput from './MarkdownInput';
 import LatexMathToolbar from './LatexMathToolbar';
@@ -180,6 +190,18 @@ export default function LessonWorksheetModal({
   const [isSaving, setIsSaving] = useState(false);
   const [worksheetDocId, setWorksheetDocId] = useState(existingWorksheet?.id || null);
 
+  // Attachment-based Worksheet Generation State (Image / PDF)
+  const [worksheetAttachment, setWorksheetAttachment] = useState(existingWorksheet?.attachment || null);
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [attachmentDataUrl, setAttachmentDataUrl] = useState(null);
+  const [attachmentName, setAttachmentName] = useState('');
+  const [attachmentType, setAttachmentType] = useState('image'); // 'image' | 'pdf'
+  const [extractedPdfText, setExtractedPdfText] = useState('');
+  const [attachmentNotes, setAttachmentNotes] = useState('');
+  const [isProcessingAttachment, setIsProcessingAttachment] = useState(false);
+  const [attachmentNotice, setAttachmentNotice] = useState('');
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+
   // Generate initial draft if new and empty
   useEffect(() => {
     if (isOpen && (!questions || questions.length === 0) && !existingWorksheet) {
@@ -201,6 +223,7 @@ export default function LessonWorksheetModal({
       setShowAnswers(existingWorksheet.showAnswers !== undefined ? Boolean(existingWorksheet.showAnswers) : false);
       setShowTime(existingWorksheet.showTime !== undefined ? Boolean(existingWorksheet.showTime) : false);
       setWorksheetDocId(existingWorksheet.id || null);
+      setWorksheetAttachment(existingWorksheet.attachment || null);
     }
   }, [existingWorksheet]);
 
@@ -254,6 +277,161 @@ export default function LessonWorksheetModal({
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Handle Attachment Selection (Image or PDF)
+  const handleAttachmentFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingAttachment(true);
+    setAttachmentNotice('');
+    try {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const isImg = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name);
+
+      if (!isPdf && !isImg) {
+        alert('يرجى اختيار ملف صورة صالحة (PNG, JPG, WebP) أو مستند PDF');
+        return;
+      }
+
+      setAttachmentFile(file);
+      setAttachmentName(file.name);
+      setAttachmentType(isPdf ? 'pdf' : 'image');
+
+      if (isPdf) {
+        // Read as Data URL for storage & display
+        const dataUrl = await readFileAsDataUrl(file);
+        setAttachmentDataUrl(dataUrl);
+
+        // Read as ArrayBuffer to extract text
+        const arrayBuf = await file.arrayBuffer();
+        const extracted = extractTextFromPdfArrayBuffer(arrayBuf);
+        setExtractedPdfText(extracted);
+        setAttachmentNotice(`✓ تم بنجاح قراءة وتحليل ملف PDF (${file.name})! يمكنك الآن توليد ورقة العمل.`);
+      } else {
+        // Image compression
+        const dataUrl = await compressImageToDataUrl(file, {
+          maxWidth: 1200,
+          maxHeight: 1200,
+          quality: 0.85
+        });
+        setAttachmentDataUrl(dataUrl);
+        setExtractedPdfText('');
+        setAttachmentNotice(`✓ تم بنجاح ضغط وتجهيز الصورة المرفقة (${file.name})! يمكنك الآن توليد ورقة العمل.`);
+      }
+    } catch (err) {
+      console.error('Error processing attachment:', err);
+      alert('حدث خطأ أثناء معالجة المرفق: ' + (err.message || ''));
+    } finally {
+      setIsProcessingAttachment(false);
+      e.target.value = '';
+    }
+  };
+
+  // Handle Remove Attachment
+  const handleRemoveAttachment = () => {
+    setAttachmentFile(null);
+    setAttachmentDataUrl(null);
+    setAttachmentName('');
+    setAttachmentType('image');
+    setExtractedPdfText('');
+    setAttachmentNotes('');
+    setAttachmentNotice('');
+    setWorksheetAttachment(null);
+  };
+
+  // Handle Generating Worksheet based on the Attachment (Image or PDF)
+  const handleGenerateFromAttachment = async () => {
+    if (!attachmentDataUrl && !attachmentFile) {
+      alert('يرجى أولاً اختيار أو إرفاق ملف صورة أو مستند PDF');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const result = await generateWorksheetFromAttachment({
+        lessonTitle,
+        subject,
+        stage,
+        className,
+        semester,
+        objectives: effectiveObjectives,
+        questionCount,
+        cognitiveDistribution,
+        symbolLanguage,
+        questionTypes: selectedTypes,
+        curriculumTrack,
+        isInternational: curriculumTrack === 'international',
+        schoolName: userData?.schoolName || prepData?.schoolName || '',
+        showObjectives,
+        attachment: {
+          file: attachmentFile,
+          dataUrl: attachmentDataUrl,
+          name: attachmentName || 'مرفق ورقة العمل',
+          type: attachmentType,
+          extractedText: extractedPdfText,
+          customNotes: attachmentNotes
+        }
+      });
+
+      setQuestions(result.questions);
+      setBonusQuestion(result.bonusQuestion);
+      setInstructions(result.instructions);
+      setEstimatedMinutes(result.estimatedMinutes);
+      setWorksheetAttachment(result.attachment);
+      setAttachmentNotice(`🎉 تم بنجاح توليد (${result.questions.length}) أسئلة ذكية بناءً على المرفق (${attachmentName})!`);
+    } catch (err) {
+      console.error('Error generating worksheet from attachment:', err);
+      alert('حدث خطأ أثناء توليد ورقة العمل من المرفق');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Handle Changing Symbol Language & Auto-formatting
+  const handleSetSymbolLanguage = (lang) => {
+    setSymbolLanguage(lang);
+    if (lang === 'ar') {
+      convertAllQuestionsToArabicNumerals();
+    }
+  };
+
+  // Convert all questions, options, column numbers to Arabic Numerals
+  const convertAllQuestionsToArabicNumerals = () => {
+    setQuestions(prev => prev.map(q => {
+      const newQ = { ...q };
+      if (typeof newQ.question === 'string') newQ.question = toArabicNumerals(newQ.question);
+      if (typeof newQ.text === 'string') newQ.text = toArabicNumerals(newQ.text);
+      if (Array.isArray(newQ.options)) {
+        newQ.options = newQ.options.map(opt => typeof opt === 'string' ? toArabicNumerals(opt) : opt);
+      }
+      if (typeof newQ.correctAnswer === 'string') newQ.correctAnswer = toArabicNumerals(newQ.correctAnswer);
+      if (typeof newQ.explanation === 'string') newQ.explanation = toArabicNumerals(newQ.explanation);
+      if (Array.isArray(newQ.columnA)) {
+        newQ.columnA = newQ.columnA.map((item, idxA) => ({
+          ...item,
+          num: toArabicNumerals(idxA + 1),
+          text: typeof item.text === 'string' ? toArabicNumerals(item.text) : item.text
+        }));
+      }
+      if (Array.isArray(newQ.columnB)) {
+        newQ.columnB = newQ.columnB.map(item => ({
+          ...item,
+          text: typeof item.text === 'string' ? toArabicNumerals(item.text) : item.text
+        }));
+      }
+      return newQ;
+    }));
+    if (bonusQuestion) {
+      setBonusQuestion(prev => ({
+        ...prev,
+        title: toArabicNumerals(prev.title),
+        question: toArabicNumerals(prev.question),
+        modelAnswer: toArabicNumerals(prev.modelAnswer)
+      }));
+    }
+    setEstimatedMinutes(prev => toArabicNumerals(prev));
   };
 
   // Handle Image Upload and Compression for a specific question
@@ -334,6 +512,18 @@ export default function LessonWorksheetModal({
   // Remove question
   const removeQuestion = (index) => {
     setQuestions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Duplicate question (نسخ السؤال)
+  const duplicateQuestion = (index) => {
+    setQuestions(prev => {
+      if (!prev[index]) return prev;
+      const copy = JSON.parse(JSON.stringify(prev[index]));
+      copy.id = `q_${Date.now()}_copy_${Math.floor(Math.random() * 1000)}`;
+      const next = [...prev];
+      next.splice(index + 1, 0, copy);
+      return next.map((q, i) => ({ ...q, number: i + 1 }));
+    });
   };
 
   // Add new manual question (supports 'mcq' or 'matching')
@@ -561,6 +751,7 @@ export default function LessonWorksheetModal({
         questions: processedQuestions,
         bonusQuestion: processedBonus,
         instructions,
+        attachment: worksheetAttachment || null,
         updatedAt: new Date().toISOString()
       };
 
@@ -1366,6 +1557,191 @@ export default function LessonWorksheetModal({
               </button>
             </div>
 
+            {/* Attachment-based Worksheet Generator Card (Image / PDF) */}
+            <div style={{
+              background: '#f8fafc',
+              border: '2px dashed #a855f7',
+              borderRadius: '12px',
+              padding: '16px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #a855f7, #7c3aed)',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: '14px', color: '#6b21a8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      📸 📄 إنشاء وتوليد ورقة العمل من مرفق (صورة أو مستند PDF)
+                    </strong>
+                    <span style={{ fontSize: '12px', color: '#64748b', display: 'block', marginTop: '2px' }}>
+                      ارفع صورة صفحة من الكتاب، أو تمارين مصورة، أو ملف PDF لأسئلة أو ورقة عمل، وسيقوم الذكاء الاصطناعي بتحليله وتوليد الأسئلة النموذجية بناءً عليه فوراً!
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="file"
+                    id="worksheet-attachment-input"
+                    accept=".pdf, .png, .jpg, .jpeg, .webp, application/pdf, image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleAttachmentFileSelect}
+                    disabled={isProcessingAttachment || isGenerating}
+                  />
+                  <label
+                    htmlFor="worksheet-attachment-input"
+                    style={{
+                      background: '#7c3aed',
+                      color: 'white',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: isProcessingAttachment ? 'wait' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 6px rgba(124, 58, 237, 0.25)'
+                    }}
+                  >
+                    {isProcessingAttachment ? (
+                      <>
+                        <Loader size={15} className="spin" />
+                        <span>جاري معالجة الملف...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={15} />
+                        <span>{attachmentName ? 'تغيير المرفق' : 'اختيار صورة أو ملف PDF'}</span>
+                      </>
+                    )}
+                  </label>
+                  {attachmentName && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAttachment}
+                      style={{
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        color: '#ef4444',
+                        padding: '7px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold'
+                      }}
+                      title="إزالة المرفق"
+                    >
+                      إلغاء المرفق
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Attachment File Preview & Options */}
+              {attachmentName && (
+                <div style={{
+                  background: 'white',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {attachmentType === 'image' && attachmentDataUrl ? (
+                        <img
+                          src={attachmentDataUrl}
+                          alt="المرفق"
+                          style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                        />
+                      ) : (
+                        <div style={{ width: '48px', height: '48px', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', fontWeight: 'bold', fontSize: '12px' }}>
+                          PDF
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>
+                          {attachmentName}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>
+                          {attachmentType === 'pdf' ? '📄 مستند PDF معتمد للقراءة واستخراج الأسئلة' : '🖼️ صورة توضيحية معتمدة للرسم والأسئلة'}
+                          {extractedPdfText && ` • تم استخراج (${extractedPdfText.length}) حرفاً`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGenerateFromAttachment}
+                      disabled={isGenerating || isProcessingAttachment}
+                      style={{
+                        padding: '10px 22px',
+                        background: 'linear-gradient(135deg, #059669, #10b981)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontWeight: 'bold',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: '0 3px 10px rgba(16, 185, 129, 0.3)'
+                      }}
+                    >
+                      {isGenerating ? <Loader size={16} className="spin" /> : <Sparkles size={16} />}
+                      {isGenerating ? 'جاري التحليل والتوليد...' : '✨ توليد ورقة العمل من المرفق الآن'}
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      className="input-field"
+                      style={{ marginBottom: 0, fontSize: '12px', flex: 1 }}
+                      value={attachmentNotes}
+                      onChange={(e) => setAttachmentNotes(e.target.value)}
+                      placeholder="ملاحظات أو تركيز إضافي (اختياري: مثلاً: ركز على أسئلة الوحدة الثانية أو تمارين ص ٤٥)"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {attachmentNotice && (
+                <div style={{
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  color: '#15803d',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <CheckCircle2 size={16} />
+                  <span>{attachmentNotice}</span>
+                </div>
+              )}
+            </div>
+
             {/* Configurations Grid */}
             <div style={{
               display: 'grid',
@@ -1468,7 +1844,7 @@ export default function LessonWorksheetModal({
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     type="button"
-                    onClick={() => setSymbolLanguage('ar')}
+                    onClick={() => handleSetSymbolLanguage('ar')}
                     style={{
                       flex: 1,
                       padding: '8px',
@@ -1485,7 +1861,7 @@ export default function LessonWorksheetModal({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSymbolLanguage('en')}
+                    onClick={() => handleSetSymbolLanguage('en')}
                     style={{
                       flex: 1,
                       padding: '8px',
@@ -1501,6 +1877,31 @@ export default function LessonWorksheetModal({
                     🇬🇧 إنجليزية (x, y, 1)
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={convertAllQuestionsToArabicNumerals}
+                  style={{
+                    width: '100%',
+                    marginTop: '6px',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #99f6e4',
+                    background: '#ccfbf1',
+                    color: '#0f766e',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                  title="تحويل وتنسيق جميع أرقام الأسئلة الحالية والخيارات إلى الأرقام العربية (١، ٢، ٣)"
+                >
+                  <Sparkles size={13} />
+                  <span>🇸🇦 كتابة الأرقام بالصيغة العربية (١، ٢، ٣)</span>
+                </button>
               </div>
 
               {/* Show / Hide Objectives Option */}
@@ -1704,9 +2105,9 @@ export default function LessonWorksheetModal({
             <div style={{ textAlign: 'left', fontSize: '10.5px', color: '#1e293b', lineHeight: '1.35', flex: '1 1 0' }}>
               <div>معلم المادة: <strong>{effectiveTeacherName}</strong></div>
               {showTime && (
-                <div>الزمن المقترح: <strong>{estimatedMinutes}</strong></div>
+                <div>الزمن المقترح: <strong>{formatNumberBySymbol(estimatedMinutes, symbolLanguage)}</strong></div>
               )}
-              <div>الدرجة الكلية: <strong>[ {totalMarks} درجات ]</strong></div>
+              <div>الدرجة الكلية: <strong>[ {formatNumberBySymbol(totalMarks, symbolLanguage)} {totalMarks === 1 ? 'درجة' : 'درجات'} ]</strong></div>
               <div style={{ color: '#64748b' }}>
                 {prepData?.date || existingWorksheet?.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]} • 1447 / 1448 هـ
               </div>
@@ -1730,9 +2131,62 @@ export default function LessonWorksheetModal({
             <div><strong>الصف / الفصل:</strong> {effectiveClassName || '....................'}</div>
             <div><strong>الرقم الأكاديمي:</strong> {effectiveStudentNid || '....................'}</div>
             <div style={{ textAlign: 'left', fontWeight: 'bold', color: '#0e7490' }}>
-              <strong>الدرجة:</strong> [ {studentSubmitted ? `${submissionScore} / ${totalMarks}` : `...... / ${totalMarks}`} ]
+              <strong>الدرجة:</strong> [ {studentSubmitted ? `${formatNumberBySymbol(submissionScore, symbolLanguage)} / ${formatNumberBySymbol(totalMarks, symbolLanguage)}` : `...... / ${formatNumberBySymbol(totalMarks, symbolLanguage)}`} ]
             </div>
           </div>
+
+          {/* Attached Source Material Banner (When generated from Attachment) */}
+          {worksheetAttachment && (
+            <div className="worksheet-attachment-banner" style={{
+              background: '#f0fdfa',
+              border: '1px solid #99f6e4',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              marginBottom: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              fontSize: '11.5px',
+              pageBreakInside: 'avoid'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
+                <span style={{ fontSize: '15px' }}>{worksheetAttachment.type === 'pdf' ? '📑' : '🖼️'}</span>
+                <div>
+                  <span style={{ fontWeight: 'bold', color: '#0e7490' }}>
+                    {worksheetAttachment.type === 'pdf' ? 'المستند المرجعي (PDF): ' : 'الصورة المرفقة المعتمدة: '}
+                  </span>
+                  <span>{worksheetAttachment.name || 'مرفق ورقة العمل'}</span>
+                  {worksheetAttachment.notes && (
+                    <span style={{ color: '#64748b', marginRight: '6px' }}>({worksheetAttachment.notes})</span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="no-print"
+                onClick={() => setShowAttachmentModal(true)}
+                style={{
+                  background: '#0e7490',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                }}
+                title="معاينة المرفق المعتمد لورقة العمل"
+              >
+                <Eye size={13} />
+                <span>معاينة المرفق</span>
+              </button>
+            </div>
+          )}
 
           {/* Submission Celebration Banner */}
           {studentSubmitted && (
@@ -1762,11 +2216,11 @@ export default function LessonWorksheetModal({
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{ background: 'white', border: '1px solid #10b981', borderRadius: '6px', padding: '4px 10px', textAlign: 'center' }}>
                   <div style={{ fontSize: '10px', color: '#64748b' }}>الدرجة المحققة</div>
-                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#059669' }}>{submissionScore} / {totalMarks}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#059669' }}>{formatNumberBySymbol(submissionScore, symbolLanguage)} / {formatNumberBySymbol(totalMarks, symbolLanguage)}</div>
                 </div>
                 <div style={{ background: 'white', border: '1px solid #10b981', borderRadius: '6px', padding: '4px 10px', textAlign: 'center' }}>
                   <div style={{ fontSize: '10px', color: '#64748b' }}>النسبة</div>
-                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: submissionPercentage >= 70 ? '#059669' : '#d97706' }}>{submissionPercentage}%</div>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: submissionPercentage >= 70 ? '#059669' : '#d97706' }}>{formatNumberBySymbol(submissionPercentage, symbolLanguage)}%</div>
                 </div>
               </div>
             </div>
@@ -1959,15 +2413,39 @@ export default function LessonWorksheetModal({
                       )}
 
                       {canEdit && activeTab === 'studio' && (
-                        <button
-                          type="button"
-                          className="no-print"
-                          onClick={() => removeQuestion(idx)}
-                          style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#ef4444', cursor: 'pointer', padding: '5px', borderRadius: '6px' }}
-                          title="حذف هذا السؤال"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="no-print"
+                            onClick={() => duplicateQuestion(idx)}
+                            style={{
+                              background: '#e0f2fe',
+                              border: '1px solid #bae6fd',
+                              color: '#0369a1',
+                              cursor: 'pointer',
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '12px',
+                              fontWeight: '600'
+                            }}
+                            title="نسخ وتكرار هذا السؤال"
+                          >
+                            <Copy size={13} />
+                            <span>نسخ السؤال</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="no-print"
+                            onClick={() => removeQuestion(idx)}
+                            style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#ef4444', cursor: 'pointer', padding: '5px 8px', borderRadius: '6px' }}
+                            title="حذف هذا السؤال"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -2081,8 +2559,8 @@ export default function LessonWorksheetModal({
                         <div>
                           <div style={{
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                            gap: '14px',
+                            gridTemplateColumns: q.options?.length <= 4 ? `repeat(${q.options?.length || 4}, minmax(0, 1fr))` : 'repeat(4, minmax(0, 1fr))',
+                            gap: '12px',
                             marginTop: '12px'
                           }}>
                             {q.options.map((opt, oIdx) => {
@@ -2214,7 +2692,7 @@ export default function LessonWorksheetModal({
                       ) : (
                         <div style={{
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                          gridTemplateColumns: q.options?.length <= 4 ? `repeat(${q.options?.length || 4}, minmax(0, 1fr))` : 'repeat(4, minmax(0, 1fr))',
                           gap: '10px'
                         }}>
                           {q.options.map((opt, oIdx) => {
@@ -3282,6 +3760,147 @@ export default function LessonWorksheetModal({
         )}
 
       </div>
+
+      {/* Attachment Preview Modal (Image or PDF extracted text) */}
+      {showAttachmentModal && worksheetAttachment && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            maxWidth: '750px',
+            width: '100%',
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+            overflow: 'hidden'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '14px 18px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#f8fafc'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px' }}>{worksheetAttachment.type === 'pdf' ? '📑' : '🖼️'}</span>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '15px', color: '#0f172a', fontWeight: 'bold' }}>
+                    {worksheetAttachment.name || 'المرفق المعتمد'}
+                  </h4>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                    {worksheetAttachment.type === 'pdf' ? 'مستند PDF تم استخراج محتواه' : 'صورة مرفقة مع ورقة العمل'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAttachmentModal(false)}
+                style={{
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '6px',
+                  width: '30px',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#475569'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '18px', overflowY: 'auto', flex: 1 }}>
+              {worksheetAttachment.type === 'image' && (
+                <div style={{ textAlign: 'center' }}>
+                  <img
+                    src={worksheetAttachment.dataUrl || attachmentDataUrl}
+                    alt={worksheetAttachment.name || 'مرفق'}
+                    style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  />
+                </div>
+              )}
+              {worksheetAttachment.type === 'pdf' && (
+                <div>
+                  <div style={{
+                    padding: '8px 12px',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    color: '#1e40af',
+                    marginBottom: '12px'
+                  }}>
+                    💡 هذا المستند PDF تم تحليله واستخراج محتواه التعليمي لإنشاء وتوليد الأسئلة لورقة العمل.
+                  </div>
+                  {worksheetAttachment.textSample ? (
+                    <div style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '12px',
+                      fontSize: '12px',
+                      color: '#334155',
+                      lineHeight: '1.7',
+                      maxHeight: '50vh',
+                      overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      fontFamily: 'monospace'
+                    }}>
+                      {worksheetAttachment.textSample}
+                    </div>
+                  ) : (
+                    <p style={{ color: '#64748b', fontSize: '13px', textAlign: 'center' }}>
+                      تم استخراج المحتوى وبناء أسئلة ورقة العمل بناءً على هذا الملف بنجاح.
+                    </p>
+                  )}
+                </div>
+              )}
+              {worksheetAttachment.notes && (
+                <div style={{ marginTop: '12px', padding: '8px 12px', background: '#f8fafc', borderRadius: '6px', fontSize: '12px', color: '#475569' }}>
+                  <strong>ملاحظات وتوجيهات المعلم:</strong> {worksheetAttachment.notes}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ padding: '10px 18px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', background: '#f8fafc' }}>
+              <button
+                type="button"
+                onClick={() => setShowAttachmentModal(false)}
+                style={{
+                  background: '#0e7490',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '6px 16px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Global Print Styles for Perfect A4 Output */}
       <style>{`

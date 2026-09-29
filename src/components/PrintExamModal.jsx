@@ -694,9 +694,9 @@ export default function PrintExamModal({
                           {/* Options Grid */}
                           <div style={{
                             display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: '10px',
-                            fontSize: '13px'
+                            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                            gap: '8px',
+                            fontSize: '12px'
                           }}>
                             {q.options && q.options.map((opt, optIdx) => {
                               const isCorrect = q.correctOption === optIdx;

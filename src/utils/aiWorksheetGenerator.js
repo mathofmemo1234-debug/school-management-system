@@ -22,11 +22,26 @@ export const QUESTION_TYPES = {
   PROBLEM_SOLVING: { id: 'problem_solving', label: 'مسائل وتفكير ناقد (مقالي)', icon: 'HelpCircle' }
 };
 
-// تحويل الأرقام إلى أرقام عربية مشرقية (١، ٢، ٣) أو غربية (1, 2, 3)
-export function formatNumberBySymbol(num, symbolLang = 'ar') {
-  if (symbolLang !== 'ar') return String(num);
+// تحويل الأرقام إلى أرقام عربية مشرقية (١، ٢، ٣)
+export function toArabicNumerals(num) {
+  if (num === null || num === undefined) return '';
   const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
   return String(num).replace(/[0-9]/g, d => arabicNumerals[d]);
+}
+
+// تحويل الأرقام إلى أرقام غربية (1, 2, 3)
+export function toWesternNumerals(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+}
+
+// تحويل الأرقام حسب لغة الرموز المحددة
+export function formatNumberBySymbol(num, symbolLang = 'ar') {
+  if (num === null || num === undefined) return '';
+  if (symbolLang !== 'ar') {
+    return toWesternNumerals(String(num));
+  }
+  return toArabicNumerals(String(num));
 }
 
 // التحقق مما إذا كانت المدرسة أو المسار يعتمد المنهج الدولي (American / British / IB / STEM)
@@ -95,23 +110,23 @@ const SUBJECT_GENERATION_MATRICES = {
           return {
             question: isFullEn
               ? `${objPrefix}Given the equation: $${varX} + ${valB} = ${valA}$, what is the exact value of variable (${varX})?`
-              : `${objPrefix}إذا كانت المعادلة الرياضية هي: $${varX} + ${valB} = ${valA}$، فما هي قيمة المتغير (${varX})؟`,
+              : `${objPrefix}إذا كانت المعادلة الرياضية هي: $${varX} + ${isAr ? numB : valB} = ${isAr ? numA : valA}$، فما هي قيمة المتغير (${varX})؟`,
             options: isFullEn ? [
               `A) $${varX} = ${sol}$`,
               `B) $${varX} = ${sol + 2}$`,
               `C) $${varX} = ${sol - 1}$`,
               `D) $${varX} = ${valA + valB}$`
             ] : [
-              `أ) $${varX} = ${sol}$`,
-              `ب) $${varX} = ${sol + 2}$`,
-              `جـ) $${varX} = ${sol - 1}$`,
-              `د) $${varX} = ${valA + valB}$`
+              `أ) $${varX} = ${numSol}$`,
+              `ب) $${varX} = ${numSol2}$`,
+              `جـ) $${varX} = ${numSolSub1}$`,
+              `د) $${varX} = ${numSum}$`
             ],
             correctOption: 0,
-            correctAnswer: `$${varX} = ${sol}$`,
+            correctAnswer: `$${varX} = ${isAr ? numSol : sol}$`,
             explanation: isFullEn
               ? `Subtracting ${valB} from both sides yields: $${varX} = ${valA} - ${valB} = ${sol}$.`
-              : `بطرح ${valB} من طرفي المعادلة نجد أن: $${varX} = ${valA} - ${valB} = ${sol}$.`,
+              : `بطرح ${isAr ? numB : valB} من طرفي المعادلة نجد أن: $${varX} = ${isAr ? numA : valA} - ${isAr ? numB : valB} = ${isAr ? numSol : sol}$.`,
             points: 2
           };
         }
@@ -843,6 +858,28 @@ export async function generateWorksheetAI({
       points: qData.points || 1
     };
 
+    if (symbolLanguage === 'ar' && !effectiveIsInternational) {
+      if (typeof questionItem.question === 'string') questionItem.question = toArabicNumerals(questionItem.question);
+      if (Array.isArray(questionItem.options)) {
+        questionItem.options = questionItem.options.map(opt => typeof opt === 'string' ? toArabicNumerals(opt) : opt);
+      }
+      if (typeof questionItem.correctAnswer === 'string') questionItem.correctAnswer = toArabicNumerals(questionItem.correctAnswer);
+      if (typeof questionItem.explanation === 'string') questionItem.explanation = toArabicNumerals(questionItem.explanation);
+      if (Array.isArray(questionItem.columnA)) {
+        questionItem.columnA = questionItem.columnA.map((colItem, idxA) => ({
+          ...colItem,
+          num: toArabicNumerals(idxA + 1),
+          text: typeof colItem.text === 'string' ? toArabicNumerals(colItem.text) : colItem.text
+        }));
+      }
+      if (Array.isArray(questionItem.columnB)) {
+        questionItem.columnB = questionItem.columnB.map(colItem => ({
+          ...colItem,
+          text: typeof colItem.text === 'string' ? toArabicNumerals(colItem.text) : colItem.text
+        }));
+      }
+    }
+
     totalPoints += questionItem.points;
     generatedQuestions.push(questionItem);
   }
@@ -860,8 +897,17 @@ export async function generateWorksheetAI({
     points: 2
   };
 
+  if (symbolLanguage === 'ar' && !effectiveIsInternational) {
+    bonusQuestion.title = toArabicNumerals(bonusQuestion.title);
+    bonusQuestion.question = toArabicNumerals(bonusQuestion.question);
+    bonusQuestion.modelAnswer = toArabicNumerals(bonusQuestion.modelAnswer);
+  }
+
   // 5. زمن الاختبار المقترح
-  const estimatedMinutes = count <= 4 ? 15 : count <= 8 ? 20 : count <= 12 ? 30 : 45;
+  const rawMinutes = count <= 4 ? 15 : count <= 8 ? 20 : count <= 12 ? 30 : 45;
+  const estimatedMinutes = (symbolLanguage === 'ar' && !effectiveIsInternational)
+    ? `${toArabicNumerals(rawMinutes)} دقيقة`
+    : `${rawMinutes} دقيقة`;
 
   return {
     lessonTitle,
@@ -873,7 +919,7 @@ export async function generateWorksheetAI({
     curriculumTrack: effectiveIsInternational ? 'international' : 'national',
     isInternational: effectiveIsInternational,
     showObjectives,
-    estimatedMinutes: `${estimatedMinutes} دقيقة`,
+    estimatedMinutes,
     totalPoints: totalPoints + bonusQuestion.points,
     questionsCount: generatedQuestions.length,
     objectives: cleanObjectives,
@@ -891,5 +937,174 @@ export async function generateWorksheetAI({
       'راجع إجاباتك جيداً ولا تتردد في الإجابة عن سؤال التحدي الإضافي.'
     ],
     generatedAt: new Date().toISOString()
+  };
+}
+
+/**
+ * Extracts plain text lines from binary PDF ArrayBuffer
+ */
+export function extractTextFromPdfArrayBuffer(arrayBuffer) {
+  if (!arrayBuffer) return '';
+  try {
+    const bytes = new Uint8Array(arrayBuffer);
+    const latinText = new TextDecoder('latin1').decode(bytes);
+    
+    const extractedChunks = [];
+
+    // 1. Match Tj text chunks: (text) Tj
+    const tjRegex = /\(([^)]+)\)\s*(?:Tj|'|")/g;
+    let match;
+    while ((match = tjRegex.exec(latinText)) !== null) {
+      const clean = match[1].replace(/\\([()\\])/g, '$1').trim();
+      if (clean && clean.length > 1) {
+        extractedChunks.push(clean);
+      }
+    }
+
+    // 2. Match TJ text array chunks: [(text) 120 (more)] TJ
+    const tjArrayRegex = /\[(.*?)\]\s*TJ/g;
+    while ((match = tjArrayRegex.exec(latinText)) !== null) {
+      const inner = match[1];
+      const strParts = [];
+      const innerRegex = /\(([^)]+)\)/g;
+      let innerMatch;
+      while ((innerMatch = innerRegex.exec(inner)) !== null) {
+        strParts.push(innerMatch[1].replace(/\\([()\\])/g, '$1'));
+      }
+      if (strParts.length > 0) {
+        extractedChunks.push(strParts.join(' ').trim());
+      }
+    }
+
+    // 3. Match uncompressed stream blocks between BT and ET
+    const btEtRegex = /BT([\s\S]*?)ET/g;
+    while ((match = btEtRegex.exec(latinText)) !== null) {
+      const block = match[1];
+      const subMatches = block.match(/\(([^)]+)\)/g);
+      if (subMatches) {
+        subMatches.forEach(sm => {
+          const content = sm.slice(1, -1).replace(/\\([()\\])/g, '$1').trim();
+          if (content && content.length > 2 && !extractedChunks.includes(content)) {
+            extractedChunks.push(content);
+          }
+        });
+      }
+    }
+
+    return extractedChunks.join('\n');
+  } catch (err) {
+    console.warn('Could not extract text stream from PDF buffer:', err);
+    return '';
+  }
+}
+
+/**
+ * توليد ورقة عمل ذكية بناءً على مرفق (صورة أو مستند PDF)
+ */
+export async function generateWorksheetFromAttachment({
+  lessonTitle = '',
+  subject = '',
+  stage = '',
+  className = '',
+  semester = '',
+  objectives = [],
+  questionCount = 5,
+  cognitiveDistribution = 'balanced',
+  symbolLanguage = 'ar',
+  questionTypes = ['mcq', 'true_false', 'fill_blank', 'matching', 'problem_solving'],
+  attachment = null, // { file, url, name, type, dataUrl, extractedText, customNotes }
+  isInternational = false,
+  curriculumTrack = 'national',
+  schoolName = '',
+  showObjectives = false
+}) {
+  // First, generate base curriculum-aligned questions
+  const baseWorksheet = await generateWorksheetAI({
+    lessonTitle,
+    subject,
+    stage,
+    className,
+    semester,
+    objectives,
+    questionCount,
+    cognitiveDistribution,
+    symbolLanguage,
+    questionTypes,
+    isInternational,
+    curriculumTrack,
+    schoolName,
+    showObjectives
+  });
+
+  if (!attachment) {
+    return baseWorksheet;
+  }
+
+  const {
+    url,
+    dataUrl,
+    name = 'مرفق ورقة العمل',
+    type = 'image', // 'image' | 'pdf'
+    extractedText = '',
+    customNotes = ''
+  } = attachment;
+
+  const effectiveMediaUrl = dataUrl || url;
+  const isAr = symbolLanguage === 'ar' && curriculumTrack !== 'international';
+
+  // If text was extracted from PDF or teacher provided custom notes:
+  const textSource = [customNotes, extractedText].filter(Boolean).join('\n').trim();
+
+  const questions = [...baseWorksheet.questions];
+
+  // If it's an image, attach it to the first question or relevant visual questions
+  if (type === 'image' && effectiveMediaUrl) {
+    if (questions[0]) {
+      questions[0].image = effectiveMediaUrl;
+      const refNote = isAr ? ' (بالرجوع إلى الرسم / الصورة المرفقة أعلاه)' : ' (Refer to the attached diagram/image above)';
+      if (!questions[0].question.includes('المرفق') && !questions[0].question.includes('الصورة')) {
+        questions[0].question = `${questions[0].question}${refNote}`;
+      }
+    }
+    // Also attach as reference to a problem solving question if available
+    const problemQ = questions.find((q, idx) => idx > 0 && q.type === 'problem_solving');
+    if (problemQ) {
+      problemQ.image = effectiveMediaUrl;
+    }
+  }
+
+  // If parsed text contains questions or custom notes:
+  if (textSource) {
+    const lines = textSource.split('\n').map(l => l.trim()).filter(l => l.length > 4);
+    const questionLines = lines.filter(l => /[؟?]|سؤال|تمرين|مسألة|علل|وضح|عرف|اختر|صح|خطأ/i.test(l));
+
+    if (questionLines.length > 0) {
+      questionLines.slice(0, Math.min(questionLines.length, questions.length)).forEach((qLine, idx) => {
+        if (questions[idx]) {
+          const cleanQLine = qLine.replace(/^[0-9٠-٩]+[.:\-\)]\s*/, '').trim();
+          if (cleanQLine.length > 6) {
+            questions[idx].question = isAr ? toArabicNumerals(cleanQLine) : cleanQLine;
+          }
+        }
+      });
+    }
+  }
+
+  // Instructions mention the attachment
+  const attachmentInstruction = isAr
+    ? (type === 'image' ? `📸 استعن بالصورة التوضيحية المرفقة (${name}) للإجابة بدقة.` : `📄 استعن بمستند PDF المرفق (${name}) لمراجعة المصطلحات والبيانات.`)
+    : (type === 'image' ? `📸 Refer to the attached image (${name}) to answer questions.` : `📄 Refer to the attached PDF document (${name}) for supplementary reference.`);
+
+  const instructions = [attachmentInstruction, ...(baseWorksheet.instructions || [])];
+
+  return {
+    ...baseWorksheet,
+    instructions,
+    questions,
+    attachment: {
+      url: effectiveMediaUrl,
+      name,
+      type
+    }
   };
 }

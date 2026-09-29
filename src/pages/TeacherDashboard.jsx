@@ -2,7 +2,7 @@ import Settings from './Settings';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Calendar, FileText, Users, X, Edit, Trash2, CheckSquare, Square, Plus, Save, Award, AlertCircle, CheckCircle, BarChart2, Clock, BookOpen, Eye, RotateCcw, Check, ClipboardList, FileSpreadsheet } from 'lucide-react';
+import { Calendar, FileText, Users, X, Edit, Trash2, CheckSquare, Square, Plus, Save, Award, AlertCircle, CheckCircle, BarChart2, Clock, BookOpen, Eye, RotateCcw, Check, ClipboardList, FileSpreadsheet, Copy } from 'lucide-react';
 import { db, auth } from '../firebase';
 import TeacherSchedule from './TeacherSchedule';
 import { doc, setDoc, getDoc, collection, addDoc, query, where, onSnapshot, deleteDoc, updateDoc, getDocs, serverTimestamp } from 'firebase/firestore';
@@ -1038,6 +1038,27 @@ function Assignments() {
     setQuestions(newQs);
   };
 
+  const handleDuplicateQuestion = (qIndex) => {
+    setQuestions(prev => {
+      if (!prev[qIndex]) return prev;
+      const copy = JSON.parse(JSON.stringify(prev[qIndex]));
+      copy.id = `q_hw_${Date.now()}_copy_${Math.floor(Math.random() * 1000)}`;
+      const next = [...prev];
+      next.splice(qIndex + 1, 0, copy);
+      setNumQuestions(next.length);
+      return next;
+    });
+  };
+
+  const handleDeleteQuestion = (qIndex) => {
+    if (questions.length <= 1) return;
+    setQuestions(prev => {
+      const next = prev.filter((_, i) => i !== qIndex);
+      setNumQuestions(next.length);
+      return next;
+    });
+  };
+
   // Render Submissions & Results View
   if (activeView === 'results') {
     const isManual = currentAssignment?.type === 'manual' || currentAssignment?.isInteractive === false;
@@ -1312,7 +1333,7 @@ function Assignments() {
                           {isCorrect ? '✅ إجابة صحيحة' : '❌ إجابة خاطئة'}
                         </span>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '8px', fontSize: '13px' }}>
                         {q.options?.map((opt, optIdx) => {
                           const isStudentPick = studentAnswer === optIdx;
                           const isTheCorrectOne = q.correctOption === optIdx;
@@ -1699,9 +1720,56 @@ function Assignments() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
               {questions.map((q, qIndex) => (
                 <div key={q.id || qIndex} style={{ background: 'rgba(255,255,255,0.6)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.1)' }}>
-                  <h3 style={{ margin: '0 0 16px 0', borderBottom: '2px solid var(--color-primary-light)', paddingBottom: '8px', display: 'inline-block' }}>
-                    السؤال رقم {qIndex + 1}
-                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '2px solid var(--color-primary-light)', paddingBottom: '8px', flexWrap: 'wrap', gap: '10px' }}>
+                    <h3 style={{ margin: 0 }}>
+                      السؤال رقم {qIndex + 1}
+                    </h3>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleDuplicateQuestion(qIndex)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: '#e0f2fe',
+                          color: '#0369a1',
+                          border: '1px solid #bae6fd',
+                          borderRadius: '6px',
+                          padding: '5px 12px',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                        title="نسخ وتكرار هذا السؤال"
+                      >
+                        <Copy size={14} />
+                        <span>نسخ السؤال</span>
+                      </button>
+                      {questions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteQuestion(qIndex)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: '#fef2f2',
+                            color: '#ef4444',
+                            border: '1px solid #fecaca',
+                            borderRadius: '6px',
+                            padding: '5px 10px',
+                            fontSize: '13px',
+                            cursor: 'pointer'
+                          }}
+                          title="حذف هذا السؤال"
+                        >
+                          <Trash2 size={14} />
+                          <span>حذف</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
                   <MarkdownInput 
                     label="نص السؤال (يدعم صياغة المعادلات والنصوص المنسقة والصور المضغوطة)"
@@ -1711,7 +1779,7 @@ function Assignments() {
                     height="130px"
                   />
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '12px', marginTop: '16px' }}>
                     {[0, 1, 2, 3].map(optIndex => {
                       const defaultLetter = ['( أ )', '( ب )', '( ج )', '( د )'][optIndex];
                       return (

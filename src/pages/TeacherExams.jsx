@@ -48,7 +48,8 @@ import {
   Radio,
   Filter,
   User,
-  ArrowUpDown
+  ArrowUpDown,
+  Copy
 } from 'lucide-react';
 import MarkdownInput from '../components/MarkdownInput';
 import MarkdownViewer from '../components/MarkdownViewer';
@@ -938,6 +939,27 @@ export default function TeacherExams() {
     const newQs = [...questions];
     newQs[qIndex].options[optIndex] = value;
     setQuestions(newQs);
+  };
+
+  const handleDuplicateQuestion = (qIndex) => {
+    setQuestions(prev => {
+      if (!prev[qIndex]) return prev;
+      const copy = JSON.parse(JSON.stringify(prev[qIndex]));
+      copy.id = `q_${Date.now()}_copy_${Math.floor(Math.random() * 1000)}`;
+      const next = [...prev];
+      next.splice(qIndex + 1, 0, copy);
+      setNumQuestions(next.length);
+      return next;
+    });
+  };
+
+  const handleDeleteQuestion = (qIndex) => {
+    if (questions.length <= 1) return;
+    setQuestions(prev => {
+      const next = prev.filter((_, i) => i !== qIndex);
+      setNumQuestions(next.length);
+      return next;
+    });
   };
 
   // Import questions from Central Shared Bank
@@ -2726,7 +2748,7 @@ export default function TeacherExams() {
                           {isCorrect ? '✅ إجابة صحيحة' : '❌ إجابة خاطئة'}
                         </span>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '8px', fontSize: '13px' }}>
                         {q.options?.map((opt, optIdx) => {
                           const isStudentPick = studentAnswer === optIdx;
                           const isTheCorrectOne = q.correctOption === optIdx;
@@ -3340,7 +3362,56 @@ export default function TeacherExams() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {questions.map((q, qIndex) => (
             <div key={q.id || qIndex} style={{ background: 'rgba(255,255,255,0.5)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.1)' }}>
-              <h3 style={{ margin: '0 0 16px 0', borderBottom: '2px solid var(--color-primary-light)', paddingBottom: '8px', display: 'inline-block' }}>{t('teacherExams.question')} {qIndex + 1}</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '2px solid var(--color-primary-light)', paddingBottom: '8px', flexWrap: 'wrap', gap: '10px' }}>
+                <h3 style={{ margin: 0 }}>
+                  {t('teacherExams.question')} {qIndex + 1}
+                </h3>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleDuplicateQuestion(qIndex)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: '#e0f2fe',
+                      color: '#0369a1',
+                      border: '1px solid #bae6fd',
+                      borderRadius: '6px',
+                      padding: '5px 12px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                    title="نسخ وتكرار هذا السؤال"
+                  >
+                    <Copy size={14} />
+                    <span>نسخ السؤال</span>
+                  </button>
+                  {questions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteQuestion(qIndex)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: '#fef2f2',
+                        color: '#ef4444',
+                        border: '1px solid #fecaca',
+                        borderRadius: '6px',
+                        padding: '5px 10px',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                      title="حذف هذا السؤال"
+                    >
+                      <Trash2 size={14} />
+                      <span>حذف</span>
+                    </button>
+                  )}
+                </div>
+              </div>
               
               <MarkdownInput 
                 label={t('teacherExams.questionText')}
@@ -3350,7 +3421,7 @@ export default function TeacherExams() {
                 height="150px"
               />
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '12px', marginTop: '16px' }}>
                 {[0, 1, 2, 3].map(optIndex => {
                   const defaultLetter = ['( أ )', '( ب )', '( ج )', '( د )'][optIndex];
                   return (

@@ -503,8 +503,8 @@ export default function ExamPreviewModal({
                     {/* Options Grid (2 Columns) */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                      gap: '12px'
+                      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                      gap: '10px'
                     }}>
                       {[0, 1, 2, 3].map(optIndex => {
                         const defaultLetter = letters[optIndex];

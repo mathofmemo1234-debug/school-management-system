@@ -551,7 +551,7 @@ export default function StudentExams() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', paddingRight: '48px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '12px', paddingRight: '48px' }}>
                 {q.options.map((optText, optIndex) => (
                   <label key={optIndex} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px', borderRadius: '8px', border: answers[qIndex] === optIndex ? '2px solid var(--color-primary)' : '1px solid var(--color-border)', background: answers[qIndex] === optIndex ? 'rgba(99,178,198,0.05)' : '#f8fafc', cursor: 'pointer', transition: 'all 0.2s ease' }}>
                     <input 
