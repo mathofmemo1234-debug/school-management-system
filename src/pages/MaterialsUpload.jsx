@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { db, auth, storage } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { UploadCloud, Link as LinkIcon, Trash2 } from 'lucide-react';
+import { uploadFileToFirestore, downloadFile } from '../utils/fileStorageService';
+import { UploadCloud, Link as LinkIcon, Trash2, Download } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -129,25 +129,21 @@ export default function MaterialsUpload() {
 
     try {
       let finalUrl = linkUrl;
+      let uploadedFileId = null;
       
       if (uploadType === 'file') {
-        const storageRef = ref(storage, `materials/${Date.now()}_${file.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, file);
-        
-        await new Promise((resolve, reject) => {
-          uploadTask.on(
-            'state_changed',
-            (snapshot) => {
-              const p = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setProgress(p);
-            },
-            (error) => reject(error),
-            async () => {
-              finalUrl = await getDownloadURL(uploadTask.snapshot.ref);
-              resolve();
-            }
-          );
+        const result = await uploadFileToFirestore(file, {
+          category: 'materials',
+          onProgress: (p) => setProgress(p),
+          metadata: {
+            title,
+            className: selectedClass,
+            subject: selectedSubject,
+            teacherEmail: auth.currentUser.email
+          }
         });
+        finalUrl = result.url;
+        uploadedFileId = result.fileId;
       }
 
       await addDoc(collection(db, 'materials'), {
@@ -307,6 +303,17 @@ export default function MaterialsUpload() {
                       <a href={m.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ padding: '6px 12px' }}>
                         {t('materialsUpload.open')}
                       </a>
+                      {m.type === 'file' && (
+                        <button 
+                          type="button" 
+                          onClick={() => downloadFile(m.url, m.fileName || m.title)} 
+                          className="btn btn-secondary" 
+                          style={{ padding: '6px 12px' }}
+                          title="تحميل الملف"
+                        >
+                          <Download size={16} />
+                        </button>
+                      )}
                       <button className="btn btn-danger" style={{ padding: '6px 12px' }} onClick={() => handleDelete(m.id)}>
                         <Trash2 size={16} />
                       </button>

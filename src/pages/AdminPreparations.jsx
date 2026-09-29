@@ -3,7 +3,8 @@ import { db } from '../firebase';
 import { collection, onSnapshot, query, where, getDocs } from 'firebase/firestore';
 import MarkdownViewer from '../components/MarkdownViewer';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Printer, Search, BookOpen, User, Calendar, Sparkles, Filter, RefreshCw, CheckCircle2, Layers, Globe, Lock } from 'lucide-react';
+import { Printer, Search, BookOpen, User, Calendar, Sparkles, Filter, RefreshCw, CheckCircle2, Layers, Globe, Lock, FileText, Download, Eye } from 'lucide-react';
+import { downloadFile } from '../utils/fileStorageService';
 import PrintLessonPreparationModal from '../components/PrintLessonPreparationModal';
 import LessonWorksheetModal from '../components/LessonWorksheetModal';
 
@@ -439,9 +440,28 @@ export default function AdminPreparations({ schoolId }) {
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {p.fileUrl && (
-                  <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span><strong>{t('adminPreparations.attachedFile')}:</strong> {p.fileName}</span>
-                    <a href={p.fileUrl} target="_blank" rel="noreferrer" style={{ color: '#0369a1', fontWeight: 'bold', textDecoration: 'underline' }}>تحميل / عرض الملف</a>
+                  <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <FileText size={18} />
+                      <span><strong>{t('adminPreparations.attachedFile')}:</strong> {p.fileName}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <a 
+                        href={p.fileUrl} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        style={{ background: '#0284c7', color: '#fff', padding: '4px 12px', borderRadius: '6px', fontWeight: 'bold', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                      >
+                        <Eye size={14} /> معاينة / فتح
+                      </a>
+                      <button 
+                        type="button" 
+                        onClick={() => downloadFile(p.fileUrl, p.fileName)} 
+                        style={{ background: '#0f766e', color: '#fff', border: 'none', padding: '4px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                      >
+                        <Download size={14} /> تحميل
+                      </button>
+                    </div>
                   </div>
                 )}
                 

@@ -17,12 +17,13 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import GamificationBadge from '../components/GamificationBadge';
 import { calculateStudentActivity } from '../utils/gamificationEngine';
+import { downloadFile } from '../utils/fileStorageService';
 import { 
   Sparkles, 
   Award, 
   CheckCircle, 
   Calendar, 
-  FileText, 
+  FileText,
   BookOpen, 
   TrendingUp, 
   Star, 
@@ -1993,8 +1994,28 @@ function StudentPreparations() {
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {p.fileUrl && (
-                    <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px 16px', borderRadius: '8px' }}>
-                      <strong>{t('studentDashboard.attachedFile')}</strong> <a href={p.fileUrl} target="_blank" rel="noreferrer" style={{ color: '#0369a1', textDecoration: 'underline' }}>{p.fileName}</a>
+                    <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileText size={18} />
+                        <span><strong>{t('studentDashboard.attachedFile')}</strong> {p.fileName}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <a 
+                          href={p.fileUrl} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          style={{ background: '#0284c7', color: '#fff', padding: '4px 12px', borderRadius: '6px', fontWeight: 'bold', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                        >
+                          <Eye size={14} /> معاينة / فتح
+                        </a>
+                        <button 
+                          type="button" 
+                          onClick={() => downloadFile(p.fileUrl, p.fileName)} 
+                          style={{ background: '#0f766e', color: '#fff', border: 'none', padding: '4px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                        >
+                          <Download size={14} /> تحميل
+                        </button>
+                      </div>
                     </div>
                   )}
 

@@ -19,6 +19,7 @@ import ParentDashboard from './pages/ParentDashboard';
 import SchoolExcellenceDashboard from './pages/SchoolExcellenceDashboard';
 
 import InstallPwaBanner from './components/InstallPwaBanner';
+import FileViewer from './pages/FileViewer';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/file-viewer" element={<FileViewer />} />
               <Route path="/admin/*" element={
                 <ProtectedRoute allowedRole="admin">
                   <AdminDashboard />

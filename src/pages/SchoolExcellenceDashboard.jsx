@@ -12,6 +12,7 @@ import {
   deleteDoc,
   getDocs
 } from 'firebase/firestore';
+import { uploadFileToFirestore, downloadFile } from '../utils/fileStorageService';
 
 import { 
   Award, 
@@ -83,11 +84,14 @@ export default function SchoolExcellenceDashboard() {
     fileName: '',
     fileData: '',
     fileType: '',
+    fileUrl: '',
     docDate: new Date().toISOString().split('T')[0]
   });
 
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [isSavingFirestore, setIsSavingFirestore] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const schoolId = userData?.schoolId || 'default_school_1';
   const isAdmin = userRole === 'admin' || userRole === 'superadmin';
@@ -149,7 +153,7 @@ export default function SchoolExcellenceDashboard() {
   useEffect(() => {
     if (!selectedIndicator) return;
     const existing = evidences[selectedIndicator.id];
-    if (existing && (existing.description || existing.targetGroup || existing.fileName || existing.linkUrl)) {
+    if (existing && (existing.description || existing.targetGroup || existing.fileName || existing.linkUrl || existing.fileUrl)) {
       setFormData({
         description: existing.description || selectedIndicator.defaultEvidence || '',
         targetGroup: existing.targetGroup || selectedIndicator.defaultTargetGroup || '',
@@ -157,6 +161,7 @@ export default function SchoolExcellenceDashboard() {
         fileName: existing.fileName || '',
         fileData: existing.fileData || '',
         fileType: existing.fileType || '',
+        fileUrl: existing.fileUrl || '',
         docDate: existing.docDate || new Date().toISOString().split('T')[0]
       });
     } else {
@@ -167,6 +172,7 @@ export default function SchoolExcellenceDashboard() {
         fileName: '',
         fileData: '',
         fileType: '',
+        fileUrl: '',
         docDate: new Date().toISOString().split('T')[0]
       });
     }
@@ -270,25 +276,46 @@ export default function SchoolExcellenceDashboard() {
     return null;
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('حجم الملف كبير جداً. يرجى اختيار ملف بحجم أقل من 5 ميجابايت.');
+    if (file.size > 25 * 1024 * 1024) {
+      alert('حجم الملف كبير جداً. يرجى اختيار ملف بحجم أقل من 25 ميجابايت.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    setIsUploadingFile(true);
+    setUploadProgress(15);
+    try {
+      const isImg = file.type.startsWith('image/');
+      const result = await uploadFileToFirestore(file, {
+        category: 'excellence',
+        onProgress: (p) => setUploadProgress(p),
+        metadata: {
+          indicatorId: selectedIndicator?.id,
+          schoolId
+        }
+      });
+
+      // Keep inline thumbnail only if small enough (<200KB) to ensure Firestore document limits are never breached
+      const inlinePreview = (isImg && result.dataUrl && result.dataUrl.length < 200000) ? result.dataUrl : '';
+
       setFormData(prev => ({
         ...prev,
         fileName: file.name,
-        fileData: reader.result,
-        fileType: file.type.startsWith('image/') ? 'image' : 'document'
+        fileUrl: result.url,
+        fileData: inlinePreview,
+        fileType: isImg ? 'image' : (file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'document')
       }));
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Evidence file upload error:', err);
+      alert('حدث خطأ أثناء رفع الشاهد: ' + (err.message || ''));
+    } finally {
+      setIsUploadingFile(false);
+      setUploadProgress(0);
+      e.target.value = '';
+    }
   };
 
   const handleSaveForm = async (e) => {
@@ -310,7 +337,8 @@ export default function SchoolExcellenceDashboard() {
       targetGroup: formData.targetGroup,
       linkUrl: formData.linkUrl,
       fileName: formData.fileName,
-      fileData: formData.fileData,
+      fileUrl: formData.fileUrl || '',
+      fileData: formData.fileData || '',
       fileType: formData.fileType,
       docDate: formData.docDate,
       isCompleted,
@@ -364,6 +392,7 @@ export default function SchoolExcellenceDashboard() {
         fileName: '',
         fileData: '',
         fileType: '',
+        fileUrl: '',
         docDate: new Date().toISOString().split('T')[0]
       });
       setSaveSuccessMsg('تم مسح الشواهد بنجاح.');
@@ -983,21 +1012,50 @@ export default function SchoolExcellenceDashboard() {
                       )}
 
                       <div style={{ flex: 1, minWidth: '200px' }}>
-                        {formData.fileName ? (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(99, 178, 198, 0.1)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem' }}>
-                            <span style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)' }}>{formData.fileName}</span>
-                            {canEditSelectedIndicator && (
-                              <button
-                                type="button"
-                                onClick={() => setFormData({ ...formData, fileName: '', fileData: '', fileType: '' })}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)' }}
-                              >
-                                <X size={16} />
-                              </button>
-                            )}
+                        {isUploadingFile ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                            <span>جاري رفع الشاهد والمزامنة... {uploadProgress}%</span>
+                          </div>
+                        ) : formData.fileName ? (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(99, 178, 198, 0.1)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <FileText size={16} color="var(--color-primary-dark)" />
+                              <span style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)' }}>{formData.fileName}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {formData.fileUrl && (
+                                <>
+                                  <a 
+                                    href={formData.fileUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    style={{ background: '#0284c7', color: '#fff', padding: '4px 10px', borderRadius: '6px', textDecoration: 'none', fontSize: '11px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  >
+                                    معاينة
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => downloadFile(formData.fileUrl, formData.fileName)}
+                                    style={{ background: '#0f766e', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  >
+                                    تحميل
+                                  </button>
+                                </>
+                              )}
+                              {canEditSelectedIndicator && (
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData({ ...formData, fileName: '', fileData: '', fileType: '', fileUrl: '' })}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)' }}
+                                  title="إزالة الملف"
+                                >
+                                  <X size={16} />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ) : (
-                          <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>لم يتم اختيار ملف بعد (حجم الملف أقل من 5 ميجابايت)</span>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>لم يتم اختيار ملف بعد (يدعم PDF، الصور، والمستندات حتى 25 ميجابايت)</span>
                         )}
                       </div>
                     </div>

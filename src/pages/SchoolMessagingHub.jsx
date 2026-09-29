@@ -11,6 +11,7 @@ import {
   BarChart2, Archive, Undo2, EyeOff, Landmark, CheckSquare
 } from 'lucide-react';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
+import { uploadFileToFirestore, downloadFile } from '../utils/fileStorageService';
 import { ADVANCED_SCHOOLS_CATALOG } from '../data/resourceData';
 
 const ROLE_BADGES = {
@@ -694,12 +695,14 @@ export default function SchoolMessagingHub() {
   }, [selectedMessage, adminList, teachersList, studentsList, staffList, supervisorsList]);
 
   // Handle File Attachment Upload (Images & PDFs)
-  const handleFileUpload = (e) => {
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 3 * 1024 * 1024) {
-      alert('حجم الملف المرفق يجب ألا يتجاوز 3 ميجابايت لضمان سرعة الإرسال والتصفح.');
+    if (file.size > 20 * 1024 * 1024) {
+      alert('حجم الملف المرفق يجب ألا يتجاوز 20 ميجابايت.');
       return;
     }
 
@@ -711,17 +714,26 @@ export default function SchoolMessagingHub() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
+    setIsUploadingAttachment(true);
+    try {
+      const result = await uploadFileToFirestore(file, { category: 'messages' });
+      const inlineData = isImage && result.dataUrl && result.dataUrl.length < 200000 ? result.dataUrl : '';
       setAttachment({
         name: file.name,
         type: isImage ? 'image' : 'pdf',
         mimeType: file.type || (isPdf ? 'application/pdf' : 'image/jpeg'),
         size: file.size,
-        dataUrl: uploadEvent.target.result
+        url: result.url,
+        fileId: result.fileId,
+        dataUrl: inlineData || result.url
       });
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Attachment upload failed:', err);
+      alert('حدث خطأ أثناء معالجة المرفق: ' + (err.message || ''));
+    } finally {
+      setIsUploadingAttachment(false);
+      e.target.value = '';
+    }
   };
 
   // Handle Reply to message
@@ -2044,25 +2056,48 @@ export default function SchoolMessagingHub() {
                       </div>
                     </div>
 
-                    <a
-                      href={selectedMessage.attachment.dataUrl}
-                      download={selectedMessage.attachment.name}
-                      className="btn"
-                      style={{
-                        background: '#dc2626',
-                        color: 'white',
-                        fontSize: '12px',
-                        padding: '6px 14px',
-                        borderRadius: '6px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        textDecoration: 'none',
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      <Download size={14} /> تحميل ملف الـ PDF
-                    </a>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <a
+                        href={selectedMessage.attachment.url || selectedMessage.attachment.dataUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn"
+                        style={{
+                          background: '#0284c7',
+                          color: 'white',
+                          fontSize: '12px',
+                          padding: '6px 14px',
+                          borderRadius: '6px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          textDecoration: 'none',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        <Eye size={14} /> معاينة
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => downloadFile(selectedMessage.attachment.url || selectedMessage.attachment.fileId || selectedMessage.attachment.dataUrl, selectedMessage.attachment.name)}
+                        className="btn"
+                        style={{
+                          background: '#dc2626',
+                          color: 'white',
+                          fontSize: '12px',
+                          padding: '6px 14px',
+                          borderRadius: '6px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        <Download size={14} /> تحميل ملف الـ PDF
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

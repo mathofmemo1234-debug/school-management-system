@@ -17,6 +17,7 @@ import {
   BellRing, Share2, ShieldAlert, CheckCircle
 } from 'lucide-react';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
+import { uploadFileToFirestore, downloadFile } from '../utils/fileStorageService';
 import { ADVANCED_SCHOOLS_CATALOG } from '../data/resourceData';
 
 // Official Circular Categories
@@ -853,11 +854,11 @@ export default function MasterMessagingHub() {
   }, [principalsDirectory, hotlineTrackFilter, hotlineSearch]);
 
   // File Upload Helper
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert('حجم الملف يجب ألا يتجاوز 5 ميجابايت.');
+    if (file.size > 25 * 1024 * 1024) {
+      alert('حجم الملف يجب ألا يتجاوز 25 ميجابايت.');
       return;
     }
     const isImage = file.type.startsWith('image/');
@@ -866,16 +867,26 @@ export default function MasterMessagingHub() {
       alert('يرجى إرفاق صورة (JPG/PNG) أو مستند PDF فقط.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
+
+    setIsSending(true);
+    try {
+      const result = await uploadFileToFirestore(file, { category: 'master_circulars' });
+      const inlineData = isImage && result.dataUrl && result.dataUrl.length < 200000 ? result.dataUrl : '';
       setAttachment({
         name: file.name,
         type: isImage ? 'image' : 'pdf',
         size: file.size,
-        dataUrl: ev.target.result
+        url: result.url,
+        fileId: result.fileId,
+        dataUrl: inlineData || result.url
       });
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Master attachment upload error:', err);
+      alert('حدث خطأ أثناء رفع المرفق: ' + (err.message || ''));
+    } finally {
+      setIsSending(false);
+      e.target.value = '';
+    }
   };
 
   return (

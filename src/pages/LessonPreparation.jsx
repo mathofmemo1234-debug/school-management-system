@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { db, auth, storage } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, addDoc, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadFileToFirestore, downloadFile } from '../utils/fileStorageService';
 import MarkdownViewer from '../components/MarkdownViewer';
 import { 
   Save, UploadCloud, Eye, Edit, Trash2, X, Image as ImageIcon, Loader, 
   Printer, BookOpen, Target, Sparkles, CheckSquare, Square, Plus, 
   Layers, CheckCircle2, Globe, HelpCircle, Compass, GraduationCap,
-  Cpu, Atom, Laptop, Lightbulb, Box, BookmarkCheck
+  Cpu, Atom, Laptop, Lightbulb, Box, BookmarkCheck, FileText, Download
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import MarkdownInput from '../components/MarkdownInput';
@@ -122,6 +122,7 @@ export default function LessonPreparation() {
   const [fileUrl, setFileUrl] = useState('');
   const [fileName, setFileName] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
 
   // Saving state
@@ -606,24 +607,35 @@ export default function LessonPreparation() {
     return () => unsub();
   }, [selectedClass, selectedSubject, teacherDocId, selectedWeek, selectedPeriod]);
 
-  // Handle File Upload
+  // Handle File Upload (PDF, Word, Images)
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
     setIsUploading(true);
+    setUploadProgress(10);
     try {
-      const storageRef = ref(storage, `preparations/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      setFileUrl(url);
+      const result = await uploadFileToFirestore(file, {
+        category: 'preparations',
+        onProgress: (p) => setUploadProgress(p)
+      });
+      setFileUrl(result.url);
       setFileName(file.name);
-      alert('✓ تم رفع المرفق بنجاح!');
+      alert('✓ تم رفع ملف التحضير بنجاح وبسرعة فائقة!');
     } catch (error) {
       console.error('Upload Error:', error);
-      alert('حدث خطأ أثناء رفع الملف');
+      alert('حدث خطأ أثناء رفع الملف: ' + (error.message || ''));
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveFile = () => {
+    if (window.confirm('هل أنت متأكد من رغبتك في إزالة الملف المرفق؟')) {
+      setFileUrl('');
+      setFileName('');
     }
   };
 
@@ -1622,17 +1634,59 @@ export default function LessonPreparation() {
               </div>
 
               {/* STEP 7: File Attachments */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', fontSize: '13px' }}>
-                    إرفاق ملف التحضير أو ورقة العمل (PDF / صور)
-                  </label>
-                  <input type="file" accept=".pdf, .jpg, .jpeg, .png" onChange={handleFileUpload} disabled={isUploading} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ flex: 1, minWidth: '220px' }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', fontSize: '13px' }}>
+                      إرفاق ملف التحضير أو ورقة العمل (PDF / صور / مستندات)
+                    </label>
+                    <input 
+                      type="file" 
+                      accept=".pdf, .jpg, .jpeg, .png, application/pdf, image/*" 
+                      onChange={handleFileUpload} 
+                      disabled={isUploading} 
+                      style={{ fontSize: '13px' }}
+                    />
+                  </div>
+                  {isUploading && (
+                    <div style={{ color: 'var(--color-primary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', background: '#e0f2fe', padding: '8px 14px', borderRadius: '8px' }}>
+                      <Loader size={18} className="spin-animate" />
+                      <span>جاري الرفع والمزامنة... {uploadProgress}%</span>
+                    </div>
+                  )}
                 </div>
-                {isUploading && <div style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>جاري الرفع...</div>}
+
                 {fileUrl && (
-                  <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '8px 16px', borderRadius: '6px', fontSize: '13px' }}>
-                    المرفق الحالي: <a href={fileUrl} target="_blank" rel="noreferrer" style={{ color: '#0369a1', fontWeight: 'bold', textDecoration: 'underline' }}>{fileName}</a>
+                  <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '10px 16px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <FileText size={18} />
+                      <span>المرفق الحالي: <strong>{fileName}</strong></span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <a 
+                        href={fileUrl} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        style={{ background: '#0284c7', color: '#fff', padding: '6px 14px', borderRadius: '6px', fontWeight: 'bold', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                      >
+                        <Eye size={14} /> معاينة / فتح
+                      </a>
+                      <button 
+                        type="button" 
+                        onClick={() => downloadFile(fileUrl, fileName)} 
+                        style={{ background: '#0f766e', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                      >
+                        <Download size={14} /> تحميل
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={handleRemoveFile} 
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 'bold' }}
+                        title="إزالة الملف"
+                      >
+                        <Trash2 size={14} /> إزالة
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2002,8 +2056,28 @@ export default function LessonPreparation() {
               </div>
 
               {previewPrep.fileUrl && (
-                <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px 16px', borderRadius: '8px' }}>
-                  <strong>الملف المرفق:</strong> <a href={previewPrep.fileUrl} target="_blank" rel="noreferrer" style={{ color: '#0369a1', textDecoration: 'underline' }}>{previewPrep.fileName}</a>
+                <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FileText size={18} />
+                    <span><strong>الملف المرفق:</strong> {previewPrep.fileName}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <a 
+                      href={previewPrep.fileUrl} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      style={{ background: '#0284c7', color: '#fff', padding: '4px 12px', borderRadius: '6px', fontWeight: 'bold', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                    >
+                      <Eye size={14} /> معاينة / فتح
+                    </a>
+                    <button 
+                      type="button" 
+                      onClick={() => downloadFile(previewPrep.fileUrl, previewPrep.fileName)} 
+                      style={{ background: '#0f766e', color: '#fff', border: 'none', padding: '4px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                    >
+                      <Download size={14} /> تحميل
+                    </button>
+                  </div>
                 </div>
               )}
 
