@@ -31,6 +31,7 @@ export default function Sidebar({ role }) {
 
   const adminLinks = [
     { path: '/admin', icon: Home, label: t('sidebar.overview') },
+    { path: '/admin/monthly-reports', icon: Star, label: 'أداة التقارير الدورية (المربي المخلص)' },
     { path: '/admin/exams-management', icon: FileSpreadsheet, label: 'إدارة الاختبارات ورصد الدرجات' },
     { path: '/admin/teacher-exams', icon: FileText, label: 'معاينة بنك اختبارات المعلمين' },
     { path: '/admin/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
@@ -58,6 +59,7 @@ export default function Sidebar({ role }) {
 
   const staffLinks = [
     { path: '/staff', icon: Home, label: t('sidebar.overview') },
+    { path: '/staff/monthly-reports', icon: Star, label: 'أداة التقارير الدورية (المربي المخلص)' },
     { path: '/staff/exams-management', icon: FileSpreadsheet, label: 'إدارة الاختبارات ومصفوفة المستويات' },
     { path: '/staff/teacher-exams', icon: FileText, label: 'معاينة بنك اختبارات المعلمين' },
     { path: '/staff/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
@@ -79,6 +81,7 @@ export default function Sidebar({ role }) {
 
   const supervisorLinks = [
     { path: '/supervisor', icon: Home, label: t('sidebar.overview') },
+    { path: '/supervisor/monthly-reports', icon: Star, label: 'أداة التقارير الدورية (المربي المخلص)' },
     { path: '/supervisor/exams-management', icon: FileSpreadsheet, label: 'إدارة الاختبارات ومصفوفة المستويات' },
     { path: '/supervisor/teacher-exams', icon: FileText, label: 'معاينة بنك اختبارات المعلمين' },
     { path: '/supervisor/resources', icon: Layers, label: 'الموارد وتوزيع الكوادر' },
@@ -107,6 +110,7 @@ export default function Sidebar({ role }) {
 
   const teacherLinks = [
     { path: '/teacher', icon: Home, label: t('sidebar.overview') },
+    { path: '/teacher/monthly-reports', icon: Star, label: 'أداة التقارير الدورية (المربي المخلص)' },
     { path: '/teacher/messages', icon: Mail, label: 'المراسلات والتعاميم' },
     { path: '/teacher/portfolio', icon: Award, label: 'ملف الإنجاز التربوي' },
     { path: '/teacher/performance-evaluation', icon: UserCheck, label: 'تقييم الأداء والزيارات' },
@@ -139,6 +143,7 @@ export default function Sidebar({ role }) {
 
   const parentLinks = [
     { path: '/parent', icon: Home, label: t('sidebar.overview') },
+    { path: '/parent/monthly-reports', icon: Star, label: 'التقرير الدوري للمربي المخلص' },
     { path: '/parent/worksheets', icon: Sparkles, label: 'أوراق العمل للابن' },
     { path: '/parent/exam-reports', icon: Award, label: 'كشف الدرجات والبرنامج العلاجي' },
     { path: '/parent/messages', icon: Mail, label: 'المراسلات والتعاميم' },

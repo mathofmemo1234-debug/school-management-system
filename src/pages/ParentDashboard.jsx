@@ -11,6 +11,7 @@ import WeeklyPlanView from '../components/WeeklyPlanView';
 import Settings from './Settings';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
 import ComprehensiveStudentRecord from './ComprehensiveStudentRecord';
+import MonthlyMentorReports from './MonthlyMentorReports';
 import StudentWorksheets from '../components/StudentWorksheets';
 import { User, GraduationCap, School, BookOpen, Calendar, Award, Mail, FileText, CheckCircle2, ChevronLeft, ClipboardList, Sparkles } from 'lucide-react';
 
@@ -320,6 +321,7 @@ export default function ParentDashboard() {
         <Route path="/worksheets" element={<StudentWorksheets studentClassOverride={userData?.studentClass} schoolIdOverride={userData?.schoolId} />} />
         <Route path="/exam-reports" element={<ParentExamReports />} />
         <Route path="/student-records" element={<ComprehensiveStudentRecord role="parent" />} />
+        <Route path="/monthly-reports" element={<MonthlyMentorReports role="parent" />} />
         <Route path="/weekly-plan" element={<ParentWeeklyPlan />} />
         <Route path="/schedule" element={<StudentSchedule />} />
         <Route path="/exams" element={<ParentExamReports />} />

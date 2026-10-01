@@ -17,6 +17,7 @@ import NoorIntegrationHub from '../components/NoorIntegrationHub';
 import SchoolMessagingHub from './SchoolMessagingHub';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
 import ComprehensiveStudentRecord from './ComprehensiveStudentRecord';
+import MonthlyMentorReports from './MonthlyMentorReports';
 import TeacherPerformanceEvaluationHub from './TeacherPerformanceEvaluationHub';
 import SchoolResourcesHub from './SchoolResourcesHub';
 import TeacherExams from './TeacherExams';
@@ -280,6 +281,7 @@ export default function SupervisorDashboard() {
         <Route path="/teacher-exams/*" element={<TeacherExams />} />
         <Route path="/teacher-evaluations" element={<TeacherPerformanceEvaluationHub role="supervisor" />} />
         <Route path="/student-records" element={<ComprehensiveStudentRecord role="supervisor" />} />
+        <Route path="/monthly-reports" element={<MonthlyMentorReports role="supervisor" />} />
         <Route path="/attendance" element={<AttendanceSummaryExport schoolId={userData?.schoolId} />} />
         <Route path="/preparations" element={<AdminPreparations schoolId={userData?.schoolId} />} />
         <Route path="/weekly-plan" element={<WeeklyPlanView schoolId={userData?.schoolId} />} />

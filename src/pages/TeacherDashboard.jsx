@@ -16,6 +16,7 @@ import AttendanceSummaryExport from '../components/AttendanceSummaryExport';
 import SchoolMessagingHub from './SchoolMessagingHub';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
 import ComprehensiveStudentRecord from './ComprehensiveStudentRecord';
+import MonthlyMentorReports from './MonthlyMentorReports';
 import TeacherPerformanceEvaluationHub from './TeacherPerformanceEvaluationHub';
 import MarkdownInput from '../components/MarkdownInput';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -2385,6 +2386,7 @@ export default function TeacherDashboard() {
         <Route path="/materials" element={<MaterialsUpload />} />
         <Route path="/assignments" element={<Assignments />} />
         <Route path="/grade-entry/*" element={<TeacherGradeEntry />} />
+        <Route path="/monthly-reports" element={<MonthlyMentorReports role="teacher" />} />
         <Route path="/exams" element={<TeacherExams />} />
         <Route path="/attendance" element={<Attendance />} />
         <Route path="/student-records" element={<ComprehensiveStudentRecord role="teacher" />} />

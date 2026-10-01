@@ -12,6 +12,7 @@ import SchoolSettings from './SchoolSettings';
 import AdminExcellence from './AdminExcellence';
 import ManageStaff from './ManageStaff';
 import ComprehensiveStudentRecord from './ComprehensiveStudentRecord';
+import MonthlyMentorReports from './MonthlyMentorReports';
 import TeacherPerformanceEvaluationHub from './TeacherPerformanceEvaluationHub';
 import AttendanceSummaryExport from '../components/AttendanceSummaryExport';
 import CertificateLetterModal from '../components/CertificateLetterModal';
@@ -3433,6 +3434,7 @@ export default function AdminDashboard() {
         <Route path="/teachers" element={<ManageTeachers schoolId={userData?.schoolId} />} />
         <Route path="/students" element={<ManageStudents schoolId={userData?.schoolId} />} />
         <Route path="/student-records" element={<ComprehensiveStudentRecord role="admin" />} />
+        <Route path="/monthly-reports" element={<MonthlyMentorReports role="admin" />} />
         <Route path="/classes" element={<ManageClasses schoolId={userData?.schoolId} />} />
         <Route path="/schedule" element={<ManageSchedules schoolId={userData?.schoolId} />} />
         <Route path="/attendance" element={<AttendanceSummaryExport schoolId={userData?.schoolId} />} />

@@ -20,6 +20,7 @@ import NoorIntegrationHub from '../components/NoorIntegrationHub';
 import SchoolMessagingHub from './SchoolMessagingHub';
 import AchievementPortfolioPage from './AchievementPortfolioPage';
 import ComprehensiveStudentRecord from './ComprehensiveStudentRecord';
+import MonthlyMentorReports from './MonthlyMentorReports';
 import TeacherPerformanceEvaluationHub from './TeacherPerformanceEvaluationHub';
 import SchoolResourcesHub from './SchoolResourcesHub';
 import TeacherExams from './TeacherExams';
@@ -505,6 +506,7 @@ export default function StaffDashboard() {
         <Route path="/teacher-exams/*" element={<TeacherExams />} />
         <Route path="/teacher-evaluations" element={<TeacherPerformanceEvaluationHub role="staff" />} />
         <Route path="/student-records" element={<ComprehensiveStudentRecord role="staff" />} />
+        <Route path="/monthly-reports" element={<MonthlyMentorReports role="staff" />} />
         {userPerms.includes('preparations') && (
           <Route path="/preparations" element={<AdminPreparations schoolId={userData?.schoolId} />} />
         )}
