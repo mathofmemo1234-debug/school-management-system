@@ -20,6 +20,7 @@ import SchoolExcellenceDashboard from './pages/SchoolExcellenceDashboard';
 
 import InstallPwaBanner from './components/InstallPwaBanner';
 import FileViewer from './pages/FileViewer';
+import MonthlyMentorReports from './pages/MonthlyMentorReports';
 
 function App() {
   return (
@@ -63,6 +64,11 @@ function App() {
                   <StudentDashboard />
                 </ProtectedRoute>
               } />
+              {/* Standalone Direct Public View for Monthly Mentor Reports (Zero login barrier for parents via WhatsApp/SMS links) */}
+              <Route path="/parent/monthly-reports" element={<MonthlyMentorReports role="public" />} />
+              <Route path="/public/monthly-reports" element={<MonthlyMentorReports role="public" />} />
+              <Route path="/public-monthly-report" element={<MonthlyMentorReports role="public" />} />
+
               <Route path="/parent/*" element={
                 <ProtectedRoute allowedRole="parent">
                   <ParentDashboard />

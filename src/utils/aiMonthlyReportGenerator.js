@@ -203,9 +203,9 @@ export function getPerformanceLevel(score) {
 }
 
 /**
- * توليد خلاصة الأداء لمادة محددة بناء على درجتها
+ * توليد خلاصة الأداء لمادة محددة بناء على درجتها وملحوظة المعلم الخاصة
  */
-export function generateSubjectSummary(subjectId, score) {
+export function generateSubjectSummary(subjectId, score, teacherNote = '') {
   const num = Number(score);
   if (isNaN(num)) return 'لم يتم رصد درجة المادة بعد.';
 
@@ -218,8 +218,21 @@ export function generateSubjectSummary(subjectId, score) {
   else pool = sMap.low;
 
   if (!pool || pool.length === 0) pool = sMap[10] || ['أداء متميز وجهد مقدر.'];
-  // اختيار جملة مميزة
-  return pool[0];
+  const baseObs = pool[0];
+
+  // إذا كتب المعلم ملحوظة خاصة، ندمجها بأسلوب تربوي ذكي
+  if (teacherNote && teacherNote.trim()) {
+    const cleanNote = teacherNote.trim();
+    if (num >= 9.0) {
+      return `${baseObs} ويشيد المعلم بـ: ${cleanNote}.`;
+    } else if (num >= 7.5) {
+      return `${baseObs} مع ملاحظة المعلم: ${cleanNote}.`;
+    } else {
+      return `${baseObs} وتوصية المعلم المركزة: ${cleanNote}.`;
+    }
+  }
+
+  return baseObs;
 }
 
 /**
@@ -295,6 +308,14 @@ export function generateSmartReportSummary({
     closingNote += ` إشادة المربي المخلص: "${mentorNotes.trim()}"`;
   }
 
+  const notableTeacherNotes = entries
+    .filter(([_, item]) => item.teacherNote && item.teacherNote.trim())
+    .map(([_, item]) => `${item.name}: ${item.teacherNote.trim()}`);
+
+  if (notableTeacherNotes.length > 0) {
+    closingNote += ` مرئيات وتوجيهات معلمي المواد: [${notableTeacherNotes.join(' • ')}].`;
+  }
+
   return finalSummary + closingNote;
 }
 
@@ -344,4 +365,66 @@ export function generateComparativeGrowthSummary({
     : ' نوصي بوضع خطة عمل مشتركة بين المربي المخلص والأسرة لتعزيز نقاط التحسين واستعادة وتيرة التفوق السابقة.';
 
   return `${intro} ${bodyParts.join('، ')}.${recommendation}`;
+}
+
+export const DEFAULT_BEHAVIORAL_NOTES = 'لم تُسجَّل ملاحظات سلوكية هذا الشهر، ونكتفي بالإشارة إلى أن الطالب يُتابَع ضمن السياق الصفي المعتاد ويسير وفق الضوابط المدرسية المعتمدة.';
+
+/**
+ * توليد خطة الدعم والتحسين الذكية المتكاملة (4 أبعاد) بناء على مستوى درجات المواد
+ * مطابقة تماماً للمنصة التشخيصية المعتمدة (dignosticreport.online)
+ */
+export function generateSupportAndImprovementPlan({
+  studentName = 'الطالب',
+  subjectsData = {},
+  overallPercentage = 90
+}) {
+  const entries = Object.entries(subjectsData).filter(([_, data]) => data && data.score !== '' && !isNaN(data.score));
+  
+  const needSupport = [];
+  const excelling = [];
+
+  entries.forEach(([_, item]) => {
+    const s = Number(item.score);
+    const subName = item.name || item.id;
+    if (s < 8.5) needSupport.push(subName);
+    else if (s >= 9.5) excelling.push(subName);
+  });
+
+  const needStr = needSupport.length > 0 ? needSupport.join(' و') : 'كافة المواد';
+  const excelStr = excelling.length > 0 ? excelling.join(' و') : 'العلوم والرياضيات والمهارات الرقمية';
+
+  // 1. خطة إجراءات داخل الصف (دور المربي والمعلمين)
+  const inClassActionPlan = [
+    needSupport.length > 0
+      ? `تخصيص تدريبات إثرائية وعلاجية في ${needStr} لرفع مستوى الإتقان، مع متابعة تقدمه عبر مهام أدائية قصيرة.`
+      : `تخصيص تدريبات إثرائية وتحديات متقدمة لرفع مستوى الإتقان، مع تعزيز الدافعية عبر مهام أدائية قصيرة.`,
+    `إشراك الطالب في أنشطة استقصائية ومشاريع تطبيقية في ${excelStr} لتعميق فهمه وتوظيف تميزه.`
+  ];
+
+  // 2. خطة إجراءات داخل المنزل (مساندة عملية من الأسرة)
+  const atHomeActionPlan = [
+    `يُفضّل أن يتابع ولي الأمر قراءة الطالب اليومية لمدة عشرين دقيقة لتعزيز مهاراته اللغوية والاستيعابية.`,
+    `من المفيد للأسرة أن تشجّع الطالب على استثمار مهاراته الرقمية في مشاريع صغيرة مفيدة وربطها بالواقع.`
+  ];
+
+  // 3. أهداف قصيرة المدى (أسبوع إلى أسبوعين)
+  const shortTermGoals = [
+    needSupport.length > 0
+      ? `إنجاز المهام الأدائية ورفع مستوى التحصيل في ${needStr} خلال الأسبوعين القادمين.`
+      : `إنجاز المهام الأدائية المتقدمة والأنشطة الإثرائية في المواعيد المحددة بدقة.`,
+    `المشاركة الفاعلة في المناقشات الصفية وحل التطبيقات اليومية بانتظام.`
+  ];
+
+  // 4. أهداف طويلة المدى (تُراجع مع المتابعات الشهرية القادمة)
+  const longTermGoals = [
+    `رفع مستوى الإتقان في كافة المواد خلال الفترات القادمة للوصول إلى مرتبة (متقدم ومتميز).`,
+    `ترسيخ الاستقلالية الأكاديمية والمهارات الرقمية وتوظيف أدوات التعلم الذكي في جميع المساقات.`
+  ];
+
+  return {
+    inClassActionPlan,
+    atHomeActionPlan,
+    shortTermGoals,
+    longTermGoals
+  };
 }

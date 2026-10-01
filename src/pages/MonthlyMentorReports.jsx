@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { db } from '../firebase';
 import { 
   collection, 
@@ -6,6 +7,7 @@ import {
   where, 
   onSnapshot, 
   getDocs, 
+  getDoc,
   doc, 
   setDoc, 
   deleteDoc, 
@@ -49,7 +51,16 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
-  History
+  History,
+  Target,
+  Home,
+  GraduationCap,
+  Calendar,
+  ClipboardCheck,
+  ShieldCheck,
+  Edit3,
+  FolderPlus,
+  Copy
 } from 'lucide-react';
 import { 
   STANDARD_SUBJECTS_NATIONAL, 
@@ -57,7 +68,9 @@ import {
   getPerformanceLevel, 
   generateSubjectSummary, 
   generateSmartReportSummary,
-  generateComparativeGrowthSummary
+  generateComparativeGrowthSummary,
+  generateSupportAndImprovementPlan,
+  DEFAULT_BEHAVIORAL_NOTES
 } from '../utils/aiMonthlyReportGenerator';
 import { compressImage } from '../utils/imageCompressor';
 import { readFileAsDataUrl } from '../utils/fileStorageService';
@@ -67,8 +80,31 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
   const { t } = useLanguage();
   const schoolId = userData?.schoolId || 'msc_jed_smart_boys_national';
 
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  // Extract query params from searchParams or hash
+  const getParam = (key) => {
+    const spVal = searchParams.get(key);
+    if (spVal) return spVal;
+    if (typeof window !== 'undefined' && window.location.hash.includes(`${key}=`)) {
+      const hashQuery = window.location.hash.split('?')[1];
+      if (hashQuery) {
+        return new URLSearchParams(hashQuery).get(key);
+      }
+    }
+    return null;
+  };
+
+  const queryStudentId = getParam('studentId');
+  const queryClass = getParam('class');
+  const queryMonth = getParam('month');
+  const queryReportId = getParam('reportId');
+
+  const isPublicViewer = role === 'public' || role === 'parent' || Boolean(queryStudentId);
+
   // Navigation steps: 1: البيانات, 2: المهارات, 3: التقرير
-  const [activeStep, setActiveStep] = useState(1);
+  const [activeStep, setActiveStep] = useState(isPublicViewer ? 3 : 1);
   const [isInternational, setIsInternational] = useState(false);
 
   // Mentor Selection
@@ -80,7 +116,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
 
   // Flexible Class & Student Selection (Free from teacher schedule restrictions)
   const [classesList, setClassesList] = useState([]);
-  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedClass, setSelectedClass] = useState(queryClass || '');
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [newClassName, setNewClassName] = useState('');
 
@@ -89,7 +125,30 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentNationalId, setNewStudentNationalId] = useState('');
-  const [academicMonth, setAcademicMonth] = useState('أكتوبر 2026');
+  const [academicMonth, setAcademicMonth] = useState(queryMonth || 'أكتوبر 2026');
+
+  // Report Title, Time and Identification
+  const [reportTitle, setReportTitle] = useState('التقرير الدوري الشامل للمربي المخلص');
+  const [reportDateTime, setReportDateTime] = useState(() => {
+    const now = new Date();
+    return now.toLocaleString('ar-SA', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  });
+  const [isEditingReportMeta, setIsEditingReportMeta] = useState(false);
+
+  // Additional Reports State (ميزة إضافة تقارير إضافية)
+  const [studentReportsList, setStudentReportsList] = useState([]);
+  const [activeReportId, setActiveReportId] = useState(queryReportId || 'default');
+  const [showAddReportModal, setShowAddReportModal] = useState(false);
+  const [newReportTitle, setNewReportTitle] = useState('');
+  const [newReportType, setNewReportType] = useState('تشخيصي علاجي');
+  const [newReportDate, setNewReportDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Subjects & Evaluation State
   const activeSubjectDefs = isInternational ? STANDARD_SUBJECTS_INTERNATIONAL : STANDARD_SUBJECTS_NATIONAL;
@@ -97,6 +156,11 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
   const [mentorNotes, setMentorNotes] = useState('');
   const [smartReportSummary, setSmartReportSummary] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+
+  // Behavioral Notes & Support and Improvement Plan (Screenshot media_1790897714805.png)
+  const [behavioralNotes, setBehavioralNotes] = useState(DEFAULT_BEHAVIORAL_NOTES);
+  const [supportPlan, setSupportPlan] = useState(() => generateSupportAndImprovementPlan({}));
+  const [isGeneratingPlanAI, setIsGeneratingPlanAI] = useState(false);
 
   // Evidence Media State (Images & Videos)
   const [evidenceList, setEvidenceList] = useState([]); // [{ id, type: 'image'|'video', title, url, previewUrl }]
@@ -281,6 +345,104 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
     return () => unsub();
   }, [selectedClass, schoolId]);
 
+  // ─── 4.2 Direct Report Loader for Shared Links & Parents ─────
+  useEffect(() => {
+    if (!queryStudentId) return;
+
+    let active = true;
+    const loadDirectReport = async () => {
+      try {
+        if (queryClass) setSelectedClass(queryClass);
+        if (queryMonth) setAcademicMonth(queryMonth);
+        setActiveStep(3);
+
+        // 1. Fetch Student doc if exists
+        try {
+          const stDoc = await getDoc(doc(db, 'students', queryStudentId));
+          if (stDoc.exists() && active) {
+            const data = stDoc.data();
+            setSelectedStudent({
+              id: stDoc.id,
+              name: data.name || 'طالب متميز',
+              nationalId: data.nationalId || data.studentId || '',
+              className: queryClass || data.className || '',
+              photoURL: data.photoURL || null
+            });
+          }
+        } catch (e) {
+          console.warn('Error reading student doc directly:', e);
+        }
+
+        // 2. Fetch Report doc from monthly_mentor_reports
+        const qReports = queryMonth
+          ? query(collection(db, 'monthly_mentor_reports'), where('studentId', '==', queryStudentId), where('academicMonth', '==', queryMonth))
+          : query(collection(db, 'monthly_mentor_reports'), where('studentId', '==', queryStudentId));
+
+        const snap = await getDocs(qReports);
+        if (!snap.empty && active) {
+          let chosenDoc = snap.docs[0];
+          if (queryReportId) {
+            const matched = snap.docs.find(d => d.data().reportId === queryReportId || d.id.includes(queryReportId));
+            if (matched) chosenDoc = matched;
+          }
+          const rep = chosenDoc.data();
+          if (rep.studentName) {
+            setSelectedStudent(prev => ({
+              id: queryStudentId,
+              name: rep.studentName,
+              nationalId: rep.studentNationalId || prev?.nationalId || '',
+              className: rep.className || queryClass || prev?.className || '',
+              photoURL: rep.studentPhoto || prev?.photoURL || null
+            }));
+          }
+          if (rep.className) setSelectedClass(rep.className);
+          if (rep.academicMonth) setAcademicMonth(rep.academicMonth);
+          if (rep.reportTitle) setReportTitle(rep.reportTitle);
+          if (rep.reportDateTime) setReportDateTime(rep.reportDateTime);
+          if (rep.subjectScores) setSubjectScores(rep.subjectScores);
+          if (rep.smartReportSummary) setSmartReportSummary(rep.smartReportSummary);
+          if (rep.mentorNotes) setMentorNotes(rep.mentorNotes);
+          if (rep.behavioralNotes !== undefined) setBehavioralNotes(rep.behavioralNotes || DEFAULT_BEHAVIORAL_NOTES);
+          if (rep.supportPlan) setSupportPlan(rep.supportPlan);
+          if (rep.evidenceList) setEvidenceList(rep.evidenceList);
+          if (rep.googleDriveUrl) setGoogleDriveUrl(rep.googleDriveUrl);
+          if (rep.mentor) setSelectedMentor(rep.mentor);
+          if (rep.isInternational !== undefined) setIsInternational(rep.isInternational);
+        }
+      } catch (err) {
+        console.error('Failed to load shared monthly report:', err);
+      }
+    };
+
+    loadDirectReport();
+    return () => { active = false; };
+  }, [queryStudentId, queryClass, queryMonth, queryReportId]);
+
+  // ─── 4.3 Fetch All Reports for Selected Student (Additional Reports Feature) ─
+  useEffect(() => {
+    if (!selectedStudent || !selectedClass || !academicMonth) return;
+
+    const qStudentReports = schoolId === 'ALL'
+      ? query(collection(db, 'monthly_mentor_reports'), where('studentId', '==', selectedStudent.id), where('academicMonth', '==', academicMonth))
+      : query(collection(db, 'monthly_mentor_reports'), where('schoolId', '==', schoolId), where('studentId', '==', selectedStudent.id), where('academicMonth', '==', academicMonth));
+
+    const unsub = onSnapshot(qStudentReports, snap => {
+      let reps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (reps.length === 0) {
+        reps = [{
+          id: 'default',
+          reportId: 'default',
+          reportTitle: reportTitle || 'التقرير الدوري الشامل للمربي المخلص',
+          reportType: 'دوري شهري',
+          reportDateTime: reportDateTime
+        }];
+      }
+      setStudentReportsList(reps);
+    });
+
+    return () => unsub();
+  }, [selectedStudent, selectedClass, academicMonth, schoolId]);
+
   // ─── 5. Load Active Student's Report Data When Student Changes ─
   useEffect(() => {
     if (!selectedStudent) return;
@@ -291,6 +453,10 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       setSmartReportSummary(existing.smartReportSummary || '');
       setMentorNotes(existing.mentorNotes || '');
       setEvidenceList(existing.evidenceList || []);
+      if (existing.reportTitle) setReportTitle(existing.reportTitle);
+      if (existing.reportDateTime) setReportDateTime(existing.reportDateTime);
+      if (existing.behavioralNotes !== undefined) setBehavioralNotes(existing.behavioralNotes || DEFAULT_BEHAVIORAL_NOTES);
+      if (existing.supportPlan) setSupportPlan(existing.supportPlan);
     } else {
       // Default clean template with standard 10/10 mock/prefill to match screenshots
       const initialScores = {};
@@ -304,6 +470,12 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       });
       setSubjectScores(initialScores);
       setMentorNotes('');
+      setBehavioralNotes(DEFAULT_BEHAVIORAL_NOTES);
+      setSupportPlan(generateSupportAndImprovementPlan({
+        studentName: selectedStudent.name,
+        subjectsData: initialScores,
+        overallPercentage: 100
+      }));
       setEvidenceList([
         {
           id: 'ev_sample_1',
@@ -350,14 +522,48 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
     }));
   };
 
-  // ─── AI Generation of All Summaries ──────────────────────
+  const handleTeacherNoteChange = (subjId, note) => {
+    setSubjectScores(prev => ({
+      ...prev,
+      [subjId]: {
+        ...(prev[subjId] || {}),
+        teacherNote: note
+      }
+    }));
+  };
+
+  const handleRegenerateSingleSubject = (subjId) => {
+    const current = subjectScores[subjId] || { id: subjId, name: activeSubjectDefs.find(s => s.id === subjId)?.name || subjId, score: 10, teacherNote: '' };
+    const newSummary = generateSubjectSummary(subjId, current.score !== '' ? current.score : 10, current.teacherNote || '');
+    
+    setSubjectScores(prev => {
+      const updated = {
+        ...prev,
+        [subjId]: {
+          ...current,
+          summary: newSummary
+        }
+      };
+      
+      const newNarrative = generateSmartReportSummary({
+        studentName: selectedStudent?.name || 'الطالب',
+        subjectsData: updated,
+        isInternational,
+        mentorNotes
+      });
+      setSmartReportSummary(newNarrative);
+      return updated;
+    });
+  };
+
+  // ─── AI Generation of All Summaries & Plan ────────────────
   const handleGenerateAISummaries = () => {
     setIsGeneratingAI(true);
     setTimeout(() => {
       const updated = { ...subjectScores };
       activeSubjectDefs.forEach(sub => {
-        const current = updated[sub.id] || { id: sub.id, name: sub.name, score: 10 };
-        current.summary = generateSubjectSummary(sub.id, current.score !== '' ? current.score : 10);
+        const current = updated[sub.id] || { id: sub.id, name: sub.name, score: 10, teacherNote: '' };
+        current.summary = generateSubjectSummary(sub.id, current.score !== '' ? current.score : 10, current.teacherNote || '');
         updated[sub.id] = current;
       });
       setSubjectScores(updated);
@@ -369,8 +575,29 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
         mentorNotes
       });
       setSmartReportSummary(fullSummary);
+
+      const newPlan = generateSupportAndImprovementPlan({
+        studentName: selectedStudent?.name || 'الطالب',
+        subjectsData: updated,
+        overallPercentage: averagePercentage
+      });
+      setSupportPlan(newPlan);
+
       setIsGeneratingAI(false);
     }, 600);
+  };
+
+  const handleAutoGenerateFullPlan = () => {
+    setIsGeneratingPlanAI(true);
+    setTimeout(() => {
+      const newPlan = generateSupportAndImprovementPlan({
+        studentName: selectedStudent?.name || 'الطالب',
+        subjectsData: subjectScores,
+        overallPercentage: averagePercentage
+      });
+      setSupportPlan(newPlan);
+      setIsGeneratingPlanAI(false);
+    }, 400);
   };
 
   // ─── Compute Aggregate Metrics ───────────────────────────
@@ -439,11 +666,15 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
     if (!selectedStudent || !selectedMentor) return;
     setIsSaving(true);
     try {
-      const reportDocId = `${schoolId}_${selectedClass}_${academicMonth}_${selectedStudent.id}`.replace(/[\/\s]/g, '_');
+      const repKey = activeReportId && activeReportId !== 'default' ? activeReportId : 'main';
+      const reportDocId = `${schoolId}_${selectedClass}_${academicMonth}_${selectedStudent.id}_${repKey}`.replace(/[\/\s]/g, '_');
       const payload = {
         schoolId,
         className: selectedClass,
         academicMonth,
+        reportId: activeReportId,
+        reportTitle: reportTitle || 'التقرير الدوري الشامل للمربي المخلص',
+        reportDateTime: reportDateTime,
         studentId: selectedStudent.id,
         studentName: selectedStudent.name,
         studentNationalId: selectedStudent.nationalId,
@@ -457,7 +688,10 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
         overallLevel: overallLevel.level,
         smartReportSummary,
         mentorNotes,
+        behavioralNotes,
+        supportPlan,
         evidenceList,
+        googleDriveUrl,
         isComplete: evaluatedCount >= activeSubjectDefs.length && Boolean(smartReportSummary),
         updatedAt: serverTimestamp()
       };
@@ -469,6 +703,18 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
         ...prev,
         [selectedStudent.id]: { id: reportDocId, ...payload }
       }));
+
+      // Update student reports list
+      setStudentReportsList(prev => {
+        const idx = prev.findIndex(r => (r.reportId || r.id) === activeReportId);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = { id: reportDocId, ...payload };
+          return updated;
+        } else {
+          return [...prev, { id: reportDocId, ...payload }];
+        }
+      });
 
       setSaveSuccessNotice(true);
       setTimeout(() => setSaveSuccessNotice(false), 3500);
@@ -600,12 +846,91 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
     setNewStudentNationalId('');
   };
 
+  // ─── Base URL helper for GitHub Pages & Localhost ────────
+  const getAppBaseUrl = () => {
+    const origin = window.location.origin;
+    let pathname = window.location.pathname || '/';
+    if (pathname.includes('.')) {
+      pathname = pathname.substring(0, pathname.lastIndexOf('/') + 1);
+    }
+    if (!pathname.endsWith('/')) {
+      pathname += '/';
+    }
+    return `${origin}${pathname}`;
+  };
+
   // ─── Direct Share Link Generator (Eliminates Google Drive requirement) ─
   const handleCopyShareLink = () => {
-    const reportLink = `${window.location.origin}/#/parent/monthly-reports?studentId=${selectedStudent?.id}&class=${encodeURIComponent(selectedClass)}&month=${encodeURIComponent(academicMonth)}`;
+    const baseUrl = getAppBaseUrl();
+    const repQuery = activeReportId && activeReportId !== 'default' ? `&reportId=${encodeURIComponent(activeReportId)}` : '';
+    const reportLink = `${baseUrl}#/parent/monthly-reports?studentId=${selectedStudent?.id || ''}&class=${encodeURIComponent(selectedClass || '')}&month=${encodeURIComponent(academicMonth || '')}${repQuery}`;
     navigator.clipboard.writeText(reportLink);
     setShareLinkCopied(true);
     setTimeout(() => setShareLinkCopied(false), 3000);
+  };
+
+  // ─── Dynamic Named Print / PDF Document ───────────────────
+  const handlePrint = () => {
+    const originalTitle = document.title;
+    const cleanStudentName = (selectedStudent?.name || 'الطالب').replace(/\s+/g, '_');
+    const cleanTitle = (reportTitle || 'التقرير').replace(/\s+/g, '_');
+    const cleanMonth = (academicMonth || '').replace(/\s+/g, '_');
+    document.title = `تقرير_${cleanStudentName}_${cleanTitle}_${cleanMonth}`;
+    window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
+  };
+
+  // ─── Select / Switch Student Report ───────────────────────
+  const handleSelectReport = (rep) => {
+    setActiveReportId(rep.reportId || rep.id);
+    setReportTitle(rep.reportTitle || 'التقرير الدوري الشامل للمربي المخلص');
+    setReportDateTime(rep.reportDateTime || rep.createdAtStr || reportDateTime);
+    if (rep.subjectScores) setSubjectScores(rep.subjectScores);
+    if (rep.smartReportSummary) setSmartReportSummary(rep.smartReportSummary);
+    if (rep.mentorNotes) setMentorNotes(rep.mentorNotes);
+    if (rep.behavioralNotes !== undefined) setBehavioralNotes(rep.behavioralNotes || DEFAULT_BEHAVIORAL_NOTES);
+    if (rep.supportPlan) setSupportPlan(rep.supportPlan);
+    if (rep.evidenceList) setEvidenceList(rep.evidenceList);
+    if (rep.googleDriveUrl) setGoogleDriveUrl(rep.googleDriveUrl);
+  };
+
+  // ─── Create Additional Report for Student ─────────────────
+  const handleCreateAdditionalReport = () => {
+    if (!newReportTitle.trim() || !selectedStudent) return;
+    const repId = `rep_${Date.now()}`;
+    const formattedDateTime = `${newReportDate} - ${new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+    
+    const newRepObj = {
+      id: repId,
+      reportId: repId,
+      reportTitle: newReportTitle.trim(),
+      reportType: newReportType,
+      reportDateTime: formattedDateTime,
+      studentId: selectedStudent.id,
+      studentName: selectedStudent.name,
+      createdAtStr: formattedDateTime,
+      subjectScores: { ...subjectScores },
+      smartReportSummary: smartReportSummary || '',
+      mentorNotes: '',
+      behavioralNotes: DEFAULT_BEHAVIORAL_NOTES,
+      supportPlan: generateSupportAndImprovementPlan({
+        studentName: selectedStudent.name,
+        subjectsData: subjectScores,
+        overallPercentage: averagePercentage
+      }),
+      evidenceList: []
+    };
+
+    setStudentReportsList(prev => [...prev, newRepObj]);
+    setActiveReportId(repId);
+    setReportTitle(newRepObj.reportTitle);
+    setReportDateTime(formattedDateTime);
+    setBehavioralNotes(newRepObj.behavioralNotes);
+    setSupportPlan(newRepObj.supportPlan);
+    setShowAddReportModal(false);
+    setNewReportTitle('');
   };
 
   // ─── Archive All Completed Reports of the Month ───────────
@@ -1376,23 +1701,26 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
                 <thead>
                   <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #e2e8f0' }}>
-                    <th style={{ padding: '14px 20px', fontSize: '13px', fontWeight: '800', color: '#334155', width: '22%' }}>
+                    <th style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '800', color: '#334155', width: '18%' }}>
                       المادة / المجال
                     </th>
-                    <th style={{ padding: '14px 20px', fontSize: '13px', fontWeight: '800', color: '#334155', width: '14%', textAlign: 'center' }}>
+                    <th style={{ padding: '14px 14px', fontSize: '13px', fontWeight: '800', color: '#334155', width: '12%', textAlign: 'center' }}>
                       الدرجة (من 10)
                     </th>
-                    <th style={{ padding: '14px 20px', fontSize: '13px', fontWeight: '800', color: '#334155', width: '14%', textAlign: 'center' }}>
+                    <th style={{ padding: '14px 14px', fontSize: '13px', fontWeight: '800', color: '#334155', width: '12%', textAlign: 'center' }}>
                       المستوى
                     </th>
-                    <th style={{ padding: '14px 20px', fontSize: '13px', fontWeight: '800', color: '#334155' }}>
-                      خلاصة الأداء وملاحظة المربي
+                    <th style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '800', color: '#1e40af', width: '26%' }}>
+                      ملحوظة المعلم الخاصة ✍️
+                    </th>
+                    <th style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '800', color: '#7c3aed' }}>
+                      خلاصة الأداء وتوليد الذكاء الاصطناعي ✨
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {activeSubjectDefs.map((subject, idx) => {
-                    const currentData = subjectScores[subject.id] || { score: 10, summary: '' };
+                    const currentData = subjectScores[subject.id] || { score: 10, summary: '', teacherNote: '' };
                     const currentScore = currentData.score;
                     const level = getPerformanceLevel(currentScore);
 
@@ -1405,7 +1733,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                         }}
                       >
                         {/* Subject Name */}
-                        <td style={{ padding: '14px 20px', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
                           <div style={{ fontWeight: '800', fontSize: '14px', color: '#1e293b' }}>
                             {subject.name}
                           </div>
@@ -1413,7 +1741,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                         </td>
 
                         {/* Score out of 10 */}
-                        <td style={{ padding: '14px 20px', textAlign: 'center', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '14px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                             <input 
                               type="number"
@@ -1439,7 +1767,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                         </td>
 
                         {/* Level Badge */}
-                        <td style={{ padding: '14px 20px', textAlign: 'center', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '14px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
                           <span style={{
                             display: 'inline-block',
                             padding: '4px 10px',
@@ -1454,41 +1782,61 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                           </span>
                         </td>
 
-                        {/* Qualitative Summary */}
-                        <td style={{ padding: '14px 20px', verticalAlign: 'middle' }}>
+                        {/* Teacher Note Column (Column for Teacher Observations) */}
+                        <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                          <input 
+                            type="text"
+                            value={currentData.teacherNote || ''}
+                            onChange={(e) => handleTeacherNoteChange(subject.id, e.target.value)}
+                            placeholder="اكتب ملحوظة المعلم الخاصة هنا..."
+                            style={{
+                              width: '100%',
+                              padding: '9px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '13px',
+                              color: '#1e293b',
+                              background: '#fff'
+                            }}
+                          />
+                        </td>
+
+                        {/* Qualitative Summary with Sparkles button matching media_1790898055851.png */}
+                        <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <input 
                               type="text"
                               value={currentData.summary || ''}
                               onChange={(e) => handleSummaryChange(subject.id, e.target.value)}
-                              placeholder={`اكتب خلاصة أداء الطالب في ${subject.name}...`}
+                              placeholder={`خلاصة الأداء الذكية في ${subject.name}...`}
                               style={{
                                 flex: 1,
-                                padding: '8px 12px',
+                                padding: '9px 12px',
                                 borderRadius: '8px',
-                                border: '1px solid #e2e8f0',
+                                border: '1px solid #c7d2fe',
                                 fontSize: '13px',
                                 color: '#334155',
-                                background: '#fff'
+                                background: '#faf5ff'
                               }}
                             />
                             <button
                               type="button"
-                              title="إعادة صياغة ذكية لهذه المادة"
-                              onClick={() => {
-                                const gen = generateSubjectSummary(subject.id, currentScore !== '' ? currentScore : 10);
-                                handleSummaryChange(subject.id, gen);
-                              }}
+                              title="إعادة الصياغة بالذكاء الاصطناعي بناءً على الدرجة وملحوظة المعلم"
+                              onClick={() => handleRegenerateSingleSubject(subject.id)}
                               style={{
-                                background: '#f1f5f9',
-                                border: '1px solid #cbd5e1',
+                                background: 'rgba(99, 102, 241, 0.08)',
+                                border: '1px solid #c7d2fe',
                                 borderRadius: '8px',
-                                padding: '8px',
+                                padding: '8px 10px',
                                 color: '#6366f1',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s ease'
                               }}
                             >
-                              <Sparkles size={14} />
+                              <Sparkles size={16} />
                             </button>
                           </div>
                         </td>
@@ -1570,9 +1918,9 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 </span>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <button 
-                  onClick={() => window.print()}
+                  onClick={handlePrint}
                   style={{
                     background: '#ffffff',
                     border: '1px solid #cbd5e1',
@@ -1591,28 +1939,103 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   <span>طباعة التقرير (Print / PDF)</span>
                 </button>
 
-                <button 
-                  onClick={handleSaveReport}
-                  disabled={isSaving}
+                {!isPublicViewer && (
+                  <button 
+                    onClick={handleSaveReport}
+                    disabled={isSaving}
+                    style={{
+                      background: '#047857',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '8px 20px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
+                    }}
+                  >
+                    <Save size={15} />
+                    <span>{isSaving ? 'جاري الحفظ...' : 'حفظ واعتماد التقرير'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Student Reports Selector Bar & Add New Report Button */}
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '12px',
+              padding: '12px 18px',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '13px', fontWeight: '800', color: '#1e3a8a' }}>
+                  سجل تقارير الطالب ({studentReportsList.length}):
+                </span>
+                {studentReportsList.map((rep, idx) => {
+                  const isSel = (rep.reportId || rep.id) === activeReportId;
+                  return (
+                    <button
+                      key={rep.id || idx}
+                      type="button"
+                      onClick={() => handleSelectReport(rep)}
+                      style={{
+                        background: isSel ? '#1e40af' : '#f8fafc',
+                        color: isSel ? '#ffffff' : '#334155',
+                        border: isSel ? '1px solid #1e40af' : '1px solid #cbd5e1',
+                        borderRadius: '20px',
+                        padding: '6px 14px',
+                        fontSize: '12px',
+                        fontWeight: isSel ? '800' : '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <FileText size={13} />
+                      <span>{rep.reportTitle || `تقرير ${idx + 1}`}</span>
+                      {rep.reportType && <span style={{ opacity: 0.85, fontSize: '11px' }}>({rep.reportType})</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {!isPublicViewer && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewReportTitle(`تقرير إضافي - ${selectedStudent?.name || ''}`);
+                    setShowAddReportModal(true);
+                  }}
                   style={{
                     background: '#047857',
                     color: '#ffffff',
                     border: 'none',
-                    padding: '8px 20px',
                     borderRadius: '8px',
-                    fontSize: '13px',
+                    padding: '7px 16px',
+                    fontSize: '12px',
                     fontWeight: '700',
+                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
+                    boxShadow: '0 2px 6px rgba(4, 120, 87, 0.2)'
                   }}
                 >
-                  <Save size={15} />
-                  <span>{isSaving ? 'جاري الحفظ...' : 'حفظ واعتماد التقرير'}</span>
+                  <FolderPlus size={14} />
+                  <span>+ إضافة تقرير إضافي جديد للطالب</span>
                 </button>
-              </div>
+              )}
             </div>
 
             {/* ─── PRINTABLE OFFICIAL REPORT CARD ─── */}
@@ -1624,22 +2047,33 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               boxShadow: '0 4px 25px rgba(0,0,0,0.04)'
             }}>
               
-              {/* Header in Report (Branded) */}
-              <div style={{ borderBottom: '2px solid #0f172a', paddingBottom: '20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {/* Header in Report (Branded with Report Title, Student Name, and Date/Time) */}
+              <div style={{ borderBottom: '2px solid #0f172a', paddingBottom: '20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <img 
                     src="/motaqadimah_logo.png" 
                     alt="شركة المدارس المتقدمة" 
-                    style={{ height: '64px', objectFit: 'contain' }}
+                    style={{ height: '68px', objectFit: 'contain' }}
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                   <div>
                     <h2 style={{ margin: '0', fontSize: '20px', fontWeight: '800', color: '#1e3a8a' }}>
                       شركة المدارس المتقدمة
                     </h2>
-                    <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
-                      أداة التقارير الدورية الشهرية - بطاقة الطالب الموثقة
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                      <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
+                        {reportTitle}
+                      </span>
+                      {!isPublicViewer && (
+                        <button 
+                          onClick={() => setIsEditingReportMeta(true)}
+                          style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '2px' }}
+                          title="تعديل عنوان ووقت التقرير"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1647,40 +2081,69 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   <div>الفصل الدراسي: <b>{selectedClass}</b></div>
                   <div>الشهر / الفترة: <b>{academicMonth}</b></div>
                   <div>المربي المخلص: <b>{selectedMentor?.name || 'محمد عبدالله جمعة'}</b></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontSize: '12px', marginTop: '4px', justifyContent: 'flex-end' }}>
+                    <Clock size={13} />
+                    <span>تاريخ ووقت التقرير: <b>{reportDateTime}</b></span>
+                  </div>
                 </div>
               </div>
 
-              {/* Student Metadata Card */}
+              {/* Student Metadata Card (Branded with student name, national ID, report status) */}
               <div style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '16px 20px',
+                background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
+                border: '1px solid #bfdbfe',
+                borderRadius: '14px',
+                padding: '18px 24px',
                 marginBottom: '28px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: '12px'
+                gap: '16px',
+                boxShadow: '0 2px 10px rgba(59, 130, 246, 0.05)'
               }}>
-                <div>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>اسم الطالب:</span>
-                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-                    {selectedStudent?.name}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: '#1e40af',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '20px'
+                  }}>
+                    {selectedStudent?.name ? selectedStudent.name.charAt(0) : 'ط'}
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>اسم الطالب:</span>
+                    <div style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>
+                      {selectedStudent?.name}
+                    </div>
                   </div>
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>رقم الهوية الوطنية:</span>
-                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#334155' }}>
-                    {selectedStudent?.nationalId}
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>رقم الهوية الوطنية / الأكاديمي:</span>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#334155' }}>
+                    {selectedStudent?.nationalId || '1029384756'}
                   </div>
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>حالة التقرير:</span>
-                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#047857' }}>
-                    معتمد ومكتمل
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>عنوان التقرير الحالي:</span>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#1d4ed8' }}>
+                    {reportTitle}
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>حالة الاعتماد:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px', fontWeight: '800', color: '#047857' }}>
+                    <CheckCircle size={16} />
+                    <span>معتمد إلكترونياً</span>
                   </div>
                 </div>
               </div>
@@ -1895,6 +2358,245 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                         })}
                       </tbody>
                     </table>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* ─── SECTION 3.1: الملاحظات السلوكية (Matches media_1790897714805.png) ─── */}
+              <div style={{ marginBottom: '32px' }}>
+                <div style={{
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '14px',
+                  overflow: 'hidden',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+                }}>
+                  <div style={{
+                    background: 'linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%)',
+                    color: '#ffffff',
+                    padding: '12px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ClipboardCheck size={18} />
+                      <span style={{ fontSize: '15px', fontWeight: '800' }}>الملاحظات السلوكية</span>
+                    </div>
+                    {!isPublicViewer && (
+                      <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '12px' }}>
+                        قابلة للتعديل
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ padding: '20px 24px', background: '#ffffff' }}>
+                    {!isPublicViewer ? (
+                      <textarea 
+                        rows={3}
+                        value={behavioralNotes}
+                        onChange={(e) => setBehavioralNotes(e.target.value)}
+                        placeholder="اكتب الملاحظات السلوكية للطالب خلال هذا الشهر..."
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          borderRadius: '10px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '14px',
+                          lineHeight: '1.8',
+                          color: '#334155',
+                          fontFamily: 'inherit',
+                          resize: 'vertical'
+                        }}
+                      />
+                    ) : (
+                      <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.8', color: '#475569' }}>
+                        {behavioralNotes || DEFAULT_BEHAVIORAL_NOTES}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── SECTION 3.2: خطة الدعم والتحسين (Matches media_1790897714805.png) ─── */}
+              <div style={{ marginBottom: '36px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Target size={22} color="#0284c7" />
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+                      خطة الدعم والتحسين
+                    </h3>
+                  </div>
+
+                  {!isPublicViewer && (
+                    <button 
+                      type="button"
+                      onClick={handleAutoGenerateFullPlan}
+                      disabled={isGeneratingPlanAI}
+                      style={{
+                        background: 'rgba(2, 132, 199, 0.1)',
+                        color: '#0284c7',
+                        border: '1px solid rgba(2, 132, 199, 0.3)',
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Sparkles size={13} />
+                      <span>{isGeneratingPlanAI ? 'جاري التوليد...' : 'توليد خطة التحسين بالذكاء الاصطناعي'}</span>
+                    </button>
+                  )}
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                  gap: '20px'
+                }}>
+                  
+                  {/* 1. خطة إجراءات داخل الصف */}
+                  <div style={{
+                    border: '1px solid #bfdbfe',
+                    borderRadius: '14px',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    boxShadow: '0 2px 10px rgba(59, 130, 246, 0.04)'
+                  }}>
+                    <div style={{
+                      background: '#1d4ed8',
+                      color: '#ffffff',
+                      padding: '14px 18px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: '800' }}>
+                        <BookOpen size={16} />
+                        <span>خطة إجراءات داخل الصف</span>
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#bfdbfe' }}>دور المربي والمعلمين</span>
+                    </div>
+
+                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {(supportPlan.inClassActionPlan || []).map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#1d4ed8', marginTop: '8px', flexShrink: 0 }} />
+                          <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.8', color: '#334155' }}>
+                            {item}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 2. خطة إجراءات داخل المنزل */}
+                  <div style={{
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '14px',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    boxShadow: '0 2px 10px rgba(16, 185, 129, 0.04)'
+                  }}>
+                    <div style={{
+                      background: '#047857',
+                      color: '#ffffff',
+                      padding: '14px 18px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: '800' }}>
+                        <Home size={16} />
+                        <span>خطة إجراءات داخل المنزل</span>
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#a7f3d0' }}>مساندة عملية من الأسرة</span>
+                    </div>
+
+                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {(supportPlan.atHomeActionPlan || []).map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#047857', marginTop: '8px', flexShrink: 0 }} />
+                          <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.8', color: '#334155' }}>
+                            {item}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3. أهداف قصيرة المدى */}
+                  <div style={{
+                    border: '1px solid #fde68a',
+                    borderRadius: '14px',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    boxShadow: '0 2px 10px rgba(217, 119, 6, 0.04)'
+                  }}>
+                    <div style={{
+                      background: '#b45309',
+                      color: '#ffffff',
+                      padding: '14px 18px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: '800' }}>
+                        <Target size={16} />
+                        <span>أهداف قصيرة المدى</span>
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#fef3c7' }}>أسبوع إلى أسبوعين</span>
+                    </div>
+
+                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {(supportPlan.shortTermGoals || []).map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#b45309', marginTop: '8px', flexShrink: 0 }} />
+                          <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.8', color: '#334155' }}>
+                            {item}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 4. أهداف طويلة المدى */}
+                  <div style={{
+                    border: '1px solid #e9d5ff',
+                    borderRadius: '14px',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    boxShadow: '0 2px 10px rgba(124, 58, 237, 0.04)'
+                  }}>
+                    <div style={{
+                      background: '#6d28d9',
+                      color: '#ffffff',
+                      padding: '14px 18px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: '800' }}>
+                        <Calendar size={16} />
+                        <span>أهداف طويلة المدى</span>
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#e9d5ff' }}>تُراجع مع المتابعات الشهرية القادمة</span>
+                    </div>
+
+                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {(supportPlan.longTermGoals || []).map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6d28d9', marginTop: '8px', flexShrink: 0 }} />
+                          <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.8', color: '#334155' }}>
+                            {item}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                 </div>
@@ -3142,6 +3844,208 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           </div>
         );
       })()}
+
+      {/* ─── MODAL: إضافة تقرير إضافي جديد للطالب ─── */}
+      {showAddReportModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          direction: 'rtl'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '540px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #047857 0%, #065f46 100%)',
+              color: '#ffffff',
+              padding: '18px 24px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FolderPlus size={22} />
+                <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800' }}>
+                  إضافة تقرير إضافي جديد للطالب
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowAddReportModal(false)}
+                style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  اسم الطالب
+                </label>
+                <input 
+                  type="text" 
+                  value={selectedStudent?.name || ''} 
+                  disabled 
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: '700', color: '#1e3a8a' }} 
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  عنوان التقرير الإضافي *
+                </label>
+                <input 
+                  type="text" 
+                  value={newReportTitle}
+                  onChange={(e) => setNewReportTitle(e.target.value)}
+                  placeholder="مثال: تقرير تشخيصي علاجي لمادتي لغتي والرياضيات" 
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }} 
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                    نوع وتصنيف التقرير
+                  </label>
+                  <select
+                    value={newReportType}
+                    onChange={(e) => setNewReportType(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                  >
+                    <option value="دوري شهري">دوري شهري</option>
+                    <option value="تشخيصي علاجي">تشخيصي علاجي</option>
+                    <option value="تمكين قيمي ومهاري">تمكين قيمي ومهاري</option>
+                    <option value="إثرائي للموهوبين">إثرائي للموهوبين</option>
+                    <option value="متابعة سلوكية">متابعة سلوكية</option>
+                    <option value="تقرير مخصص">تقرير مخصص</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                    تاريخ إصدار التقرير
+                  </label>
+                  <input 
+                    type="date"
+                    value={newReportDate}
+                    onChange={(e) => setNewReportDate(e.target.value)}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px', fontSize: '12px', color: '#166534' }}>
+                💡 سيتم إنشاء تقرير إضافي مستقل للدرجات والشواهد والملاحظات السلوكية وخطة التحسين، مع إمكانية التبديل بين تقارير الطالب بكل سلاسة.
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddReportModal(false)}
+                  style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', color: '#475569', padding: '9px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateAdditionalReport}
+                  style={{ background: '#047857', border: 'none', color: '#ffffff', padding: '9px 22px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  إنشاء التقرير والبدء في الرصد
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: تعديل عنوان ووقت إصدار التقرير ─── */}
+      {isEditingReportMeta && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          direction: 'rtl'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '480px',
+            padding: '24px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#1e3a8a' }}>
+                تعديل عنوان ووقت إصدار التقرير
+              </h3>
+              <button onClick={() => setIsEditingReportMeta(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  عنوان التقرير
+                </label>
+                <input 
+                  type="text"
+                  value={reportTitle}
+                  onChange={(e) => setReportTitle(e.target.value)}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  تاريخ ووقت إصدار التقرير
+                </label>
+                <input 
+                  type="text"
+                  value={reportDateTime}
+                  onChange={(e) => setReportDateTime(e.target.value)}
+                  placeholder="مثال: الجمعة، 2 أكتوبر 2026 - 02:40 ص"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingReportMeta(false)}
+                  style={{ background: '#1e40af', border: 'none', color: '#fff', padding: '9px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  تأكيد التعديل
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
