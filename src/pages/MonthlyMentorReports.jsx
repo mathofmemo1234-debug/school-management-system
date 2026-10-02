@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { 
   collection, 
@@ -60,7 +60,9 @@ import {
   ShieldCheck,
   Edit3,
   FolderPlus,
-  Copy
+  Copy,
+  Building2,
+  School
 } from 'lucide-react';
 import { 
   STANDARD_SUBJECTS_NATIONAL, 
@@ -74,14 +76,16 @@ import {
 } from '../utils/aiMonthlyReportGenerator';
 import { compressImage } from '../utils/imageCompressor';
 import { readFileAsDataUrl } from '../utils/fileStorageService';
+import { ADVANCED_SCHOOLS_CATALOG } from '../data/resourceData';
 
 export default function MonthlyMentorReports({ role = 'teacher' }) {
   const { userData } = useAuth();
   const { t } = useLanguage();
-  const schoolId = userData?.schoolId || 'msc_jed_smart_boys_national';
-
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+
+  const isSuperAdmin = role === 'superadmin' || userData?.role === 'superadmin';
 
   // Extract query params from searchParams or hash
   const getParam = (key) => {
@@ -95,6 +99,49 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
     }
     return null;
   };
+
+  // Super Admin Multi-School Catalog & Dynamic School Selection
+  const [schoolsList, setSchoolsList] = useState([]);
+  const [activeSchoolId, setActiveSchoolId] = useState(() => {
+    return getParam('schoolId') || (isSuperAdmin ? 'msc_jed_smart_boys_national' : (userData?.schoolId || 'msc_jed_smart_boys_national'));
+  });
+
+  const schoolId = isSuperAdmin ? (activeSchoolId || 'msc_jed_smart_boys_national') : (userData?.schoolId || 'msc_jed_smart_boys_national');
+
+  // Load all schools for Super Admin
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const unsubSchools = onSnapshot(collection(db, 'schools'), snap => {
+      if (!snap.empty) {
+        const s = [];
+        snap.forEach(d => s.push({ id: d.id, ...d.data() }));
+        setSchoolsList(s);
+      } else {
+        setSchoolsList(ADVANCED_SCHOOLS_CATALOG.map((item, idx) => ({ id: item.code || item.id || `msc_school_${idx+1}`, ...item })));
+      }
+    }, (err) => {
+      console.warn("Schools snapshot notice:", err);
+      setSchoolsList(ADVANCED_SCHOOLS_CATALOG.map((item, idx) => ({ id: item.code || item.id || `msc_school_${idx+1}`, ...item })));
+    });
+    return () => unsubSchools();
+  }, [isSuperAdmin]);
+
+  // Keep activeSchoolId in sync when query param changes
+  useEffect(() => {
+    const qSchool = getParam('schoolId');
+    if (qSchool && qSchool !== activeSchoolId) {
+      setActiveSchoolId(qSchool);
+      setSelectedClass('');
+      setSelectedStudent(null);
+    }
+  }, [searchParams, location]);
+
+  const currentSelectedSchool = useMemo(() => {
+    if (!schoolsList.length) {
+      return ADVANCED_SCHOOLS_CATALOG.find(s => s.id === schoolId || s.code === schoolId) || null;
+    }
+    return schoolsList.find(s => s.id === schoolId || s.code === schoolId) || null;
+  }, [schoolsList, schoolId]);
 
   const queryStudentId = getParam('studentId');
   const queryClass = getParam('class');
@@ -1213,6 +1260,122 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', paddingBottom: '60px', direction: 'rtl', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
+      {/* ─── SUPER ADMIN MULTI-SCHOOL SWITCHER BAR ─── */}
+      {isSuperAdmin && (
+        <div style={{
+          background: 'linear-gradient(135deg, #042f2e 0%, #064e3b 40%, #0f172a 100%)',
+          borderBottom: '2px solid #10b981',
+          padding: '14px 28px',
+          color: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '14px',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 40
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <div style={{
+              background: '#10b981',
+              color: '#022c22',
+              fontWeight: 900,
+              fontSize: '12px',
+              padding: '5px 14px',
+              borderRadius: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)'
+            }}>
+              <Building2 size={16} />
+              <span>صلاحيات الماستر العام (Super Admin)</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#a7f3d0' }}>
+                المدرسة المختارة حالياً:
+              </span>
+              <select
+                value={activeSchoolId}
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  setActiveSchoolId(nextId);
+                  setSelectedClass('');
+                  setSelectedStudent(null);
+                  navigate(`/superadmin/monthly-reports?schoolId=${nextId}`, { replace: true });
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  color: '#ffffff',
+                  border: '1.5px solid rgba(52, 211, 153, 0.6)',
+                  borderRadius: '10px',
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  minWidth: '290px',
+                  maxWidth: '450px',
+                  outline: 'none',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                }}
+              >
+                {schoolsList.map(sch => (
+                  <option key={sch.id} value={sch.id} style={{ background: '#0f172a', color: '#ffffff' }}>
+                    {sch.name} {sch.city ? `(${sch.city})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {currentSelectedSchool && (
+              <span style={{
+                fontSize: '12px',
+                color: '#cbd5e1',
+                background: 'rgba(255, 255, 255, 0.08)',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <School size={14} color="#34d399" />
+                <span style={{ fontWeight: 700 }}>{currentSelectedSchool.name}</span>
+                {classesList.length > 0 && <span style={{ color: '#6ee7b7' }}>({classesList.length} فصل مسجل)</span>}
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              onClick={() => navigate('/superadmin')}
+              style={{
+                background: 'rgba(255, 255, 255, 0.12)',
+                color: '#ffffff',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '20px',
+                padding: '7px 18px',
+                fontSize: '13px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'}
+            >
+              <ArrowRight size={15} />
+              <span>العودة للوحة الماستر</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ─── TOP BRANDED HEADER (Matched with Image 1) ─── */}
       <div style={{
         background: 'linear-gradient(180deg, #1e3a8a 0%, #172554 100%)',
@@ -1226,7 +1389,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           {/* Top Bar with User Info and Quick Action Pills */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.12)', paddingBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#93c5fd' }}>
-              <span>مرحباً، {userData?.schoolName || 'مدارس المتقدمة للتعلم الذكي جدة'}</span>
+              <span>{isSuperAdmin ? `استعراض تقارير: ${currentSelectedSchool?.name || schoolId}` : `مرحباً، ${userData?.schoolName || 'مدارس المتقدمة للتعلم الذكي جدة'}`}</span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

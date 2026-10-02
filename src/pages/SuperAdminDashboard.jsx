@@ -20,6 +20,7 @@ import AchievementPortfolioPage from './AchievementPortfolioPage';
 import MasterMessagingHub from './MasterMessagingHub';
 import SchoolExcellenceDashboard from './SchoolExcellenceDashboard';
 import SchoolResourcesHub from './SchoolResourcesHub';
+import MonthlyMentorReports from './MonthlyMentorReports';
 import { ADVANCED_SCHOOLS_CATALOG } from '../data/resourceData';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
 
@@ -1328,6 +1329,37 @@ function SuperAdminHome() {
             >
               <Layers size={18} strokeWidth={2.5} />
               <span>إدارة موارد الشركة وتنقلات المعلمين</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/superadmin/monthly-reports')}
+              style={{
+                background: 'linear-gradient(135deg, #0d9488 0%, #059669 100%)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '30px',
+                padding: '10px 22px',
+                fontSize: '14px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(13, 148, 136, 0.35)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 18px rgba(13, 148, 136, 0.45)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(13, 148, 136, 0.35)';
+              }}
+              title="الدخول لمنظومة تقارير المربي المخلص وتصفح تقارير أي مدرسة"
+            >
+              <Star size={18} fill="#fde047" color="#fde047" />
+              <span>تقارير المربي المخلص للمدارس</span>
             </button>
 
             <button
@@ -2793,25 +2825,49 @@ function SuperAdminHome() {
                     </div>
 
                     {/* School Actions Bottom Bar */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
-                      <button
-                        onClick={() => setSelectedSchoolScope(school.id)}
-                        style={{
-                          background: selectedSchoolScope === school.id ? '#0082a6' : 'rgba(0, 130, 166, 0.08)',
-                          color: selectedSchoolScope === school.id ? '#ffffff' : '#0082a6',
-                          border: 'none',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '6px 12px',
-                          borderRadius: '8px'
-                        }}
-                      >
-                        <Eye size={13} /> {selectedSchoolScope === school.id ? 'معروضة حالياً' : 'تصفح بياناتها'}
-                      </button>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => setSelectedSchoolScope(school.id)}
+                          style={{
+                            background: selectedSchoolScope === school.id ? '#0082a6' : 'rgba(0, 130, 166, 0.08)',
+                            color: selectedSchoolScope === school.id ? '#ffffff' : '#0082a6',
+                            border: 'none',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '6px 12px',
+                            borderRadius: '8px'
+                          }}
+                        >
+                          <Eye size={13} /> {selectedSchoolScope === school.id ? 'معروضة حالياً' : 'تصفح بياناتها'}
+                        </button>
+
+                        <button
+                          onClick={() => navigate(`/superadmin/monthly-reports?schoolId=${school.id}`)}
+                          style={{
+                            background: 'linear-gradient(135deg, #0d9488, #059669)',
+                            color: '#ffffff',
+                            border: 'none',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            boxShadow: '0 2px 6px rgba(13, 148, 136, 0.25)'
+                          }}
+                          title={`الدخول المباشر لتقارير المربي المخلص لمدرسة ${school.name}`}
+                        >
+                          <Star size={13} fill="#fde047" color="#fde047" />
+                          <span>دخول تقارير المدرسة</span>
+                        </button>
+                      </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <button
@@ -3884,6 +3940,7 @@ export default function SuperAdminDashboard() {
     <Layout role="superadmin" title="لوحة تحكم الماستر العام (Super Master)">
       <Routes>
         <Route path="/" element={<SuperAdminHome />} />
+        <Route path="/monthly-reports" element={<MonthlyMentorReports role="superadmin" />} />
         <Route path="/resources" element={<SchoolResourcesHub role="superadmin" />} />
         <Route path="/portfolio" element={<AchievementPortfolioPage targetRole="superadmin" />} />
         <Route path="/messages" element={<MasterMessagingHub />} />
