@@ -1,4 +1,5 @@
 import { zhTranslations } from './zh';
+import { deTranslations } from './de';
 
 export const translations = {
   "ar": {
@@ -1548,5 +1549,6 @@ export const translations = {
     "staff.applyTemplate": "Apply Template",
     "staff.quickActions": "Quick Actions to Expand or Reduce Permissions"
   },
-  "zh": zhTranslations
+  "zh": zhTranslations,
+  "de": deTranslations
 };

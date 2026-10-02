@@ -53,17 +53,27 @@ export default function LanguageSwitcher({ variant = 'header', className = '' })
         className="btn language-switcher-btn"
         aria-haspopup="true"
         aria-expanded={isOpen}
-        title={isRTL ? 'تغيير لغة المنظومة (العربية / English / 中文)' : 'Switch Language (AR / EN / ZH)'}
+        title={isRTL ? 'تغيير لغة المنظومة (العربية / English / 中文 / Deutsch)' : 'Switch Language (AR / EN / ZH / DE)'}
         style={{
           background: isLoginVariant 
             ? 'rgba(255, 255, 255, 0.85)' 
             : (lang === 'ar' 
                 ? 'rgba(14, 116, 144, 0.08)' 
-                : (lang === 'zh' ? 'rgba(225, 29, 72, 0.08)' : 'rgba(16, 185, 129, 0.08)')),
+                : (lang === 'zh' 
+                    ? 'rgba(225, 29, 72, 0.08)' 
+                    : (lang === 'de' 
+                        ? 'rgba(217, 119, 6, 0.08)' 
+                        : 'rgba(16, 185, 129, 0.08)'))),
           backdropFilter: 'blur(8px)',
           border: `1.5px solid ${isLoginVariant 
             ? 'rgba(14, 116, 144, 0.25)' 
-            : (lang === 'ar' ? '#0e7490' : (lang === 'zh' ? '#e11d48' : '#10b981'))}`,
+            : (lang === 'ar' 
+                ? '#0e7490' 
+                : (lang === 'zh' 
+                    ? '#e11d48' 
+                    : (lang === 'de' 
+                        ? '#d97706' 
+                        : '#10b981')))}`,
           borderRadius: '24px',
           padding: isLoginVariant ? '7px 16px' : '6px 14px',
           display: 'flex',
@@ -72,7 +82,7 @@ export default function LanguageSwitcher({ variant = 'header', className = '' })
           cursor: 'pointer',
           fontWeight: '700',
           fontSize: '13px',
-          color: lang === 'ar' ? '#0e7490' : (lang === 'zh' ? '#be123c' : '#047857'),
+          color: lang === 'ar' ? '#0e7490' : (lang === 'zh' ? '#be123c' : (lang === 'de' ? '#b45309' : '#047857')),
           boxShadow: isOpen 
             ? '0 4px 14px rgba(14, 116, 144, 0.25)' 
             : '0 2px 6px rgba(0, 0, 0, 0.04)',
@@ -83,7 +93,7 @@ export default function LanguageSwitcher({ variant = 'header', className = '' })
         <Globe 
           size={16} 
           className="lang-globe-icon"
-          color={lang === 'ar' ? '#0e7490' : (lang === 'zh' ? '#be123c' : '#047857')}
+          color={lang === 'ar' ? '#0e7490' : (lang === 'zh' ? '#be123c' : (lang === 'de' ? '#b45309' : '#047857'))}
           style={{ transition: 'transform 0.3s ease' }}
         />
 
@@ -97,7 +107,7 @@ export default function LanguageSwitcher({ variant = 'header', className = '' })
 
         {/* Short Code Badge Pill */}
         <span style={{
-          background: lang === 'ar' ? '#0e7490' : (lang === 'zh' ? '#e11d48' : '#10b981'),
+          background: lang === 'ar' ? '#0e7490' : (lang === 'zh' ? '#e11d48' : (lang === 'de' ? '#d97706' : '#10b981')),
           color: '#ffffff',
           borderRadius: '12px',
           padding: '1px 6px',
@@ -153,7 +163,7 @@ export default function LanguageSwitcher({ variant = 'header', className = '' })
             justifyContent: 'space-between'
           }}>
             <span>{isRTL ? '🌐 اختيار لغة المنظومة' : '🌐 Select Language'}</span>
-            <span style={{ fontSize: '10px', opacity: 0.8 }}>3 Languages</span>
+            <span style={{ fontSize: '10px', opacity: 0.8 }}>{supportedLanguages.length} Languages</span>
           </div>
 
           {/* Languages List */}
@@ -168,10 +178,10 @@ export default function LanguageSwitcher({ variant = 'header', className = '' })
                 style={{
                   width: '100%',
                   background: isSelected 
-                    ? (l.code === 'ar' ? '#f0fdfa' : (l.code === 'zh' ? '#fff1f2' : '#f0fdf4')) 
+                    ? (l.code === 'ar' ? '#f0fdfa' : (l.code === 'zh' ? '#fff1f2' : (l.code === 'de' ? '#fffbeb' : '#f0fdf4'))) 
                     : 'transparent',
                   border: isSelected 
-                    ? `1px solid ${l.code === 'ar' ? '#99f6e4' : (l.code === 'zh' ? '#fecdd3' : '#bbf7d0')}` 
+                    ? `1px solid ${l.code === 'ar' ? '#99f6e4' : (l.code === 'zh' ? '#fecdd3' : (l.code === 'de' ? '#fde68a' : '#bbf7d0'))}` 
                     : '1px solid transparent',
                   borderRadius: '10px',
                   padding: '8px 12px',
@@ -213,7 +223,7 @@ export default function LanguageSwitcher({ variant = 'header', className = '' })
                       fontWeight: isSelected ? '800' : '600',
                       fontSize: '13px',
                       color: isSelected 
-                        ? (l.code === 'ar' ? '#0e7490' : (l.code === 'zh' ? '#be123c' : '#15803d')) 
+                        ? (l.code === 'ar' ? '#0e7490' : (l.code === 'zh' ? '#be123c' : (l.code === 'de' ? '#b45309' : '#15803d'))) 
                         : '#1e293b'
                     }}>
                       {l.nativeName}
@@ -230,7 +240,7 @@ export default function LanguageSwitcher({ variant = 'header', className = '' })
                     fontWeight: '800',
                     color: isSelected ? '#ffffff' : '#64748b',
                     background: isSelected 
-                      ? (l.code === 'ar' ? '#0e7490' : (l.code === 'zh' ? '#e11d48' : '#16a34a')) 
+                      ? (l.code === 'ar' ? '#0e7490' : (l.code === 'zh' ? '#e11d48' : (l.code === 'de' ? '#d97706' : '#16a34a'))) 
                       : '#f1f5f9',
                     padding: '2px 6px',
                     borderRadius: '6px'
@@ -243,7 +253,7 @@ export default function LanguageSwitcher({ variant = 'header', className = '' })
                       width: '20px',
                       height: '20px',
                       borderRadius: '50%',
-                      background: l.code === 'ar' ? '#0e7490' : (l.code === 'zh' ? '#e11d48' : '#16a34a'),
+                      background: l.code === 'ar' ? '#0e7490' : (l.code === 'zh' ? '#e11d48' : (l.code === 'de' ? '#d97706' : '#16a34a')),
                       color: 'white',
                       display: 'flex',
                       alignItems: 'center',

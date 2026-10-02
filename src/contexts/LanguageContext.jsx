@@ -34,6 +34,16 @@ export const SUPPORTED_LANGUAGES = [
     flag: '🇨🇳',
     badge: 'ZH',
     googleCode: 'zh-CN'
+  },
+  {
+    code: 'de',
+    label: 'Deutsch',
+    nativeName: 'Deutsch',
+    englishName: 'German',
+    dir: 'ltr',
+    flag: '🇩🇪',
+    badge: 'DE',
+    googleCode: 'de'
   }
 ];
 
