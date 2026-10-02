@@ -1020,17 +1020,122 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
     setTimeout(() => setShareLinkCopied(false), 3000);
   };
 
-  // ─── Dynamic Named Print / PDF Document ───────────────────
+  // ─── Dynamic Named Print / PDF Document (Pure Student-Only Report) ─────
   const handlePrint = () => {
-    const originalTitle = document.title;
+    const reportElem = document.getElementById('printable-monthly-report');
+    if (!reportElem) {
+      window.print();
+      return;
+    }
+
     const cleanStudentName = (selectedStudent?.name || 'الطالب').replace(/\s+/g, '_');
-    const cleanTitle = (reportTitle || 'التقرير').replace(/\s+/g, '_');
+    const cleanTitle = (reportTitle || 'تقرير_أداء_الطالب').replace(/\s+/g, '_');
     const cleanMonth = (academicMonth || '').replace(/\s+/g, '_');
-    document.title = `تقرير_${cleanStudentName}_${cleanTitle}_${cleanMonth}`;
-    window.print();
+    const docTitle = `تقرير_${cleanStudentName}_${cleanTitle}_${cleanMonth}`;
+
+    // 1. Clone element and strip all interactive buttons, inputs, edit icons, uploaders
+    const cloned = reportElem.cloneNode(true);
+    
+    // Replace textareas with plain text paragraphs
+    cloned.querySelectorAll('textarea').forEach(ta => {
+      const p = document.createElement('p');
+      p.style.margin = '0';
+      p.style.fontSize = '13.5px';
+      p.style.lineHeight = '1.8';
+      p.style.color = '#334155';
+      p.textContent = ta.value || ta.placeholder || '';
+      ta.parentNode.replaceChild(p, ta);
+    });
+
+    // Remove buttons, inputs, labels, and all no-print elements
+    cloned.querySelectorAll('button, input, select, .no-print, label').forEach(el => el.remove());
+
+    // 2. Create isolated iframe
+    let printFrame = document.getElementById('dedicated-student-report-print-frame');
+    if (printFrame) {
+      printFrame.remove();
+    }
+
+    printFrame = document.createElement('iframe');
+    printFrame.id = 'dedicated-student-report-print-frame';
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = 'none';
+    printFrame.style.opacity = '0';
+    printFrame.style.pointerEvents = 'none';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="utf-8">
+        <title>${docTitle}</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 8mm 10mm 8mm 10mm;
+          }
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            color: #0f172a;
+            direction: rtl;
+            font-size: 12.5px;
+          }
+          table {
+            border-collapse: collapse;
+            width: 100%;
+          }
+          th, td {
+            padding: 6px 10px;
+          }
+          .report-page-break {
+            page-break-before: always !important;
+            break-before: page !important;
+            height: 0;
+            margin: 0;
+            padding: 0;
+          }
+          .avoid-break {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          img {
+            max-width: 100%;
+          }
+        </style>
+      </head>
+      <body>
+        <div style="background: #ffffff; padding: 0; margin: 0; width: 100%;">
+          ${cloned.innerHTML}
+        </div>
+      </body>
+      </html>
+    `);
+    frameDoc.close();
+
     setTimeout(() => {
-      document.title = originalTitle;
-    }, 1000);
+      try {
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
+      } catch (err) {
+        console.error('Frame print fallback:', err);
+        window.print();
+      }
+    }, 400);
   };
 
   // ─── Select / Switch Student Report ───────────────────────
@@ -1281,8 +1386,9 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             width: 100% !important;
           }
 
-          /* Hide ALL web chrome, sidebars, buttons, toolbars and modals */
+          /* Hide ALL web chrome, school portal banners, sidebars, buttons, toolbars, and inputs */
           .no-print,
+          .no-print *,
           .sidebar,
           aside,
           header,
@@ -1290,8 +1396,12 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           footer,
           button,
           input,
+          textarea,
+          select,
+          label,
           .language-switcher-container,
-          .glass-panel:not(#printable-monthly-report) {
+          .glass-panel:not(#printable-monthly-report),
+          .monthly-mentor-reports-page > div:not(.main-content-container) {
             display: none !important;
             visibility: hidden !important;
             height: 0 !important;
@@ -1311,16 +1421,14 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             min-height: auto !important;
           }
 
-          .monthly-mentor-reports-page > div,
-          .main-content,
-          .page-container {
+          .main-content-container {
             max-width: 100% !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
           }
 
-          /* Main Report Card Container */
+          /* Main Report Card Container - strictly isolate */
           #printable-monthly-report {
             display: block !important;
             visibility: visible !important;
@@ -1334,15 +1442,33 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             background: #ffffff !important;
           }
 
+          #printable-monthly-report * {
+            visibility: visible !important;
+          }
+
+          #printable-monthly-report button,
+          #printable-monthly-report input,
+          #printable-monthly-report textarea,
+          #printable-monthly-report select,
+          #printable-monthly-report label,
+          #printable-monthly-report .no-print {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+          }
+
           .report-page-break {
             page-break-before: always !important;
             break-before: page !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
 
           .report-section {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
-            margin-bottom: 14px !important;
+            margin-bottom: 12px !important;
           }
 
           /* Compact Tables in Print */
@@ -1360,8 +1486,8 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           .report-signatures {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
-            margin-top: 18px !important;
-            padding-top: 12px !important;
+            margin-top: 16px !important;
+            padding-top: 10px !important;
           }
         }
 
@@ -1717,7 +1843,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       </div>
 
       {/* ─── MAIN CONTENT CONTAINER ─── */}
-      <div style={{ maxWidth: '1180px', margin: '24px auto 0', padding: '0 16px' }}>
+      <div className="main-content-container" style={{ maxWidth: '1180px', margin: '24px auto 0', padding: '0 16px' }}>
 
         {/* Quick Student Switcher Bar (Matches "تتبع الطلاب" in image 1) */}
         <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
@@ -2716,6 +2842,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                       </span>
                       {!isPublicViewer && (
                         <button 
+                          className="no-print"
                           onClick={() => setIsEditingReportMeta(true)}
                           style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '2px' }}
                           title="تعديل عنوان ووقت التقرير"
@@ -2778,22 +2905,22 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 <div>
                   <span style={{ fontSize: '12px', color: '#64748b' }}>رقم الهوية الوطنية / الأكاديمي:</span>
                   <div style={{ fontSize: '15px', fontWeight: '700', color: '#334155' }}>
-                    {selectedStudent?.nationalId || '1029384756'}
+                    {selectedStudent?.nationalId || '05grd112'}
                   </div>
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>عنوان التقرير الحالي:</span>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>الصف الدراسي:</span>
                   <div style={{ fontSize: '14px', fontWeight: '800', color: '#1d4ed8' }}>
-                    {reportTitle}
+                    {selectedClass}
                   </div>
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>حالة الاعتماد:</span>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>حالة التقرير:</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px', fontWeight: '800', color: '#047857' }}>
                     <CheckCircle size={16} />
-                    <span>معتمد إلكترونياً</span>
+                    <span>معتمد رسمياً</span>
                   </div>
                 </div>
               </div>
@@ -2809,6 +2936,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   </div>
 
                   <button 
+                    className="no-print"
                     onClick={handleGenerateAISummaries}
                     style={{
                       background: 'transparent',
@@ -3013,6 +3141,9 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 </div>
               </div>
 
+              {/* ─── PAGE BREAK FOR CLEAN 2-PAGE PRINT LAYOUT ─── */}
+              <div className="report-page-break" style={{ pageBreakBefore: 'always', breakBefore: 'page' }} />
+
               {/* ─── SECTION 3.1: الملاحظات السلوكية (Matches media_1790897714805.png) ─── */}
               <div style={{ marginBottom: '32px' }}>
                 <div style={{
@@ -3031,10 +3162,10 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <ClipboardCheck size={18} />
-                      <span style={{ fontSize: '15px', fontWeight: '800' }}>الملاحظات السلوكية</span>
+                      <span style={{ fontSize: '15px', fontWeight: '800' }}>الملاحظات السلوكية والانضباطية</span>
                     </div>
                     {!isPublicViewer && (
-                      <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '12px' }}>
+                      <span className="no-print" style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '12px' }}>
                         قابلة للتعديل
                       </span>
                     )}
@@ -3081,6 +3212,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   {!isPublicViewer && (
                     <button 
                       type="button"
+                      className="no-print"
                       onClick={handleAutoGenerateFullPlan}
                       disabled={isGeneratingPlanAI}
                       style={{
@@ -3263,7 +3395,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   </div>
 
                   {/* Upload Trigger Button */}
-                  <label style={{
+                  <label className="no-print" style={{
                     background: '#f1f5f9',
                     border: '1px solid #cbd5e1',
                     color: '#334155',
@@ -3295,12 +3427,12 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                     background: '#fafafa',
                     border: '1px dashed #cbd5e1',
                     borderRadius: '12px',
-                    padding: '28px',
+                    padding: '24px',
                     textAlign: 'center',
                     color: '#94a3b8',
                     fontSize: '13px'
                   }}>
-                    لا توجد شواهد مرفقة لهذا التقرير بعد. اضغط على "إضافة شاهد" لرفع أوراق العمل المتميزة أو مقاطع فيديو المشاريع.
+                    لا توجد شواهد مرفقة لهذا التقرير بعد.
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '14px' }}>
@@ -3347,6 +3479,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                             {item.title}
                           </span>
                           <button 
+                            className="no-print"
                             type="button"
                             onClick={() => handleDeleteEvidence(item.id)}
                             style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px' }}
@@ -3360,83 +3493,8 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 )}
               </div>
 
-              {/* ─── SECTION 5: الربط السحابي ورابط Google Drive ─── */}
-              <div style={{ marginBottom: '32px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '18px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Share2 size={18} color="#2563eb" />
-                    <span style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>
-                      الربط السحابي ومشاركة التقرير (يغنيك عن Google Drive)
-                    </span>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={handleCopyShareLink}
-                    style={{
-                      background: shareLinkCopied ? '#059669' : '#1e40af',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '7px 16px',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    {shareLinkCopied ? <Check size={14} /> : <Share2 size={14} />}
-                    <span>{shareLinkCopied ? 'تم نسخ الرابط المباشر!' : 'نسخ الرابط الذكي المباشر لولي الأمر'}</span>
-                  </button>
-                </div>
-                <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#64748b' }}>
-                  يولد النظام رابطاً سحابياً موثقاً ومباشراً لولي الأمر والإدارة دون الحاجة لرفع يدوي على Google Drive. وإذا كانت إدارتك تتطلب رابط Google Drive مخصصاً، يمكنك حفظه أدناه:
-                </p>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <input 
-                    type="url"
-                    placeholder="ضع رابط مجلد أو ملف Google Drive إن وجد (اختياري)..."
-                    value={googleDriveUrl}
-                    onChange={(e) => setGoogleDriveUrl(e.target.value)}
-                    style={{
-                      flex: 1,
-                      padding: '9px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '13px',
-                      background: '#fff',
-                      direction: 'ltr'
-                    }}
-                  />
-                  {googleDriveUrl && (
-                    <a 
-                      href={googleDriveUrl} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      style={{
-                        background: '#f1f5f9',
-                        color: '#2563eb',
-                        border: '1px solid #cbd5e1',
-                        padding: '9px 16px',
-                        borderRadius: '8px',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        textDecoration: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <Globe size={14} />
-                      <span>فتح الرابط</span>
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              {/* Signatures in Report */}
-              <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
+              {/* Signatures in Report (Official Educational Signatures - Clean and Professional) */}
+              <div style={{ marginTop: '36px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>المربي المخلص</div>
                   <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
@@ -3446,22 +3504,97 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>مدير المدارس</div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>إدارة المدرسة</div>
                   <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
-                    إدارة مدارس المتقدمة
+                    مجمع المدارس المتقدمة
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>الختم الرسمي</div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>الختم الرسمي والاعتماد</div>
                 </div>
 
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>ولي الأمر المكرم</div>
                   <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
-                    تم الاطلاع
+                    تم الاطلاع والمتابعة
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>ملاحظات وتوقيع ولي الأمر</div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>توقيع ولي الأمر</div>
                 </div>
               </div>
 
+            </div>
+
+            {/* ─── TEACHER ADMIN UTILITY: الربط السحابي ورابط Google Drive (خارج تقرير الطالب ومخفي في الطباعة) ─── */}
+            <div className="no-print" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Share2 size={18} color="#2563eb" />
+                  <span style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>
+                    الربط السحابي ومشاركة التقرير (يغنيك عن Google Drive)
+                  </span>
+                </div>
+                <button 
+                  type="button"
+                  onClick={handleCopyShareLink}
+                  style={{
+                    background: shareLinkCopied ? '#059669' : '#1e40af',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '7px 16px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {shareLinkCopied ? <Check size={14} /> : <Share2 size={14} />}
+                  <span>{shareLinkCopied ? 'تم نسخ الرابط المباشر!' : 'نسخ الرابط الذكي المباشر لولي الأمر'}</span>
+                </button>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#64748b' }}>
+                يولد النظام رابطاً سحابياً موثقاً ومباشراً لولي الأمر والإدارة دون الحاجة لرفع يدوي على Google Drive. وإذا كانت إدارتك تتطلب رابط Google Drive مخصصاً، يمكنك حفظه أدناه:
+              </p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input 
+                  type="url"
+                  placeholder="ضع رابط مجلد أو ملف Google Drive إن وجد (اختياري)..."
+                  value={googleDriveUrl}
+                  onChange={(e) => setGoogleDriveUrl(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '9px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    background: '#fff',
+                    direction: 'ltr'
+                  }}
+                />
+                {googleDriveUrl && (
+                  <a 
+                    href={googleDriveUrl} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    style={{
+                      background: '#f1f5f9',
+                      color: '#2563eb',
+                      border: '1px solid #cbd5e1',
+                      padding: '9px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Globe size={14} />
+                    <span>فتح الرابط</span>
+                  </a>
+                )}
+              </div>
             </div>
 
           </div>
