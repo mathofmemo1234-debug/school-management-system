@@ -1036,11 +1036,15 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       return;
     }
 
-    const cleanSchoolName = (schoolDisplayName || 'المدارس_المتقدمة').replace(/\s+/g, '_');
-    const cleanStudentName = (selectedStudent?.name || 'الطالب').replace(/\s+/g, '_');
-    const cleanTitle = (reportTitle || 'تقرير_أداء_الطالب').replace(/\s+/g, '_');
-    const cleanMonth = (academicMonth || '').replace(/\s+/g, '_');
-    const docTitle = `تقرير_${cleanStudentName}_${cleanSchoolName}_${cleanMonth}`;
+    const studentName = (selectedStudent?.name || 'الطالب').trim();
+    const reportName = (reportTitle || 'التقرير الدوري الشامل للمربي المخلص').trim();
+    
+    // Explicit requested format: حفظ التقرير باسم الطالب والتقرير
+    const docTitle = `${studentName} - ${reportName}`;
+
+    // Update main window title temporarily so browser print destination uses it as default filename
+    const originalDocumentTitle = document.title;
+    document.title = docTitle;
 
     // 1. Clone element and strip all interactive buttons, inputs, edit icons, uploaders
     const cloned = reportElem.cloneNode(true);
@@ -1150,6 +1154,10 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       } catch (err) {
         console.error('Frame print fallback:', err);
         window.print();
+      } finally {
+        setTimeout(() => {
+          document.title = originalDocumentTitle;
+        }, 2500);
       }
     }, 400);
   };
@@ -2001,7 +2009,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             animation: 'fadeIn 0.3s ease'
           }}>
             <CheckCircle size={18} />
-            <span>تم حفظ التقرير الشهري للطالب بنجاح في قاعدة بيانات مدارس المتقدمة!</span>
+            <span>تم حفظ التقرير بنجاح باسم: <b>{selectedStudent?.name || 'الطالب'} - {reportTitle || 'التقرير الدوري الشامل للمربي المخلص'}</b></span>
           </div>
         )}
 
@@ -2713,28 +2721,31 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <button 
                   onClick={handlePrint}
+                  title={`طباعة وحفظ كـ PDF باسم: ${selectedStudent?.name || 'الطالب'} - ${reportTitle || 'التقرير'}`}
                   style={{
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    color: '#1e293b',
-                    padding: '8px 16px',
+                    background: '#1e40af',
+                    border: '1px solid #1e40af',
+                    color: '#ffffff',
+                    padding: '8px 18px',
                     borderRadius: '8px',
                     fontSize: '13px',
                     fontWeight: '700',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(30, 64, 175, 0.25)'
                   }}
                 >
                   <Printer size={15} />
-                  <span>طباعة التقرير (Print / PDF)</span>
+                  <span>طباعة وحفظ PDF (باسم الطالب والتقرير)</span>
                 </button>
 
                 {!isPublicViewer && (
                   <button 
                     onClick={handleSaveReport}
                     disabled={isSaving}
+                    title={`حفظ واعتماد التقرير باسم: ${selectedStudent?.name || 'الطالب'} - ${reportTitle || 'التقرير'}`}
                     style={{
                       background: '#047857',
                       color: '#ffffff',
