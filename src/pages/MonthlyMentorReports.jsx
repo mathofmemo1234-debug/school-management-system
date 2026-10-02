@@ -1258,11 +1258,123 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', paddingBottom: '60px', direction: 'rtl', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div className="monthly-mentor-reports-page" style={{ minHeight: '100vh', background: '#f8fafc', paddingBottom: '60px', direction: 'rtl', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
+      {/* ─── PRINT CSS STYLES FOR CLEAN 2-PAGE OFFICIAL REPORT ─── */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 8mm 10mm 8mm 10mm;
+          }
+
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          html, body {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+          }
+
+          /* Hide ALL web chrome, sidebars, buttons, toolbars and modals */
+          .no-print,
+          .sidebar,
+          aside,
+          header,
+          nav,
+          footer,
+          button,
+          input,
+          .language-switcher-container,
+          .glass-panel:not(#printable-monthly-report) {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          .print-only {
+            display: block !important;
+            visibility: visible !important;
+          }
+
+          .monthly-mentor-reports-page {
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            min-height: auto !important;
+          }
+
+          .monthly-mentor-reports-page > div,
+          .main-content,
+          .page-container {
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          /* Main Report Card Container */
+          #printable-monthly-report {
+            display: block !important;
+            visibility: visible !important;
+            position: static !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+          }
+
+          .report-page-break {
+            page-break-before: always !important;
+            break-before: page !important;
+          }
+
+          .report-section {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            margin-bottom: 14px !important;
+          }
+
+          /* Compact Tables in Print */
+          #printable-monthly-report table {
+            page-break-inside: avoid !important;
+          }
+
+          #printable-monthly-report table th,
+          #printable-monthly-report table td {
+            padding: 5px 8px !important;
+            font-size: 11px !important;
+          }
+
+          /* Signatures Block */
+          .report-signatures {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            margin-top: 18px !important;
+            padding-top: 12px !important;
+          }
+        }
+
+        @media screen {
+          .print-only {
+            display: none !important;
+          }
+        }
+      `}</style>
+
       {/* ─── SUPER ADMIN MULTI-SCHOOL SWITCHER BAR ─── */}
       {isSuperAdmin && (
-        <div style={{
+        <div className="no-print" style={{
           background: 'linear-gradient(135deg, #042f2e 0%, #064e3b 40%, #0f172a 100%)',
           borderBottom: '2px solid #10b981',
           padding: '14px 28px',
@@ -1377,7 +1489,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       )}
 
       {/* ─── TOP BRANDED HEADER (Matched with Image 1) ─── */}
-      <div style={{
+      <div className="no-print" style={{
         background: 'linear-gradient(180deg, #1e3a8a 0%, #172554 100%)',
         color: '#ffffff',
         padding: '24px 32px 18px',
@@ -1608,7 +1720,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       <div style={{ maxWidth: '1180px', margin: '24px auto 0', padding: '0 16px' }}>
 
         {/* Quick Student Switcher Bar (Matches "تتبع الطلاب" in image 1) */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button 
               onClick={() => setShowAuditModal(true)}
@@ -1732,7 +1844,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
 
         {/* Success Alert Banner */}
         {saveSuccessNotice && (
-          <div style={{
+          <div className="no-print" style={{
             background: '#ecfdf5',
             border: '1px solid #a7f3d0',
             color: '#065f46',
@@ -2435,7 +2547,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
             {/* Top Toolbar Actions */}
-            <div style={{
+            <div className="no-print" style={{
               background: '#ffffff',
               borderRadius: '12px',
               padding: '14px 20px',
@@ -2504,7 +2616,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             </div>
 
             {/* Student Reports Selector Bar & Add New Report Button */}
-            <div style={{
+            <div className="no-print" style={{
               background: '#ffffff',
               borderRadius: '12px',
               padding: '12px 18px',
