@@ -143,6 +143,14 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
     return schoolsList.find(s => s.id === schoolId || s.code === schoolId) || null;
   }, [schoolsList, schoolId]);
 
+  const schoolDisplayName = useMemo(() => {
+    return currentSelectedSchool?.name || userData?.schoolName || 'مجمع مدارس المتقدمة للتعلم الذكي للبنين - جدة (المسار الأهلي)';
+  }, [currentSelectedSchool, userData]);
+
+  const schoolLogoUrl = useMemo(() => {
+    return currentSelectedSchool?.logoUrl || userData?.logoUrl || `${import.meta.env.BASE_URL}motaqadimah_logo.png`;
+  }, [currentSelectedSchool, userData]);
+
   const queryStudentId = getParam('studentId');
   const queryClass = getParam('class');
   const queryMonth = getParam('month');
@@ -1028,10 +1036,11 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       return;
     }
 
+    const cleanSchoolName = (schoolDisplayName || 'المدارس_المتقدمة').replace(/\s+/g, '_');
     const cleanStudentName = (selectedStudent?.name || 'الطالب').replace(/\s+/g, '_');
     const cleanTitle = (reportTitle || 'تقرير_أداء_الطالب').replace(/\s+/g, '_');
     const cleanMonth = (academicMonth || '').replace(/\s+/g, '_');
-    const docTitle = `تقرير_${cleanStudentName}_${cleanTitle}_${cleanMonth}`;
+    const docTitle = `تقرير_${cleanStudentName}_${cleanSchoolName}_${cleanMonth}`;
 
     // 1. Clone element and strip all interactive buttons, inputs, edit icons, uploaders
     const cloned = reportElem.cloneNode(true);
@@ -1049,6 +1058,13 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
 
     // Remove buttons, inputs, labels, and all no-print elements
     cloned.querySelectorAll('button, input, select, .no-print, label').forEach(el => el.remove());
+
+    // Ensure all images use absolute URLs so isolated iframe loads them reliably
+    cloned.querySelectorAll('img').forEach(img => {
+      if (img.src) {
+        img.setAttribute('src', img.src);
+      }
+    });
 
     // 2. Create isolated iframe
     let printFrame = document.getElementById('dedicated-student-report-print-frame');
@@ -2823,18 +2839,33 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               boxShadow: '0 4px 25px rgba(0,0,0,0.04)'
             }}>
               
-              {/* Header in Report (Branded with Report Title, Student Name, and Date/Time) */}
+              {/* Header in Report (Branded with Official School Name, Ministry/School Logos, Report Title, and Date/Time) */}
               <div style={{ borderBottom: '2px solid #0f172a', paddingBottom: '20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <img 
-                    src="/motaqadimah_logo.png" 
-                    alt="شركة المدارس المتقدمة" 
-                    style={{ height: '68px', objectFit: 'contain' }}
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <img 
+                      src={`${import.meta.env.BASE_URL}minst.svg`} 
+                      alt="وزارة التعليم" 
+                      style={{ height: '64px', width: 'auto', maxWidth: '100px', objectFit: 'contain' }}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <div style={{ width: '1.5px', height: '44px', background: '#cbd5e1' }} />
+                    <img 
+                      src={schoolLogoUrl} 
+                      alt={schoolDisplayName} 
+                      style={{ height: '68px', width: 'auto', maxWidth: '120px', objectFit: 'contain' }}
+                      onError={(e) => { 
+                        e.target.onerror = null;
+                        e.target.src = `${import.meta.env.BASE_URL}motaqadimah_logo.png`; 
+                      }}
+                    />
+                  </div>
                   <div>
-                    <h2 style={{ margin: '0', fontSize: '20px', fontWeight: '800', color: '#1e3a8a' }}>
-                      شركة المدارس المتقدمة
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>
+                      المملكة العربية السعودية • وزارة التعليم • شركة المدارس المتقدمة
+                    </div>
+                    <h2 style={{ margin: '3px 0 0 0', fontSize: '19px', fontWeight: '900', color: '#1e3a8a', lineHeight: 1.3 }}>
+                      {schoolDisplayName}
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                       <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
@@ -2854,7 +2885,8 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   </div>
                 </div>
 
-                <div style={{ textAlign: 'left', fontSize: '13px', color: '#334155' }}>
+                <div style={{ textAlign: 'left', fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
+                  <div>المدرسة: <b style={{ color: '#1e3a8a' }}>{schoolDisplayName}</b></div>
                   <div>الفصل الدراسي: <b>{selectedClass}</b></div>
                   <div>الشهر / الفترة: <b>{academicMonth}</b></div>
                   <div>المربي المخلص: <b>{selectedMentor?.name || 'محمد عبدالله جمعة'}</b></div>
@@ -3506,7 +3538,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>إدارة المدرسة</div>
                   <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
-                    مجمع المدارس المتقدمة
+                    {schoolDisplayName}
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8' }}>الختم الرسمي والاعتماد</div>
                 </div>
