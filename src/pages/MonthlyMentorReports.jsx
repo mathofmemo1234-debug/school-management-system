@@ -852,6 +852,8 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
         evidenceList,
         googleDriveUrl,
         isComplete: evaluatedCount >= activeSubjectDefs.length && Boolean(smartReportSummary),
+        status: 'uploaded_approved',
+        statusText: 'معتمد ومرفوع رسمياً',
         updatedAt: serverTimestamp()
       };
 
@@ -1970,6 +1972,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               <button 
                 onClick={handleSaveReport}
                 disabled={isSaving}
+                title={`حفظ ورفع التقرير باسم: ${selectedStudent?.name || 'الطالب'} - ${reportTitle || 'التقرير'}`}
                 style={{
                   background: '#047857',
                   color: '#ffffff',
@@ -1985,8 +1988,8 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
                 }}
               >
-                <Save size={15} />
-                <span>{isSaving ? 'جاري الحفظ...' : 'حفظ واعتماد التقرير'}</span>
+                <UploadCloud size={16} />
+                <span>{isSaving ? 'جاري الحفظ والرفع...' : 'حفظ ورفع التقرير'}</span>
               </button>
             )}
           </div>
@@ -2009,7 +2012,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             animation: 'fadeIn 0.3s ease'
           }}>
             <CheckCircle size={18} />
-            <span>تم حفظ التقرير بنجاح باسم: <b>{selectedStudent?.name || 'الطالب'} - {reportTitle || 'التقرير الدوري الشامل للمربي المخلص'}</b></span>
+            <span>تم حفظ ورفع التقرير بنجاح باسم: <b>{selectedStudent?.name || 'الطالب'} - {reportTitle || 'التقرير الدوري الشامل للمربي المخلص'}</b></span>
           </div>
         )}
 
@@ -2745,7 +2748,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   <button 
                     onClick={handleSaveReport}
                     disabled={isSaving}
-                    title={`حفظ واعتماد التقرير باسم: ${selectedStudent?.name || 'الطالب'} - ${reportTitle || 'التقرير'}`}
+                    title={`حفظ ورفع التقرير باسم: ${selectedStudent?.name || 'الطالب'} - ${reportTitle || 'التقرير'}`}
                     style={{
                       background: '#047857',
                       color: '#ffffff',
@@ -2761,8 +2764,8 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                       boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
                     }}
                   >
-                    <Save size={15} />
-                    <span>{isSaving ? 'جاري الحفظ...' : 'حفظ واعتماد التقرير'}</span>
+                    <UploadCloud size={16} />
+                    <span>{isSaving ? 'جاري الحفظ والرفع...' : 'حفظ ورفع التقرير'}</span>
                   </button>
                 )}
               </div>
@@ -2963,7 +2966,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   <span style={{ fontSize: '12px', color: '#64748b' }}>حالة التقرير:</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px', fontWeight: '800', color: '#047857' }}>
                     <CheckCircle size={16} />
-                    <span>معتمد رسمياً</span>
+                    <span>تم الرفع والاعتماد رسمياً</span>
                   </div>
                 </div>
               </div>
