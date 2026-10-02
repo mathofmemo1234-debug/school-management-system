@@ -1512,8 +1512,20 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           .report-signatures {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
+            display: grid !important;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 10px !important;
             margin-top: 16px !important;
             padding-top: 10px !important;
+          }
+
+          /* Official Document Footer Line */
+          .report-footer-line {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            margin-top: 14px !important;
+            padding-top: 8px !important;
+            font-size: 10.5px !important;
           }
         }
 
@@ -3540,13 +3552,21 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               </div>
 
               {/* Signatures in Report (Official Educational Signatures - Clean and Professional) */}
-              <div style={{ marginTop: '36px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
+              <div className="report-signatures" style={{ marginTop: '36px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', textAlign: 'center' }}>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>المربي المخلص</div>
                   <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
                     {selectedMentor?.name || 'محمد عبدالله جمعة'}
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8' }}>التوقيع والاعتماد</div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>متابعة و دعم</div>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
+                    أ / جمال علي محمد
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>المتابعة والإشراف التربوي</div>
                 </div>
 
                 <div>
@@ -3563,6 +3583,31 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                     تم الاطلاع والمتابعة
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8' }}>توقيع ولي الأمر</div>
+                </div>
+              </div>
+
+              {/* Official Document Footer Line */}
+              <div className="report-footer-line" style={{
+                marginTop: '22px',
+                paddingTop: '12px',
+                borderTop: '1px dashed #cbd5e1',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
+                fontSize: '11.5px',
+                color: '#64748b'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldCheck size={14} color="#059669" />
+                  <span>متابعة و دعم: <strong style={{ color: '#0f172a' }}>أ / جمال علي محمد</strong></span>
+                </div>
+                <div>
+                  <span>منظومة المربي المخلص للرصد التربوي • {schoolDisplayName}</span>
+                </div>
+                <div>
+                  <span>تاريخ الاعتماد: {reportDateTime}</span>
                 </div>
               </div>
 
