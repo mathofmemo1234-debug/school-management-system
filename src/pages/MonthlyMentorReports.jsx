@@ -64,9 +64,9 @@ import {
 } from 'lucide-react';
 import { 
   STANDARD_SUBJECTS_NATIONAL, 
-  STANDARD_SUBJECTS_INTERNATIONAL, 
   getPerformanceLevel, 
   generateSubjectSummary, 
+  generateSubjectSummaryOptions,
   generateSmartReportSummary,
   generateComparativeGrowthSummary,
   generateSupportAndImprovementPlan,
@@ -105,7 +105,6 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
 
   // Navigation steps: 1: البيانات, 2: المهارات, 3: التقرير
   const [activeStep, setActiveStep] = useState(isPublicViewer ? 3 : 1);
-  const [isInternational, setIsInternational] = useState(false);
 
   // Mentor Selection
   const [mentorsList, setMentorsList] = useState([]);
@@ -149,9 +148,11 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
   const [newReportTitle, setNewReportTitle] = useState('');
   const [newReportType, setNewReportType] = useState('تشخيصي علاجي');
   const [newReportDate, setNewReportDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [newReportScope, setNewReportScope] = useState('single'); // 'single' (طالب محدد) | 'all' (لكل الطلاب)
+  const [isCreatingReport, setIsCreatingReport] = useState(false);
 
   // Subjects & Evaluation State
-  const activeSubjectDefs = isInternational ? STANDARD_SUBJECTS_INTERNATIONAL : STANDARD_SUBJECTS_NATIONAL;
+  const activeSubjectDefs = STANDARD_SUBJECTS_NATIONAL;
   const [subjectScores, setSubjectScores] = useState({}); // { [subjId]: { score: 10, summary: '...' } }
   const [mentorNotes, setMentorNotes] = useState('');
   const [smartReportSummary, setSmartReportSummary] = useState('');
@@ -161,6 +162,17 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
   const [behavioralNotes, setBehavioralNotes] = useState(DEFAULT_BEHAVIORAL_NOTES);
   const [supportPlan, setSupportPlan] = useState(() => generateSupportAndImprovementPlan({}));
   const [isGeneratingPlanAI, setIsGeneratingPlanAI] = useState(false);
+
+  // AI Phrasing Options Modal State (خيارات عبارات أكاديمية - قصيرة - مطولة - تحفيزية - تطويرية)
+  const [aiPhrasingModal, setAiPhrasingModal] = useState({
+    isOpen: false,
+    subjectId: null,
+    subjectName: '',
+    score: 10,
+    teacherNote: '',
+    options: []
+  });
+  const [appliedFeedback, setAppliedFeedback] = useState(null); // { subjectId, styleName }
 
   // Evidence Media State (Images & Videos)
   const [evidenceList, setEvidenceList] = useState([]); // [{ id, type: 'image'|'video', title, url, previewUrl }]
@@ -407,7 +419,6 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           if (rep.evidenceList) setEvidenceList(rep.evidenceList);
           if (rep.googleDriveUrl) setGoogleDriveUrl(rep.googleDriveUrl);
           if (rep.mentor) setSelectedMentor(rep.mentor);
-          if (rep.isInternational !== undefined) setIsInternational(rep.isInternational);
         }
       } catch (err) {
         console.error('Failed to load shared monthly report:', err);
@@ -488,12 +499,11 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       // Automatically generate summary matching screenshot 2
       const autoSummary = generateSmartReportSummary({
         studentName: selectedStudent.name,
-        subjectsData: initialScores,
-        isInternational
+        subjectsData: initialScores
       });
       setSmartReportSummary(autoSummary);
     }
-  }, [selectedStudent, classReportsMap, isInternational]);
+  }, [selectedStudent, classReportsMap]);
 
   // ─── Handle Subject Score Change ────────────────────────
   const handleScoreChange = (subjId, newScore) => {
@@ -532,9 +542,13 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
     }));
   };
 
-  const handleRegenerateSingleSubject = (subjId) => {
-    const current = subjectScores[subjId] || { id: subjId, name: activeSubjectDefs.find(s => s.id === subjId)?.name || subjId, score: 10, teacherNote: '' };
-    const newSummary = generateSubjectSummary(subjId, current.score !== '' ? current.score : 10, current.teacherNote || '');
+  const handleRegenerateSingleSubject = (subjId, style = 'academic') => {
+    const subDef = activeSubjectDefs.find(s => s.id === subjId);
+    const current = subjectScores[subjId] || { id: subjId, name: subDef?.name || subjId, score: 10, teacherNote: '' };
+    const scoreVal = current.score !== '' ? current.score : 10;
+    const noteVal = current.teacherNote || '';
+    const subName = current.name || subDef?.name || subjId;
+    const newSummary = generateSubjectSummary(subjId, scoreVal, noteVal, style, subName);
     
     setSubjectScores(prev => {
       const updated = {
@@ -548,12 +562,104 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       const newNarrative = generateSmartReportSummary({
         studentName: selectedStudent?.name || 'الطالب',
         subjectsData: updated,
-        isInternational,
         mentorNotes
       });
       setSmartReportSummary(newNarrative);
       return updated;
     });
+  };
+
+  const handleOpenAiOptions = (subjId) => {
+    const subDef = activeSubjectDefs.find(s => s.id === subjId);
+    const current = subjectScores[subjId] || { 
+      id: subjId, 
+      name: subDef?.name || subjId, 
+      score: 10, 
+      teacherNote: '',
+      summary: ''
+    };
+    const scoreVal = current.score !== '' ? current.score : 10;
+    const noteVal = current.teacherNote || '';
+    const subName = current.name || subDef?.name || subjId;
+    
+    const options = generateSubjectSummaryOptions(subjId, scoreVal, noteVal, subName);
+    setAiPhrasingModal({
+      isOpen: true,
+      subjectId: subjId,
+      subjectName: subName,
+      score: scoreVal,
+      teacherNote: noteVal,
+      options
+    });
+  };
+
+  const handleSelectAiOption = (subjId, chosenText, styleName = '') => {
+    const subDef = activeSubjectDefs.find(s => s.id === subjId);
+    setSubjectScores(prev => {
+      const current = prev[subjId] || { id: subjId, name: subDef?.name || subjId, score: 10 };
+      const updated = {
+        ...prev,
+        [subjId]: {
+          ...current,
+          summary: chosenText
+        }
+      };
+      
+      const newNarrative = generateSmartReportSummary({
+        studentName: selectedStudent?.name || 'الطالب',
+        subjectsData: updated,
+        mentorNotes
+      });
+      setSmartReportSummary(newNarrative);
+      return updated;
+    });
+
+    setAppliedFeedback({ subjectId: subjId, styleName });
+    setTimeout(() => setAppliedFeedback(null), 2500);
+    setAiPhrasingModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleApplyStyleDirectly = (subjId, styleKey) => {
+    const subDef = activeSubjectDefs.find(s => s.id === subjId);
+    const current = subjectScores[subjId] || { 
+      id: subjId, 
+      name: subDef?.name || subjId, 
+      score: 10, 
+      teacherNote: '',
+      summary: ''
+    };
+    const scoreVal = current.score !== '' ? current.score : 10;
+    const noteVal = current.teacherNote || '';
+    const subName = current.name || subDef?.name || subjId;
+
+    const options = generateSubjectSummaryOptions(subjId, scoreVal, noteVal, subName);
+    const targetOption = options.find(o => o.id === styleKey) || options[0];
+    
+    handleSelectAiOption(subjId, targetOption.text, targetOption.styleName);
+  };
+
+  const handleBatchApplyStyle = (styleKey = 'academic') => {
+    setIsGeneratingAI(true);
+    setTimeout(() => {
+      const updated = { ...subjectScores };
+      activeSubjectDefs.forEach(sub => {
+        const current = updated[sub.id] || { id: sub.id, name: sub.name, score: 10, teacherNote: '' };
+        const scoreVal = current.score !== '' ? current.score : 10;
+        const noteVal = current.teacherNote || '';
+        const text = generateSubjectSummary(sub.id, scoreVal, noteVal, styleKey, sub.name);
+        current.summary = text;
+        updated[sub.id] = current;
+      });
+      setSubjectScores(updated);
+
+      const fullSummary = generateSmartReportSummary({
+        studentName: selectedStudent?.name || 'الطالب',
+        subjectsData: updated,
+        mentorNotes
+      });
+      setSmartReportSummary(fullSummary);
+      setIsGeneratingAI(false);
+    }, 350);
   };
 
   // ─── AI Generation of All Summaries & Plan ────────────────
@@ -563,7 +669,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       const updated = { ...subjectScores };
       activeSubjectDefs.forEach(sub => {
         const current = updated[sub.id] || { id: sub.id, name: sub.name, score: 10, teacherNote: '' };
-        current.summary = generateSubjectSummary(sub.id, current.score !== '' ? current.score : 10, current.teacherNote || '');
+        current.summary = generateSubjectSummary(sub.id, current.score !== '' ? current.score : 10, current.teacherNote || '', 'academic', sub.name);
         updated[sub.id] = current;
       });
       setSubjectScores(updated);
@@ -571,7 +677,6 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       const fullSummary = generateSmartReportSummary({
         studentName: selectedStudent?.name || 'الطالب',
         subjectsData: updated,
-        isInternational,
         mentorNotes
       });
       setSmartReportSummary(fullSummary);
@@ -681,7 +786,6 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
         mentorId: selectedMentor.id,
         mentorName: selectedMentor.name,
         mentorNationalId: selectedMentor.nationalId,
-        isInternational,
         subjectScores,
         evaluatedCount,
         averagePercentage,
@@ -896,41 +1000,146 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
     if (rep.googleDriveUrl) setGoogleDriveUrl(rep.googleDriveUrl);
   };
 
-  // ─── Create Additional Report for Student ─────────────────
-  const handleCreateAdditionalReport = () => {
-    if (!newReportTitle.trim() || !selectedStudent) return;
-    const repId = `rep_${Date.now()}`;
-    const formattedDateTime = `${newReportDate} - ${new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
-    
-    const newRepObj = {
-      id: repId,
-      reportId: repId,
-      reportTitle: newReportTitle.trim(),
-      reportType: newReportType,
-      reportDateTime: formattedDateTime,
-      studentId: selectedStudent.id,
-      studentName: selectedStudent.name,
-      createdAtStr: formattedDateTime,
-      subjectScores: { ...subjectScores },
-      smartReportSummary: smartReportSummary || '',
-      mentorNotes: '',
-      behavioralNotes: DEFAULT_BEHAVIORAL_NOTES,
-      supportPlan: generateSupportAndImprovementPlan({
-        studentName: selectedStudent.name,
-        subjectsData: subjectScores,
-        overallPercentage: averagePercentage
-      }),
-      evidenceList: []
-    };
+  // ─── Create Additional Report (للطالب المحدد أو لكل طلاب الفصل) ───
+  const handleCreateAdditionalReport = async () => {
+    if (!newReportTitle.trim()) return;
+    if (newReportScope === 'single' && !selectedStudent) return;
+    if (newReportScope === 'all' && students.length === 0) return;
 
-    setStudentReportsList(prev => [...prev, newRepObj]);
-    setActiveReportId(repId);
-    setReportTitle(newRepObj.reportTitle);
-    setReportDateTime(formattedDateTime);
-    setBehavioralNotes(newRepObj.behavioralNotes);
-    setSupportPlan(newRepObj.supportPlan);
-    setShowAddReportModal(false);
-    setNewReportTitle('');
+    setIsCreatingReport(true);
+    const repSharedId = `rep_${Date.now()}`;
+    const formattedDateTime = `${newReportDate} - ${new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+    const cleanTitle = newReportTitle.trim();
+
+    try {
+      if (newReportScope === 'all') {
+        // Create for ALL students in the class
+        for (const st of students) {
+          const reportDocId = `${schoolId}_${selectedClass}_${academicMonth}_${st.id}_${repSharedId}`.replace(/[\/\s]/g, '_');
+          
+          const stScores = {};
+          activeSubjectDefs.forEach(sub => {
+            stScores[sub.id] = { id: sub.id, name: sub.name, score: 10, summary: '', teacherNote: '' };
+          });
+
+          const stPayload = {
+            schoolId,
+            className: selectedClass,
+            academicMonth,
+            id: repSharedId,
+            reportId: repSharedId,
+            reportTitle: cleanTitle,
+            reportType: newReportType,
+            reportDateTime: formattedDateTime,
+            studentId: st.id,
+            studentName: st.name,
+            studentNationalId: st.nationalId || '',
+            mentorId: selectedMentor?.id || '',
+            mentorName: selectedMentor?.name || '',
+            mentorNationalId: selectedMentor?.nationalId || '',
+            subjectScores: (st.id === selectedStudent?.id && subjectScores) ? { ...subjectScores } : stScores,
+            smartReportSummary: '',
+            mentorNotes: '',
+            behavioralNotes: DEFAULT_BEHAVIORAL_NOTES,
+            supportPlan: generateSupportAndImprovementPlan({
+              studentName: st.name,
+              subjectsData: stScores,
+              overallPercentage: 100
+            }),
+            evidenceList: [],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+
+          await setDoc(doc(db, 'monthly_mentor_reports', reportDocId), stPayload, { merge: true });
+
+          if (st.id === selectedStudent?.id) {
+            setStudentReportsList(prev => [...prev, stPayload]);
+            setActiveReportId(repSharedId);
+            setReportTitle(cleanTitle);
+            setReportDateTime(formattedDateTime);
+            setBehavioralNotes(DEFAULT_BEHAVIORAL_NOTES);
+            setSupportPlan(stPayload.supportPlan);
+          }
+        }
+      } else {
+        // Create for single selectedStudent
+        const reportDocId = `${schoolId}_${selectedClass}_${academicMonth}_${selectedStudent.id}_${repSharedId}`.replace(/[\/\s]/g, '_');
+        
+        const newRepObj = {
+          schoolId,
+          className: selectedClass,
+          academicMonth,
+          id: repSharedId,
+          reportId: repSharedId,
+          reportTitle: cleanTitle,
+          reportType: newReportType,
+          reportDateTime: formattedDateTime,
+          studentId: selectedStudent.id,
+          studentName: selectedStudent.name,
+          studentNationalId: selectedStudent.nationalId || '',
+          mentorId: selectedMentor?.id || '',
+          mentorName: selectedMentor?.name || '',
+          mentorNationalId: selectedMentor?.nationalId || '',
+          createdAtStr: formattedDateTime,
+          subjectScores: { ...subjectScores },
+          smartReportSummary: smartReportSummary || '',
+          mentorNotes: '',
+          behavioralNotes: DEFAULT_BEHAVIORAL_NOTES,
+          supportPlan: generateSupportAndImprovementPlan({
+            studentName: selectedStudent.name,
+            subjectsData: subjectScores,
+            overallPercentage: averagePercentage
+          }),
+          evidenceList: [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+
+        await setDoc(doc(db, 'monthly_mentor_reports', reportDocId), newRepObj, { merge: true });
+
+        setStudentReportsList(prev => [...prev, newRepObj]);
+        setActiveReportId(repSharedId);
+        setReportTitle(newRepObj.reportTitle);
+        setReportDateTime(formattedDateTime);
+        setBehavioralNotes(newRepObj.behavioralNotes);
+        setSupportPlan(newRepObj.supportPlan);
+      }
+
+      setShowAddReportModal(false);
+      setNewReportTitle('');
+    } catch (err) {
+      console.error('Error creating additional report(s):', err);
+      if (selectedStudent) {
+        const fallbackObj = {
+          id: repSharedId,
+          reportId: repSharedId,
+          reportTitle: cleanTitle,
+          reportType: newReportType,
+          reportDateTime: formattedDateTime,
+          studentId: selectedStudent.id,
+          studentName: selectedStudent.name,
+          subjectScores: { ...subjectScores },
+          smartReportSummary: smartReportSummary || '',
+          mentorNotes: '',
+          behavioralNotes: DEFAULT_BEHAVIORAL_NOTES,
+          supportPlan: generateSupportAndImprovementPlan({
+            studentName: selectedStudent.name,
+            subjectsData: subjectScores,
+            overallPercentage: averagePercentage
+          }),
+          evidenceList: []
+        };
+        setStudentReportsList(prev => [...prev, fallbackObj]);
+        setActiveReportId(repSharedId);
+        setReportTitle(cleanTitle);
+        setReportDateTime(formattedDateTime);
+        setShowAddReportModal(false);
+        setNewReportTitle('');
+      }
+    } finally {
+      setIsCreatingReport(false);
+    }
   };
 
   // ─── Archive All Completed Reports of the Month ───────────
@@ -1109,25 +1318,6 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 <Archive size={14} />
                 <span>{isArchivingAll ? 'جاري الأرشفة...' : 'أرشفة تقارير الشهر'}</span>
               </button>
-
-              <button 
-                onClick={() => setIsInternational(!isInternational)}
-                style={{
-                  background: isInternational ? '#3b82f6' : 'rgba(255,255,255,0.1)',
-                  color: '#ffffff',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer'
-                }}
-              >
-                <Globe size={14} />
-                <span>نسخة المدارس العالمية International Version</span>
-              </button>
             </div>
           </div>
 
@@ -1256,26 +1446,55 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
 
         {/* Quick Student Switcher Bar (Matches "تتبع الطلاب" in image 1) */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-          <button 
-            onClick={() => setShowAuditModal(true)}
-            style={{
-              background: '#ffffff',
-              color: '#1e3a8a',
-              border: '1px solid #cbd5e1',
-              padding: '8px 18px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-          >
-            <Clock size={16} />
-            <span>تتبع الطلاب وحصر النواقص</span>
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button 
+              onClick={() => setShowAuditModal(true)}
+              style={{
+                background: '#ffffff',
+                color: '#1e3a8a',
+                border: '1px solid #cbd5e1',
+                padding: '8px 18px',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+              }}
+            >
+              <Clock size={16} />
+              <span>تتبع الطلاب وحصر النواقص</span>
+            </button>
+
+            {!isPublicViewer && (
+              <button 
+                type="button"
+                onClick={() => {
+                  setNewReportTitle(`تقرير إضافي - ${selectedStudent?.name || selectedClass || ''}`);
+                  setShowAddReportModal(true);
+                }}
+                style={{
+                  background: '#047857',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(4, 120, 87, 0.2)'
+                }}
+              >
+                <FolderPlus size={16} />
+                <span>+ إضافة تقرير جديد</span>
+              </button>
+            )}
+          </div>
 
           {/* Quick Step Buttons */}
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -1690,6 +1909,109 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               </div>
             </div>
 
+            {/* Batch Style Toolbar */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '10px 16px',
+              marginBottom: '16px',
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={17} style={{ color: '#7c3aed' }} />
+                <span style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>
+                  توليد وصياغة جماعية بالذكاء الاصطناعي لجميع المواد حسب الأسلوب:
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => handleBatchApplyStyle('academic')}
+                  disabled={isGeneratingAI}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    borderRadius: '8px',
+                    background: '#eef2ff',
+                    border: '1px solid #c7d2fe',
+                    color: '#4338ca',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  🎓 أكاديمية للجميع
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBatchApplyStyle('short')}
+                  disabled={isGeneratingAI}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    borderRadius: '8px',
+                    background: '#f0f9ff',
+                    border: '1px solid #bae6fd',
+                    color: '#0369a1',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  ⚡ قصيرة للجميع
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBatchApplyStyle('detailed')}
+                  disabled={isGeneratingAI}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    borderRadius: '8px',
+                    background: '#faf5ff',
+                    border: '1px solid #e9d5ff',
+                    color: '#7e22ce',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  📝 مطولة للجميع
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBatchApplyStyle('motivational')}
+                  disabled={isGeneratingAI}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    borderRadius: '8px',
+                    background: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    color: '#047857',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  🌟 تحفيزية للجميع
+                </button>
+              </div>
+            </div>
+
             {/* Subjects Table / List */}
             <div style={{
               background: '#ffffff',
@@ -1801,7 +2123,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                           />
                         </td>
 
-                        {/* Qualitative Summary with Sparkles button matching media_1790898055851.png */}
+                        {/* Qualitative Summary with Sparkles button and quick style pills matching media_1790898055851.png */}
                         <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <input 
@@ -1821,23 +2143,76 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                             />
                             <button
                               type="button"
-                              title="إعادة الصياغة بالذكاء الاصطناعي بناءً على الدرجة وملحوظة المعلم"
-                              onClick={() => handleRegenerateSingleSubject(subject.id)}
+                              title="فتح خيارات الصياغة بالذكاء الاصطناعي (أكاديمية، قصيرة، مطولة، تحفيزية، تطويرية)"
+                              onClick={() => handleOpenAiOptions(subject.id)}
                               style={{
-                                background: 'rgba(99, 102, 241, 0.08)',
+                                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.15))',
                                 border: '1px solid #c7d2fe',
                                 borderRadius: '8px',
-                                padding: '8px 10px',
+                                padding: '8px 12px',
                                 color: '#6366f1',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s ease'
+                                gap: '5px',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 1px 3px rgba(99, 102, 241, 0.1)'
                               }}
                             >
-                              <Sparkles size={16} />
+                              <Sparkles size={15} />
+                              <span style={{ whiteSpace: 'nowrap' }}>خيارات AI</span>
                             </button>
+                          </div>
+
+                          {/* Quick Style Pills under the input for 1-click styling */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>توليد فوري:</span>
+                            {[
+                              { id: 'academic', label: 'أكاديمية', icon: '🎓', bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
+                              { id: 'short', label: 'قصيرة', icon: '⚡', bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd' },
+                              { id: 'detailed', label: 'مطولة', icon: '📝', bg: '#faf5ff', text: '#7e22ce', border: '#e9d5ff' },
+                              { id: 'motivational', label: 'تحفيزية', icon: '🌟', bg: '#ecfdf5', text: '#047857', border: '#a7f3d0' },
+                              { id: 'developmental', label: 'تطويرية', icon: '🎯', bg: '#fffbeb', text: '#b45309', border: '#fde68a' }
+                            ].map(st => (
+                              <button
+                                key={st.id}
+                                type="button"
+                                onClick={() => handleApplyStyleDirectly(subject.id, st.id)}
+                                title={`تطبيق صياغة ${st.label} فوراً بناءً على ملحوظة المعلم والدرجة`}
+                                style={{
+                                  padding: '2px 7px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '6px',
+                                  background: st.bg,
+                                  border: `1px solid ${st.border}`,
+                                  color: st.text,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <span>{st.icon}</span>
+                                <span>{st.label}</span>
+                              </button>
+                            ))}
+                            {appliedFeedback?.subjectId === subject.id && (
+                              <span style={{ 
+                                fontSize: '11px', 
+                                color: '#059669', 
+                                fontWeight: '700',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                marginRight: '6px'
+                              }}>
+                                <Check size={12} /> تم تطبيق ({appliedFeedback.styleName})
+                              </span>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -3880,7 +4255,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <FolderPlus size={22} />
                 <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800' }}>
-                  إضافة تقرير إضافي جديد للطالب
+                  إضافة تقرير جديد (لطالب أو لكل الطلاب)
                 </h3>
               </div>
               <button 
@@ -3893,16 +4268,108 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
 
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                  اسم الطالب
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>
+                  نطاق تطبيق التقرير *
                 </label>
-                <input 
-                  type="text" 
-                  value={selectedStudent?.name || ''} 
-                  disabled 
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: '700', color: '#1e3a8a' }} 
-                />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setNewReportScope('single')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      border: newReportScope === 'single' ? '2px solid #047857' : '1px solid #cbd5e1',
+                      background: newReportScope === 'single' ? '#f0fdf4' : '#ffffff',
+                      color: newReportScope === 'single' ? '#065f46' : '#475569',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      textAlign: 'right',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      background: newReportScope === 'single' ? '#dcfce7' : '#f1f5f9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '18px',
+                      flexShrink: 0
+                    }}>
+                      👤
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '800', fontSize: '13px' }}>طالب محدد فقط</div>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                        {selectedStudent?.name || 'الطالب الحالي'}
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewReportScope('all')}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      border: newReportScope === 'all' ? '2px solid #047857' : '1px solid #cbd5e1',
+                      background: newReportScope === 'all' ? '#f0fdf4' : '#ffffff',
+                      color: newReportScope === 'all' ? '#065f46' : '#475569',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      textAlign: 'right',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      background: newReportScope === 'all' ? '#dcfce7' : '#f1f5f9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '18px',
+                      flexShrink: 0
+                    }}>
+                      👥
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '800', fontSize: '13px' }}>جميع طلاب الفصل دفعة واحدة</div>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                        فصل {selectedClass} ({students.length} طلاب)
+                      </div>
+                    </div>
+                  </button>
+                </div>
               </div>
+
+              {newReportScope === 'single' ? (
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                    اسم الطالب المحدد
+                  </label>
+                  <input 
+                    type="text" 
+                    value={selectedStudent?.name || ''} 
+                    disabled 
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: '700', color: '#1e3a8a' }} 
+                  />
+                </div>
+              ) : (
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '12px 16px', fontSize: '12px', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px' }}>🚀</span>
+                  <span>
+                    سيتم إنشاء هذا التقرير وتعميمه على <strong>جميع طلاب فصل {selectedClass}</strong> البالغ عددهم <strong>({students.length}) طالباً</strong>، مما يتيح للمعلمين والمربي رصده ومتابعته لكل طالب دون تكرار الإنشاء اليدوي!
+                  </span>
+                </div>
+              )}
 
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
@@ -3912,7 +4379,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   type="text" 
                   value={newReportTitle}
                   onChange={(e) => setNewReportTitle(e.target.value)}
-                  placeholder="مثال: تقرير تشخيصي علاجي لمادتي لغتي والرياضيات" 
+                  placeholder="مثال: تقرير تشخيصي علاجي، أو تقرير متابعة سلوكية..." 
                   style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }} 
                 />
               </div>
@@ -3949,8 +4416,8 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 </div>
               </div>
 
-              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px', fontSize: '12px', color: '#166534' }}>
-                💡 سيتم إنشاء تقرير إضافي مستقل للدرجات والشواهد والملاحظات السلوكية وخطة التحسين، مع إمكانية التبديل بين تقارير الطالب بكل سلاسة.
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', fontSize: '12px', color: '#475569' }}>
+                💡 سيتم إنشاء تقرير إضافي مستقل للدرجات والشواهد والملاحظات السلوكية وخطة التحسين، مع إمكانية التبديل بين تقارير الطلاب بكل سلاسة.
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
@@ -3964,9 +4431,10 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 <button
                   type="button"
                   onClick={handleCreateAdditionalReport}
-                  style={{ background: '#047857', border: 'none', color: '#ffffff', padding: '9px 22px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                  disabled={isCreatingReport}
+                  style={{ background: '#047857', border: 'none', color: '#ffffff', padding: '9px 24px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  إنشاء التقرير والبدء في الرصد
+                  <span>{isCreatingReport ? 'جاري الإنشاء والتعميم...' : (newReportScope === 'all' ? `تعميم التقرير على ${students.length} طلاب` : 'إنشاء التقرير والبدء في الرصد')}</span>
                 </button>
               </div>
             </div>
@@ -4042,6 +4510,258 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   تأكيد التعديل
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: خيارات إعادة التوليد بالذكاء الاصطناعي (أكاديمية - قصيرة - مطولة - تحفيزية - تطويرية) ─── */}
+      {aiPhrasingModal.isOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.7)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          direction: 'rtl'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '780px',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+              color: '#ffffff',
+              padding: '20px 24px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexShrink: 0
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  borderRadius: '12px',
+                  padding: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Sparkles size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', letterSpacing: '-0.3px' }}>
+                    خيارات الصياغة بالذكاء الاصطناعي ✨
+                  </h3>
+                  <div style={{ fontSize: '12px', color: '#e0e7ff', marginTop: '3px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span>المادة: <strong>{aiPhrasingModal.subjectName}</strong></span>
+                    <span>•</span>
+                    <span>الدرجة: <strong>{aiPhrasingModal.score} من 10</strong></span>
+                    {aiPhrasingModal.teacherNote && (
+                      <>
+                        <span>•</span>
+                        <span style={{ background: 'rgba(255,255,255,0.18)', padding: '1px 8px', borderRadius: '6px' }}>
+                          ملحوظة المعلم: "{aiPhrasingModal.teacherNote}"
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setAiPhrasingModal(prev => ({ ...prev, isOpen: false }))}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  border: 'none',
+                  color: '#fff',
+                  borderRadius: '10px',
+                  padding: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body: Options List */}
+            <div style={{
+              padding: '22px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              flex: 1
+            }}>
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                fontSize: '12px',
+                color: '#475569',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '16px' }}>💡</span>
+                <span>
+                  تم توليد الخيارات أدناه بذكاء استناداً إلى ملحوظة المعلم الخاصة والدرجة. انقر على "اعتماد هذه الصياغة" لنقلها إلى التقرير فوراً:
+                </span>
+              </div>
+
+              {aiPhrasingModal.options?.map((opt) => (
+                <div 
+                  key={opt.id}
+                  style={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '14px',
+                    padding: '16px',
+                    background: '#ffffff',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>{opt.icon}</span>
+                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>
+                        {opt.title}
+                      </h4>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        color: opt.badgeColor,
+                        background: opt.badgeBg,
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        border: `1px solid ${opt.badgeColor}30`
+                      }}>
+                        {opt.badge}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(opt.text);
+                          setAppliedFeedback({ subjectId: aiPhrasingModal.subjectId, styleName: 'تم النسخ' });
+                          setTimeout(() => setAppliedFeedback(null), 2000);
+                        }}
+                        style={{
+                          background: '#f8fafc',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '8px',
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          color: '#475569',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Copy size={13} />
+                        <span>نسخ</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectAiOption(aiPhrasingModal.subjectId, opt.text, opt.styleName)}
+                        style={{
+                          background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '6px 16px',
+                          fontSize: '12px',
+                          color: '#ffffff',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          boxShadow: '0 2px 6px rgba(79, 70, 229, 0.25)'
+                        }}
+                      >
+                        <Check size={14} />
+                        <span>اعتماد هذه الصياغة</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>
+                    {opt.desc}
+                  </p>
+
+                  <div style={{
+                    background: '#f8fafc',
+                    border: '1px solid #edf2f7',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    fontSize: '13px',
+                    lineHeight: '1.7',
+                    color: '#1e293b',
+                    fontWeight: '500'
+                  }}>
+                    {opt.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '16px 24px',
+              background: '#f8fafc',
+              borderTop: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexShrink: 0
+            }}>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                مدارس المتقدمة • نظام الصياغة التربوية الذكية
+              </span>
+              <button
+                type="button"
+                onClick={() => setAiPhrasingModal(prev => ({ ...prev, isOpen: false }))}
+                style={{
+                  background: '#e2e8f0',
+                  border: 'none',
+                  color: '#334155',
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                إغلاق
+              </button>
             </div>
           </div>
         </div>

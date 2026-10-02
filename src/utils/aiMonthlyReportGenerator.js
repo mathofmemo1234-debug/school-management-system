@@ -202,37 +202,220 @@ export function getPerformanceLevel(score) {
   }
 }
 
+export function getSubjectDisplayName(subjectId, customName = '') {
+  if (customName) return customName;
+  const map = {
+    arabic: 'اللغة العربية',
+    english: 'اللغة الإنجليزية',
+    math: 'الرياضيات',
+    science: 'العلوم',
+    social: 'الاجتماعيات',
+    islamic: 'التربية الإسلامية',
+    digital: 'المهارات الرقمية',
+    art: 'التربية الفنية'
+  };
+  return map[subjectId] || subjectId;
+}
+
 /**
- * توليد خلاصة الأداء لمادة محددة بناء على درجتها وملحوظة المعلم الخاصة
+ * توليد خيارات صياغة الذكاء الاصطناعي المتعددة لمادة محددة بناءً على الدرجة وملحوظة المعلم
+ * الخيارات تشمل:
+ * 1. أكاديمية ورسمية (Academic & Formal)
+ * 2. قصيرة وموجزة (Short & Concise)
+ * 3. مطولة وتفصيلية (Detailed & Comprehensive)
+ * 4. تحفيزية وتشجيعية (Motivational & Inspiring)
+ * 5. تطويرية وعلاجية (Developmental & Action-Oriented)
  */
-export function generateSubjectSummary(subjectId, score, teacherNote = '') {
+export function generateSubjectSummaryOptions(subjectId, score, teacherNote = '', subjectName = '') {
   const num = Number(score);
-  if (isNaN(num)) return 'لم يتم رصد درجة المادة بعد.';
+  const validScore = !isNaN(num) ? num : 10;
+  const name = subjectName || getSubjectDisplayName(subjectId);
+  const rawNote = (teacherNote || '').trim();
 
-  const sMap = SUBJECT_OBSERVATIONS[subjectId] || SUBJECT_OBSERVATIONS.arabic;
-  let pool;
-  if (num >= 9.8) pool = sMap[10];
-  else if (num >= 9.0) pool = sMap[9];
-  else if (num >= 8.0) pool = sMap[8];
-  else if (num >= 6.5) pool = sMap[7];
-  else pool = sMap.low;
+  const isHigh = validScore >= 9.5;
+  const isAdvanced = validScore >= 8.8 && validScore < 9.5;
+  const isGood = validScore >= 7.5 && validScore < 8.8;
+  const isAverage = validScore >= 6.5 && validScore < 7.5;
+  const isLow = validScore < 6.5;
 
-  if (!pool || pool.length === 0) pool = sMap[10] || ['أداء متميز وجهد مقدر.'];
-  const baseObs = pool[0];
-
-  // إذا كتب المعلم ملحوظة خاصة، ندمجها بأسلوب تربوي ذكي
-  if (teacherNote && teacherNote.trim()) {
-    const cleanNote = teacherNote.trim();
-    if (num >= 9.0) {
-      return `${baseObs} ويشيد المعلم بـ: ${cleanNote}.`;
-    } else if (num >= 7.5) {
-      return `${baseObs} مع ملاحظة المعلم: ${cleanNote}.`;
+  // 1. الأسلوب الأكاديمي والتربوي المعتمد (Academic & Formal)
+  let academicText = '';
+  if (rawNote) {
+    if (isHigh) {
+      academicText = `يُظهر الطالب كفاءة أكاديمية رفيعة في معايير ونواتج تعلم مادة ${name}، ويؤكد المعلم أن أداءه: "${rawNote}"، مما يعكس تمكناً معرفياً ومنهجياً مشرفاً.`;
+    } else if (isAdvanced) {
+      academicText = `يُحقق الطالب استيعاباً متقدماً لكفايات مادة ${name} المقررة، مع توثيق المعلم لملاحظة: "${rawNote}"، بما ينسجم مع مؤشرات التحصيل الإيجابي.`;
+    } else if (isGood) {
+      academicText = `أداء أكاديمي متزن ومستقر في مهارات مادة ${name}، ووفقاً لتقييم المعلم: "${rawNote}"، مما يستوجب مواصلة تدعيم نواتج التعلم المستهدفة.`;
+    } else if (isAverage) {
+      academicText = `مستوى دراسي مقبول في مادة ${name}، واستناداً لمرئيات المعلم: "${rawNote}"، يتطلب الطالب متابعة دورية لسد بعض الفجوات المهارية.`;
     } else {
-      return `${baseObs} وتوصية المعلم المركزة: ${cleanNote}.`;
+      academicText = `تُشير التقييمات المعيارية في مادة ${name} إلى ضرورة الدعم المركز، وحسب تقرير المعلم: "${rawNote}"، يُوصى بتطبيق خطة استدراكية لمعايير المادة.`;
+    }
+  } else {
+    if (isHigh) {
+      academicText = `تمكن معرفي متميز وإتقان كامل لنواتج التعلم والمعايير التخصصية في مادة ${name}.`;
+    } else if (isAdvanced) {
+      academicText = `أداء أكاديمي متقدم يعكس قدرات استيعابية عالية واستجابة سريعة لمتطلبات مادة ${name}.`;
+    } else if (isGood) {
+      academicText = `أداء أكاديمي جيد ومستقر في المفاهيم الأساسية المقررة لمادة ${name}.`;
+    } else if (isAverage) {
+      academicText = `مستوى مقبول في المهارات الأساسية لمادة ${name} مع قابلية ملحوظة للتطور الإيجابي.`;
+    } else {
+      academicText = `يحتاج الطالب إلى برنامج مساندة أكاديمية منتظمة لسد الفجوات في المفاهيم الأساسية لمادة ${name}.`;
     }
   }
 
-  return baseObs;
+  // 2. الأسلوب القصير والموجز (Short & Concise)
+  let shortText = '';
+  if (rawNote) {
+    if (isHigh) {
+      shortText = `تميز وإتقان عالٍ في ${name} (${rawNote}).`;
+    } else if (isAdvanced || isGood) {
+      shortText = `أداء جيد في ${name}، والملاحظة: ${rawNote}.`;
+    } else {
+      shortText = `تحصيل في ${name} يحتاج متابعة، والملاحظة: ${rawNote}.`;
+    }
+  } else {
+    if (isHigh) {
+      shortText = `مستوى متفوق وإتقان تام في مهارات ${name}.`;
+    } else if (isAdvanced) {
+      shortText = `أداء متقدم ومشاركة صفية ممتازة في ${name}.`;
+    } else if (isGood) {
+      shortText = `أداء جيد ومستقر في مهارات ${name}.`;
+    } else if (isAverage) {
+      shortText = `أداء مقبول في ${name} مع استمرار المتابعة.`;
+    } else {
+      shortText = `يحتاج إلى دعم علاجي مركز في ${name}.`;
+    }
+  }
+
+  // 3. الأسلوب المطول والتفصيلي (Detailed & Comprehensive)
+  let detailedText = '';
+  if (rawNote) {
+    if (isHigh) {
+      detailedText = `خلال فترة المتابعة الحالية في مادة ${name}، أظهر الطالب انضباطاً معرفياً وتفاعلاً صفياً راقياً أهله لنيل هذا التقدير الرفيع، وقد دوّن معلم المادة برؤية دقيقة أن الطالب: "${rawNote}"، وهو ما يبرهن على استعداده العالي للتفوق والمنافسة، ونحثه على مواصلة هذا الشغف الأكاديمي.`;
+    } else if (isAdvanced || isGood) {
+      detailedText = `يُقدم الطالب مستويات طيبة ومنتظمة في استيعاب مفردات وتطبيقات مادة ${name}، وقد رصد معلم المادة ملحوظة خاصة تفيد بأن الطالب: "${rawNote}". ويُعد هذا الأداء قاعدة انطلاق متينة يمكن البناء عليها لرفع المستوى إلى مصاف التميز الكامل بتكثيف الممارسة الصفية والمنزلية.`;
+    } else {
+      detailedText = `رصدت التقييمات الدورية في مادة ${name} حاجة الطالب إلى عناية تربوية وتعليمية مستمرة، حيث أوضح معلم المادة في ملحوظته أن الطالب: "${rawNote}". ويتطلب هذا الوضع تضافر جهود المدرسة مع المتابعة المنزلية لتنفيذ خطة استدراكية تعالج جوانب القصور وتضمن استقرار الأداء ونموه.`;
+    }
+  } else {
+    if (isHigh) {
+      detailedText = `يُبدي الطالب شغفاً علمياً لافتاً في مادة ${name} من خلال التفاعل الإيجابي والمشاركة الفاعلة وحل الأنشطة والواجبات بدقة وإتقان تام، مما يعكس تحصيلاً راسخاً واستعداداً واعداً للمنافسات والأنشطة الإثرائية.`;
+    } else if (isAdvanced || isGood) {
+      detailedText = `يُظهر الطالب التزاماً دراسياً متزناً وتفاعلاً مستمراً في حصص مادة ${name}، مع قدرة طيبة على إنجاز المهام المطلوبة وفهم التطبيقات والتدريبات الأساسية، ونوصي بالاستمرار على هذا النهج الإيجابي.`;
+    } else {
+      detailedText = `يتفاعل الطالب بشكل متدرج في دروس مادة ${name}، ويظهر فهماً لبعض المهارات، إلا أن تعزيز التركيز أثناء الشرح والمداومة على حل التدريبات التطبيقية سيعزز من قدرته على تحقيق درجات أعلى.`;
+    }
+  }
+
+  // 4. الأسلوب التحفيزي والتشجيعي (Motivational & Inspiring)
+  let motivationalText = '';
+  if (rawNote) {
+    if (isHigh || isAdvanced) {
+      motivationalText = `ما شاء الله تبارك الله! تألق مبهر وشخصية ملهمة في ${name}؛ وسرّنا جداً إشادة المعلم: "${rawNote}". استمر في هذا الإبداع والريادة يا بطل! 🌟`;
+    } else if (isGood) {
+      motivationalText = `جهد رائع ومثابرة واعدة في ${name}! نثمن إيجابيتك وما أشار إليه المعلم: "${rawNote}"، ونحن على ثقة كاملة بقدرتك على الوصول إلى القمة! 👏`;
+    } else {
+      motivationalText = `نؤمن بقدراتك وإمكانياتك يا بطل، وتوجيه المعلم: "${rawNote}" هو مفتاحك للتألق وتخطي العقبات؛ معاً سنحقق النجاح والتفوق! 💪`;
+    }
+  } else {
+    if (isHigh || isAdvanced) {
+      motivationalText = `تألق استثنائي وعطاء مستمر يعكس طموحاً لا يرضى إلا بالريادة في مادة ${name}! فخورون بك وبإنجازك الرائع. 🌟`;
+    } else if (isGood) {
+      motivationalText = `أحسنت صنعاً! أداؤك في ${name} يبعث على الفخر والسرور، وإصرارك على النجاح هو سر تفوقك القادم. 👏`;
+    } else {
+      motivationalText = `أنت قادر على إحراز مزيد من التقدم والارتقاء في ${name}، ثق بقدراتك وركز على أهدافك وستصل إلى أعلى المراتب! ✨`;
+    }
+  }
+
+  // 5. الأسلوب التطويري والإجرائي (Developmental & Action-Oriented)
+  let developmentalText = '';
+  if (rawNote) {
+    if (isHigh || isAdvanced) {
+      developmentalText = `توصية إثرائية في ${name}: استثماراً لإشادة المعلم بأن الطالب "${rawNote}"، يُقترح إشراكه في التحديات والمسابقات والمشاريع الإثرائية لتوسيع آفاق الموهبة.`;
+    } else if (isGood) {
+      developmentalText = `خطة تطوير في ${name}: بالاستناد إلى ملحوظة المعلم: "${rawNote}"، نوصي بتكثيف التطبيقات العملية الذاتية لترقية المستوى من الجيد إلى المتميز.`;
+    } else {
+      developmentalText = `خطة مساندة مركزة في ${name}: تطبيق تدريبات مكثفة على النقاط التي حددها المعلم: "${rawNote}"، مع متابعة أسبوعية مباشرة لقياس التحسن.`;
+    }
+  } else {
+    if (isHigh || isAdvanced) {
+      developmentalText = `توصية إثرائية في ${name}: تشجيع الطالب على التعلم الذاتي وحل المسائل المتقدمة والأنشطة الإثرائية المتخصصة.`;
+    } else if (isGood) {
+      developmentalText = `خطة تطوير في ${name}: التركيز على الدقة وتطوير المهارات التفكيرية العليا لتحقيق الدرجة الكاملة.`;
+    } else {
+      developmentalText = `خطة علاجية في ${name}: تخصيص وقت يومي للتدريب على المهارات الأساسية والمراجعة بإشراف ولي الأمر والمعلم.`;
+    }
+  }
+
+  return [
+    {
+      id: 'academic',
+      styleName: 'أكاديمية',
+      title: 'صياغة أكاديمية ورسمية',
+      badge: 'معتمدة إشرافياً',
+      badgeColor: '#4f46e5',
+      badgeBg: '#eef2ff',
+      icon: '🎓',
+      desc: 'لغة تربوية دقيقة ومعيارية تناسب التقارير الرسمية وإشراف المدارس',
+      text: academicText
+    },
+    {
+      id: 'short',
+      styleName: 'قصيرة',
+      title: 'صياغة قصيرة وموجزة',
+      badge: 'مختصرة وسريعة',
+      badgeColor: '#0284c7',
+      badgeBg: '#f0f9ff',
+      icon: '⚡',
+      desc: 'جملة مركزة ورشيقة تناسب الجداول المدمجة والتنبيهات المباشرة',
+      text: shortText
+    },
+    {
+      id: 'detailed',
+      styleName: 'مطولة',
+      title: 'صياغة مطولة وتفصيلية',
+      badge: 'تقرير تحليلي وافٍ',
+      badgeColor: '#7c3aed',
+      badgeBg: '#faf5ff',
+      icon: '📝',
+      desc: 'تحليل نوعي شامل يربط التفاعل الصفي بالملحوظة ورؤية المعلم',
+      text: detailedText
+    },
+    {
+      id: 'motivational',
+      styleName: 'تحفيزية',
+      title: 'صياغة تشجيعية وتحفيزية',
+      badge: 'رفع المعنويات والطموح',
+      badgeColor: '#059669',
+      badgeBg: '#ecfdf5',
+      icon: '🌟',
+      desc: 'نبرة إيجابية ملهمة تعزز الثقة بالنفس وتثمن جهد الطالب وعطائه',
+      text: motivationalText
+    },
+    {
+      id: 'developmental',
+      styleName: 'تطويرية',
+      title: 'صياغة تطويرية وإجرائية',
+      badge: 'خطة عمل وتوصيات',
+      badgeColor: '#d97706',
+      badgeBg: '#fffbeb',
+      icon: '🎯',
+      desc: 'خطوات إرشادية وتوصيات إجرائية عملية للمتابعة بين المدرسة والمنزل',
+      text: developmentalText
+    }
+  ];
+}
+
+/**
+ * توليد خلاصة الأداء لمادة محددة بناء على درجتها وملحوظة المعلم الخاصة والأسلوب المختار
+ */
+export function generateSubjectSummary(subjectId, score, teacherNote = '', style = 'academic', subjectName = '') {
+  const options = generateSubjectSummaryOptions(subjectId, score, teacherNote, subjectName);
+  const found = options.find(o => o.id === style || o.styleName === style);
+  return found ? found.text : options[0].text;
 }
 
 /**
@@ -242,7 +425,6 @@ export function generateSubjectSummary(subjectId, score, teacherNote = '') {
 export function generateSmartReportSummary({
   studentName = 'الطالب',
   subjectsData = {}, // { [subjectId]: { name, score, summary } }
-  isInternational = false,
   mentorNotes = ''
 }) {
   const entries = Object.entries(subjectsData).filter(([_, data]) => data && data.score !== '' && !isNaN(data.score));
