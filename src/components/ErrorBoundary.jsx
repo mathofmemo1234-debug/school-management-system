@@ -44,6 +44,16 @@ export default class ErrorBoundary extends React.Component {
     try {
       sessionStorage.removeItem('chunk_force_refreshed');
       sessionStorage.removeItem('eb_auto_reloaded_chunk');
+      if ('caches' in window) {
+        caches.keys().then(keys => {
+          keys.forEach(k => caches.delete(k));
+        });
+      }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(r => r.update());
+        });
+      }
     } catch (e) {}
     window.location.reload();
   };
