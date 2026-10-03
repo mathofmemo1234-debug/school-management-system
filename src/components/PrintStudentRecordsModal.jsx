@@ -15,8 +15,14 @@ export default function PrintStudentRecordsModal({ students = [], classesList = 
 
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
-      if (selectedClass && (s.class !== selectedClass && s.className !== selectedClass)) {
-        return false;
+      if (selectedClass) {
+        const studentCls = String(s.class || s.className || '').trim();
+        const matchedClassObj = classesList.find(c => typeof c === 'object' && c !== null && (c.name === selectedClass || c.id === selectedClass));
+        const matchesName = studentCls === selectedClass;
+        const matchesId = matchedClassObj && (studentCls === String(matchedClassObj.id).trim() || studentCls === String(matchedClassObj.name).trim());
+        if (!matchesName && !matchesId) {
+          return false;
+        }
       }
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
@@ -26,7 +32,7 @@ export default function PrintStudentRecordsModal({ students = [], classesList = 
       }
       return true;
     });
-  }, [students, selectedClass, searchQuery]);
+  }, [students, selectedClass, searchQuery, classesList]);
 
   const handlePrint = () => {
     window.print();
@@ -173,9 +179,14 @@ export default function PrintStudentRecordsModal({ students = [], classesList = 
                 style={{ fontSize: '13px', padding: '6px 10px', marginBottom: 0 }}
               >
                 <option value="">جميع الفصول ({students.length} طالب)</option>
-                {classesList.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                {classesList.map((c, idx) => {
+                  const className = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                  const classKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                  if (!className) return null;
+                  return (
+                    <option key={classKey} value={className}>{className}</option>
+                  );
+                })}
               </select>
             </div>
 

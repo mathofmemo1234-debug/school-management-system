@@ -612,9 +612,14 @@ export default function AttendanceSummaryExport({ schoolId }) {
                 onChange={e => setRecordClass(e.target.value)}
                 style={{ marginBottom: 0 }}
               >
-                {classesList.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                {classesList.map((c, idx) => {
+                  const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                  const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                  if (!cName) return null;
+                  return (
+                    <option key={cKey} value={cName}>{cName}</option>
+                  );
+                })}
               </select>
             </div>
 
@@ -821,7 +826,14 @@ export default function AttendanceSummaryExport({ schoolId }) {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>تصفية الفصل</label>
                 <select className="input-field" value={selectedClass} onChange={e => setSelectedClass(e.target.value)} style={{ marginBottom: 0 }}>
                   <option value="">جميع الفصول</option>
-                  {classesList.map(c => <option key={c} value={c}>{c}</option>)}
+                  {classesList.map((c, idx) => {
+                    const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                    const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                    if (!cName) return null;
+                    return (
+                      <option key={cKey} value={cName}>{cName}</option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
@@ -1224,9 +1236,14 @@ export default function AttendanceSummaryExport({ schoolId }) {
                   style={{ marginBottom: 0 }}
                 >
                   <option value="">جميع الفصول</option>
-                  {classesList.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
+                  {classesList.map((c, idx) => {
+                    const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                    const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                    if (!cName) return null;
+                    return (
+                      <option key={cKey} value={cName}>{cName}</option>
+                    );
+                  })}
                 </select>
               </div>
 

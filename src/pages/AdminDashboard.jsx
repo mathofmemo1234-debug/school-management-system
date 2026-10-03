@@ -3035,9 +3035,14 @@ function ManageStudents({ schoolId }) {
             onChange={(e) => setFilterClass(e.target.value)}
           >
             <option value="">جميع الفصول ({students.length})</option>
-            {classesList.map(c => (
-              <option key={c.id} value={c.name}>{c.name}</option>
-            ))}
+            {classesList.map((c, idx) => {
+              const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+              const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+              if (!cName) return null;
+              return (
+                <option key={cKey} value={cName}>{cName}</option>
+              );
+            })}
           </select>
         </div>
 
@@ -3170,9 +3175,14 @@ function ManageStudents({ schoolId }) {
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-muted)' }}>{t('adminDashboard.class')}</label>
                 <select className="input-field" value={studentClass} onChange={e => setStudentClass(e.target.value)} required>
                   <option value="">{t('adminDashboard.selectClass')}</option>
-                  {classesList.map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
+                  {classesList.map((c, idx) => {
+                    const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                    const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                    if (!cName) return null;
+                    return (
+                      <option key={cKey} value={cName}>{cName}</option>
+                    );
+                  })}
                 </select>
               </div>
               <button type="submit" className="btn btn-primary" disabled={isSaving}>{isSaving ? t('adminDashboard.saving') : t('adminDashboard.saveData')}</button>
@@ -3199,9 +3209,14 @@ function ManageStudents({ schoolId }) {
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-muted)' }}>{t('adminDashboard.class')}</label>
                 <select className="input-field" value={editingStudent.class} onChange={e => setEditingStudent({...editingStudent, class: e.target.value})} required>
                   <option value="">{t('adminDashboard.selectClass')}</option>
-                  {classesList.map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
+                  {classesList.map((c, idx) => {
+                    const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                    const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                    if (!cName) return null;
+                    return (
+                      <option key={cKey} value={cName}>{cName}</option>
+                    );
+                  })}
                 </select>
               </div>
               <button type="submit" className="btn btn-primary" disabled={isSaving}>{isSaving ? t('adminDashboard.saving') : t('adminDashboard.saveChanges')}</button>
