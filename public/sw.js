@@ -1,5 +1,5 @@
 // Lightweight PWA Service Worker
-const CACHE_NAME = "msc-school-pwa-v2";
+const CACHE_NAME = "msc-school-pwa-v3";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();

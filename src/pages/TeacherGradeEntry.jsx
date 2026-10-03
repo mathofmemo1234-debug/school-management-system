@@ -753,9 +753,14 @@ export default function TeacherGradeEntry() {
               onChange={(e) => setSelectedClass(e.target.value)}
               style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', minWidth: '160px', fontWeight: '600' }}
             >
-              {classesList.map(cls => (
-                <option key={cls} value={cls}>{cls}</option>
-              ))}
+              {classesList.map((cls, idx) => {
+                const cName = typeof cls === 'object' && cls !== null ? (cls.name || cls.id || '') : String(cls || '');
+                const cKey = typeof cls === 'object' && cls !== null ? (cls.id || cls.name || idx) : `${cls}_${idx}`;
+                if (!cName) return null;
+                return (
+                  <option key={cKey} value={cName}>{cName}</option>
+                );
+              })}
             </select>
           </div>
         </div>

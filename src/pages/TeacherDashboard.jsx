@@ -570,9 +570,14 @@ function WeeklyPlan() {
             onChange={(e) => setSelectedClass(e.target.value)}
           >
             <option value="">{t('teacherDashboard.selectClass')}</option>
-            {classesList.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
+            {classesList.map((c, idx) => {
+              const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+              const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+              if (!cName) return null;
+              return (
+                <option key={cKey} value={cName}>{cName}</option>
+              );
+            })}
           </select>
           <select 
             className="input-field" 
@@ -1575,7 +1580,14 @@ function Assignments() {
             <label>الفصل المستهدف</label>
             <select className="input-field" value={targetClass} onChange={e => setTargetClass(e.target.value)} required>
               <option value="">اختر الفصل</option>
-              {classesList.map(c => <option key={c} value={c}>{c}</option>)}
+              {classesList.map((c, idx) => {
+                const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                if (!cName) return null;
+                return (
+                  <option key={cKey} value={cName}>{cName}</option>
+                );
+              })}
             </select>
           </div>
 
@@ -2170,9 +2182,14 @@ function Attendance() {
                 value={selectedClass} 
                 onChange={(e) => setSelectedClass(e.target.value)}
               >
-                {classesList.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                {classesList.map((c, idx) => {
+                  const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                  const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                  if (!cName) return null;
+                  return (
+                    <option key={cKey} value={cName}>{cName}</option>
+                  );
+                })}
               </select>
               <button 
                 className="btn btn-primary" 

@@ -2164,9 +2164,14 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                     fontWeight: '600'
                   }}
                 >
-                  {classesList.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
+                  {classesList.map((c, idx) => {
+                    const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                    const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                    if (!cName) return null;
+                    return (
+                      <option key={cKey} value={cName}>{cName}</option>
+                    );
+                  })}
                 </select>
               </div>
 

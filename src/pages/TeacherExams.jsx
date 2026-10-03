@@ -1193,7 +1193,14 @@ export default function TeacherExams() {
                 required
               >
                 <option value="">اختر الفصل...</option>
-                {classesList.map(c => <option key={c} value={c}>{c}</option>)}
+                {classesList.map((c, idx) => {
+                  const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                  const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                  if (!cName) return null;
+                  return (
+                    <option key={cKey} value={cName}>{cName}</option>
+                  );
+                })}
               </select>
             </div>
 
@@ -2921,9 +2928,14 @@ export default function TeacherExams() {
               onChange={e => setFilterClass(e.target.value)}
             >
               <option value="all">كل الفصول</option>
-              {classesList.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
+              {classesList.map((c, idx) => {
+                const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                if (!cName) return null;
+                return (
+                  <option key={cKey} value={cName}>{cName}</option>
+                );
+              })}
             </select>
           </div>
 
@@ -3236,7 +3248,14 @@ export default function TeacherExams() {
             <label>{t('teacherExams.targetClass')}</label>
             <select className="input-field" value={targetClass} onChange={e => setTargetClass(e.target.value)} required>
               <option value="">{t('teacherExams.selectClass')}</option>
-              {classesList.map(c => <option key={c} value={c}>{c}</option>)}
+              {classesList.map((c, idx) => {
+                const cName = typeof c === 'object' && c !== null ? (c.name || c.id || '') : String(c || '');
+                const cKey = typeof c === 'object' && c !== null ? (c.id || c.name || idx) : `${c}_${idx}`;
+                if (!cName) return null;
+                return (
+                  <option key={cKey} value={cName}>{cName}</option>
+                );
+              })}
             </select>
           </div>
 

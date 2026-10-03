@@ -1154,9 +1154,14 @@ export default function ComprehensiveStudentRecord({ role = 'teacher', targetStu
                 onChange={(e) => setSelectedClass(e.target.value)}
               >
                 {assignedClasses.length === 0 && <option value="">لا توجد فصول متاحة</option>}
-                {assignedClasses.map(cName => (
-                  <option key={cName} value={cName}>{cName}</option>
-                ))}
+                {assignedClasses.map((cName, idx) => {
+                  const val = typeof cName === 'object' && cName !== null ? (cName.name || cName.id || '') : String(cName || '');
+                  const key = typeof cName === 'object' && cName !== null ? (cName.id || cName.name || idx) : `${cName}_${idx}`;
+                  if (!val) return null;
+                  return (
+                    <option key={key} value={val}>{val}</option>
+                  );
+                })}
               </select>
             </div>
           )}
