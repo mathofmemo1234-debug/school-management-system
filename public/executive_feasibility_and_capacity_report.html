@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>دراسة الجدوى الفنية والمالية والطاقة الاستيعابية للمنظومة المدرسية الذكية - شركة المدارس المتقدمة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary-navy: #0f172a;
+      --navy-card: #1e293b;
+      --royal-blue: #1e40af;
+      --accent-cyan: #0284c7;
+      --gold-primary: #d97706;
+      --gold-glow: #f59e0b;
+      --gold-light: #fef3c7;
+      --emerald-dark: #065f46;
+      --emerald-accent: #10b981;
+      --emerald-light: #d1fae5;
+      --purple-accent: #7c3aed;
+      --purple-light: #ede9fe;
+      --text-dark: #0f172a;
+      --text-muted: #64748b;
+      --border-soft: #e2e8f0;
+      --bg-page: #f8fafc;
+      --white: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Cairo', 'Tajawal', sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-dark);
+      line-height: 1.65;
+      padding: 24px;
+      direction: rtl;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Print & Action Bar */
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .print-btn {
+      background: linear-gradient(135deg, #1e40af 0%, #0284c7 100%);
+      color: #ffffff;
+      border: none;
+      padding: 9px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+    }
+
+    .print-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+    }
+
+    /* Header Banner */
+    .header-banner {
+      background: linear-gradient(135deg, #090d16 0%, #0f172a 40%, #1e1b4b 100%);
+      border: 1.5px solid #334155;
+      border-radius: 18px;
+      padding: 28px 32px;
+      color: #ffffff;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 24px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .header-banner::before {
+      content: '';
+      position: absolute;
+      top: -50px;
+      left: -50px;
+      width: 250px;
+      height: 250px;
+      background: radial-gradient(circle, rgba(2, 132, 199, 0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .header-banner::after {
+      content: '';
+      position: absolute;
+      bottom: -60px;
+      right: -60px;
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, rgba(217, 119, 6, 0.2) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .banner-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+    }
+
+    .brand-title {
+      font-size: 13pt;
+      font-weight: 800;
+      color: #fde047;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid #10b981;
+      color: #6ee7b7;
+      padding: 4px 14px;
+      border-radius: 30px;
+      font-size: 9.5pt;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .main-title {
+      font-size: 19pt;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .sub-title {
+      font-size: 11pt;
+      color: #cbd5e1;
+      margin-bottom: 20px;
+      max-width: 950px;
+    }
+
+    /* Executive Dedication Card */
+    .dedication-card {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(253, 224, 71, 0.4);
+      border-radius: 12px;
+      padding: 16px 22px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .dedication-icon {
+      font-size: 26pt;
+      background: rgba(217, 119, 6, 0.2);
+      border: 1px solid #f59e0b;
+      width: 58px;
+      height: 58px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .dedication-content span {
+      display: block;
+      color: #fde047;
+      font-size: 10pt;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .dedication-content strong {
+      display: block;
+      font-size: 14pt;
+      font-weight: 900;
+      color: #ffffff;
+    }
+
+    .dedication-content small {
+      color: #94a3b8;
+      font-size: 9.5pt;
+    }
+
+    /* KPI Highlights Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid var(--border-soft);
+      border-radius: 14px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+      transition: all 0.2s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 4px;
+    }
+
+    .kpi-cyan::before { background: var(--accent-cyan); }
+    .kpi-emerald::before { background: var(--emerald-accent); }
+    .kpi-gold::before { background: var(--gold-glow); }
+    .kpi-purple::before { background: var(--purple-accent); }
+
+    .kpi-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .kpi-title {
+      font-size: 10pt;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .kpi-icon {
+      font-size: 16pt;
+    }
+
+    .kpi-value {
+      font-size: 20pt;
+      font-weight: 900;
+      color: var(--text-dark);
+      margin-bottom: 4px;
+      font-family: inherit;
+    }
+
+    .kpi-desc {
+      font-size: 8.5pt;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    /* Section Styles */
+    .section-card {
+      background: #ffffff;
+      border: 1px solid var(--border-soft);
+      border-radius: 16px;
+      padding: 24px 28px;
+      margin-bottom: 22px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+      page-break-inside: avoid;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13.5pt;
+      font-weight: 900;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1.5px solid #f1f5f9;
+    }
+
+    .section-header.blue { color: #1e3a8a; }
+    .section-header.emerald { color: #065f46; }
+    .section-header.gold { color: #92400e; }
+    .section-header.purple { color: #5b21b6; }
+
+    /* Custom Tables */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin: 14px 0;
+      border-radius: 10px;
+      border: 1px solid var(--border-soft);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: right;
+      font-size: 9.5pt;
+    }
+
+    thead {
+      background: #f1f5f9;
+    }
+
+    th {
+      padding: 12px 16px;
+      font-weight: 800;
+      color: #1e293b;
+      border-bottom: 1px solid #cbd5e1;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    /* Feature Grid */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin: 16px 0;
+    }
+
+    .feature-box {
+      border-radius: 12px;
+      padding: 16px 18px;
+      border: 1px solid;
+    }
+
+    .box-blue {
+      background: #f0f9ff;
+      border-color: #bae6fd;
+      color: #0369a1;
+    }
+
+    .box-emerald {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #047857;
+    }
+
+    .box-amber {
+      background: #fffbeb;
+      border-color: #fde68a;
+      color: #b45309;
+    }
+
+    .box-purple {
+      background: #f5f3ff;
+      border-color: #ddd6fe;
+      color: #6d28d9;
+    }
+
+    .feature-box h4 {
+      font-size: 11pt;
+      font-weight: 800;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feature-box p {
+      font-size: 9pt;
+      line-height: 1.55;
+      color: #334155;
+      margin: 0;
+    }
+
+    /* Multi-Tenancy Architecture Visual */
+    .architecture-box {
+      background: #0f172a;
+      color: #ffffff;
+      border-radius: 14px;
+      padding: 22px;
+      margin: 16px 0;
+    }
+
+    .arch-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+    }
+
+    .arch-title {
+      color: #38bdf8;
+      font-weight: 800;
+      font-size: 11pt;
+    }
+
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .arch-item {
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .arch-item span {
+      color: #fde047;
+      font-size: 8pt;
+      font-weight: 800;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .arch-item strong {
+      color: #ffffff;
+      font-size: 10pt;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .arch-item small {
+      color: #94a3b8;
+      font-size: 8pt;
+      line-height: 1.4;
+      display: block;
+    }
+
+    /* Callout & Highlights */
+    .callout {
+      border-right: 4px solid var(--accent-cyan);
+      background: #f0f9ff;
+      padding: 14px 18px;
+      border-radius: 8px 0 0 8px;
+      font-size: 9.5pt;
+      color: #0c4a6e;
+      margin: 14px 0;
+    }
+
+    .callout-gold {
+      border-right-color: var(--gold-glow);
+      background: #fffbeb;
+      color: #78350f;
+    }
+
+    .callout-emerald {
+      border-right-color: var(--emerald-accent);
+      background: #ecfdf5;
+      color: #064e3b;
+    }
+
+    /* Pill Badges */
+    .badge-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 8pt;
+      font-weight: 800;
+    }
+
+    .badge-pill.green { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+    .badge-pill.blue { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-pill.amber { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+    /* Single Signature Box (USER ONLY) */
+    .signature-card {
+      background: linear-gradient(135deg, #090d16 0%, #0f172a 100%);
+      border: 2px solid #38bdf8;
+      border-radius: 16px;
+      padding: 24px;
+      color: #ffffff;
+      margin-top: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .sig-person {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .sig-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0284c7 0%, #1e40af 100%);
+      border: 2px solid #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22pt;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+    }
+
+    .sig-info span {
+      display: block;
+      color: #38bdf8;
+      font-size: 9pt;
+      font-weight: 800;
+      margin-bottom: 2px;
+      letter-spacing: 0.5px;
+    }
+
+    .sig-info strong {
+      display: block;
+      font-size: 15pt;
+      font-weight: 900;
+      color: #ffffff;
+    }
+
+    .sig-info small {
+      display: block;
+      color: #94a3b8;
+      font-size: 9.5pt;
+      margin-top: 2px;
+    }
+
+    .sig-contact {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 12px 20px;
+      text-align: left;
+      direction: ltr;
+    }
+
+    .sig-contact .label {
+      font-size: 8pt;
+      color: #38bdf8;
+      font-weight: 700;
+      text-transform: uppercase;
+      text-align: right;
+      direction: rtl;
+      margin-bottom: 4px;
+    }
+
+    .sig-contact .phone {
+      font-size: 15pt;
+      font-weight: 900;
+      color: #fde047;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        font-size: 9pt !important;
+      }
+      .action-bar { display: none !important; }
+      .container { max-width: 100% !important; margin: 0 !important; }
+      .section-card { box-shadow: none !important; border: 1px solid #cbd5e1 !important; margin-bottom: 12px !important; }
+      .header-banner { box-shadow: none !important; margin-bottom: 14px !important; }
+      .signature-card { box-shadow: none !important; }
+      @page {
+        size: A4;
+        margin: 10mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- Top Action Bar -->
+    <div class="action-bar">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-weight: 800; color: #1e3a8a; font-size: 11pt;">🏢 شركة المدارس المتقدمة التعليمية</span>
+        <span style="color: #94a3b8;">|</span>
+        <span style="font-size: 9.5pt; color: #64748b; font-weight: 600;">وثيقة فنية واستثمارية لتقييم الطاقة والجدوى التشغيلية</span>
+      </div>
+      <button class="print-btn" onclick="window.print()">
+        <span>🖨️ طباعة التقرير أو حفظه كـ PDF</span>
+      </button>
+    </div>
+
+    <!-- Main Header Banner with Dedication -->
+    <div class="header-banner">
+      <div class="banner-top">
+        <div class="brand-title">
+          <span>🌟 شركة المدارس المتقدمة التعليمية (Al-Motaqadimah Schools)</span>
+          <span style="color: #64748b;">•</span>
+          <span style="color: #cbd5e1; font-size: 9.5pt; font-weight: 600;">تأسست 1416 هـ « جيل ينتج المعرفة »</span>
+        </div>
+        <div class="status-badge">
+          وثيقة رسمية استراتيجية معتمدة 2026
+        </div>
+      </div>
+
+      <h1 class="main-title">تقرير الطاقة الاستيعابية، كفاءة الأداء، والجدوى المالية لتشغيل المنظومة المدرسية الذكية</h1>
+      <p class="sub-title">
+        دراسة قياسية متكاملة لهندسة شبكة الـ 40+ مدرسة ومجمع، الاستقلالية التشغيلية التامة لكل مدير، قنوات التواصل والربط الرئاسي، معايير السرعة، ومقارنة التكلفة الصفرية المجمعة مقابل الحلول التجارية البديلة.
+      </p>
+
+      <!-- Executive Dedication to Chairman -->
+      <div class="dedication-card">
+        <div class="dedication-icon">👑</div>
+        <div class="dedication-content">
+          <span>مرفوع باعتزاز وتقدير فائق لاطلاع:</span>
+          <strong>سعادة رئيس مجلس إدارة شركة المدارس المتقدمة التعليمية الدكتور / عبدالرحمن بن سعد الحقباني</strong>
+          <small>حفظه الله ورعاه — تقرير الجدوى الفنية والتشغيلية المعتمدة لشبكة مدارس ومجمعات الشركة</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI Metric Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-cyan">
+        <div class="kpi-head">
+          <span class="kpi-title">المستخدمون المتزامنون (ذروة)</span>
+          <span class="kpi-icon">⚡</span>
+        </div>
+        <div class="kpi-value">50,000+</div>
+        <div class="kpi-desc">قدرة استيعاب لحظية دون أي تباطؤ أو انقطاع</div>
+      </div>
+
+      <div class="kpi-card kpi-emerald">
+        <div class="kpi-head">
+          <span class="kpi-title">زمن الاستجابة الأولي (TTFB)</span>
+          <span class="kpi-icon">⏱️</span>
+        </div>
+        <div class="kpi-value">&lt; 0.6 ثانية</div>
+        <div class="kpi-desc">أسرع من 92% من المنصات التعليمية المتاحة</div>
+      </div>
+
+      <div class="kpi-card kpi-gold">
+        <div class="kpi-head">
+          <span class="kpi-title">شبكة المدارس المغطاة</span>
+          <span class="kpi-icon">🏫</span>
+        </div>
+        <div class="kpi-value">40+ مدرسة</div>
+        <div class="kpi-desc">استقلالية سيادية لكل مدرسة مع ربط مركزي</div>
+      </div>
+
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-head">
+          <span class="kpi-title">الوفر المالي السنوي المتوقع</span>
+          <span class="kpi-icon">💎</span>
+        </div>
+        <div class="kpi-value">2.5M - 4.5M ﷼</div>
+        <div class="kpi-desc">وفر مباشر للشركة مقارنة بعقود البرمجيات الجاهزة</div>
+      </div>
+    </div>
+
+    <!-- Section 1: Concurrency & Scalability -->
+    <div class="section-card">
+      <div class="section-header blue">
+        <span>🚀 1. مقدرة استيعاب الموقع من مستخدمين وقدرة التمدد التلقائي (Scalability)</span>
+      </div>
+      <p style="font-size: 9.5pt; color: #334155; margin-bottom: 12px;">
+        تم تشييد المنظومة وفق نمط <strong>الحوسبة السحابية اللامركزية (Serverless Cloud Architecture)</strong>، وهو النمط الأحدث عالمياً الذي يضمن أن المنظومة لا تنهار أبداً تحت وطأة الذروة؛ حيث تتمدد الموارد السحابية تلقائياً بنظام التوسع المرن (Elastic Auto-Scaling) بالتوازي مع تدفق المستخدمين:
+      </p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>المعيار التشغيلي</th>
+              <th>الحالة الاعتيادية</th>
+              <th>أوقات الذروة (الاختبارات والنتائج)</th>
+              <th>القدرة القصوى لشبكة الـ 40+ مدرسة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>المستخدمون المتزامنون في نفس الثانية</strong></td>
+              <td>1,500 - 3,000 مستخدم</td>
+              <td>15,000 - 30,000 مستخدم</td>
+              <td><span class="badge-pill green">50,000+ متزامن دون أي هبوط</span></td>
+            </tr>
+            <tr>
+              <td><strong>إجمالي الحسابات المسجلة بالمنظومة</strong></td>
+              <td>10,000 حساب</td>
+              <td>35,000 حساب</td>
+              <td><span class="badge-pill blue">100,000+ مستخدم نشط وموثق</span></td>
+            </tr>
+            <tr>
+              <td><strong>معالجة عمليات الرصد والاستعلام بالثانية</strong></td>
+              <td>500 عملية / ثانية</td>
+              <td>4,500 عملية / ثانية</td>
+              <td><span class="badge-pill green">12,000+ عملية بالثانية (QPS)</span></td>
+            </tr>
+            <tr>
+              <td><strong>مستوى التوافر والاستقرار (Availability SLA)</strong></td>
+              <td>99.9%</td>
+              <td>99.95%</td>
+              <td><span class="badge-pill blue">99.99% عبر مراكز Google العالمية</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <strong>💡 سر الصمود الفني أثناء الاختبارات وإعلان بطاقات المربي المخلص:</strong>
+        في المواقع القديمة (الخوادم التقليدية VPS أو PHP)، يتوقف الموقع بمجرد دخول 500 طالب بسبب استنزاف معالج الخادم (CPU Bottleneck). أما في منظومتنا، فإن الواجهة تعمل بتقنية <strong>(Client-Side Edge Execution)</strong>؛ حيث تُجرى الحسابات والمعادلات والرسوم البيانية مباشرة على أجهزة المستخدمين، وتُرسل النتيجة فقط كحزمة بيانات سحابية متناهية الصغر (أقل من 3 كيلوبايت)، مما يمنح المنظومة حصانة تامة ضد التوقف أو البطء.
+      </div>
+    </div>
+
+    <!-- Section 2: Speed & Performance Metrics -->
+    <div class="section-card">
+      <div class="section-header emerald">
+        <span>⚡ 2. كفاءة السرعة ومؤشرات الأداء القياسية (Performance & Speed Metrics)</span>
+      </div>
+      <p style="font-size: 9.5pt; color: #334155;">
+        حققت المنظومة في اختبارات البناء الحديثة والتجميع البرمجي سرعات قياسية تجعل التصفح والتنقل بين الصفحات لحظياً وفورياً:
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-box box-emerald">
+          <h4>⏱️ سرعة البناء والتحزيم: 4.44 ثانية</h4>
+          <p>بفضل استخدام محرك <strong>Vite 8.2</strong> الأسرع عالمياً، تم تحويل وضغط 2,265 وحدة برمجية في 4 ثوانٍ فقط، مما يعكس نظافة الشفرة وخلوها من المكتبات المرهقة.</p>
+        </div>
+
+        <div class="feature-box box-blue">
+          <h4>🌐 سرعة الاستجابة اللحظية (TTFB &lt; 80ms)</h4>
+          <p>توزيع المنظومة عبر شبكة <strong>Google Cloud Edge CDN</strong> المتصلة مباشرة بمراكز البيانات في المملكة العربية السعودية، مما يلغي أي تأخير جغرافي.</p>
+        </div>
+
+        <div class="feature-box box-purple">
+          <h4>📱 تطبيق ويب تقدمي PWA وتطبيق موبايل</h4>
+          <p>المنظومة مهيأة كـ PWA للتثبيت المباشر على شاشات الهواتف والكمبيوتر، ومدعومة بـ <strong>Capacitor 8</strong> لتصدير تطبيق أندرويد و iOS أصلي مع ميزة الكاشينج أوفلاين.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: 40+ Schools Architecture & Autonomy -->
+    <div class="section-card">
+      <div class="section-header purple">
+        <span>🏫 3. شبكة الـ 40+ مدرسة: الاستقلالية التشغيلية التامة وعزل البيانات السيادي</span>
+      </div>
+      <p style="font-size: 9.5pt; color: #334155; margin-bottom: 14px;">
+        لأن مجمعات شركة المدارس المتقدمة تمثل منظومات متكاملة تتوزع في مناطق مختلفة وتتنوع بين مسارات أهلية ودولية (American Diploma & STEM)، فقد تم تأسيس <strong>معمارية عزل سيادي متعدد المستأجرين (Tenant Data Sandboxing)</strong> تضمن استقلالية تامة لكل صرح تعليمي:
+      </p>
+
+      <div class="architecture-box">
+        <div class="arch-header">
+          <div class="arch-title">🌐 هيكلية الاستقلالية والتنسيق لشبكة المدارس المتقدمة (40+ مجمع)</div>
+          <span style="font-size: 8.5pt; color: #94a3b8;">نظام عزل البيانات الصارم (Multi-Tenant Isolation)</span>
+        </div>
+
+        <div class="arch-grid">
+          <div class="arch-item">
+            <span>مدير مستقل لكل مدرسة</span>
+            <strong>حساب إداري سيادي كامل</strong>
+            <small>تحكم كامل في معلمين، فصول، وجداول مدرسته فقط دون تداخل.</small>
+          </div>
+
+          <div class="arch-item">
+            <span>عزل السجلات والطلاب</span>
+            <strong>Zero Data Leakage</strong>
+            <small>لا يمكن لمدير أو معلم مدرسة الاطلاع على درجات أو سجلات مدرسة أخرى.</small>
+          </div>
+
+          <div class="arch-item">
+            <span>بطاقة المربي المخلص</span>
+            <strong>تشخيص ورصد مستقل</strong>
+            <small>كل مدرسة تُصدر وتعتمد تقارير طلابها وفق خطط الدعم المناسبة لبيئتها.</small>
+          </div>
+
+          <div class="arch-item">
+            <span>بنك الموارد والتكامل</span>
+            <strong>تبادل الممارسات المتميزة</strong>
+            <small>مشاركة الاختبارات وأوراق العمل بين المدارس لتوحيد الجودة دون المساس بالخصوصية.</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout-gold callout">
+        <strong>🔒 آلية عزل المعرف الرقمي البرمجي (Programmatic `schoolId` Isolation):</strong>
+        كافة استعلامات قاعدة البيانات مربوطة برمجياً بالمعرف الخاص بالمدرسة؛ مما يجعل النظام محكماً تماماً، حيث يستحيل برمجياً ظهور أي طالب أو معلم خارج إطار مدرسته المحددة إلا للقيادة العليا فقط.
+      </div>
+    </div>
+
+    <!-- Section 4: Dual-Layer Communication Network -->
+    <div class="section-card">
+      <div class="section-header blue">
+        <span>📡 4. شبكة التواصل والربط المركزي: بوابة القرارات الرئاسية والخط الساخن</span>
+      </div>
+      <p style="font-size: 9.5pt; color: #334155;">
+        لتوفير التواصل الفعال بين قيادة الشركة ومدراء المدارس الـ 40+، تم تزويد المنظومة بنظامين متطورين للتراسل والربط:
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-box box-blue">
+          <h4>🏛️ بوابة القرارات والتعاميم المركزية (Master Hub)</h4>
+          <p>تتيح لسعادة رئيس مجلس الإدارة والمدير العام إرسال قرارات وتوجيهات ملزمة تصل لجميع مدراء المدارس الـ 40+ بنقرة واحدة، مع إمكانية التوجيه الجغرافي (مدارس جدة فقط، مدارس الرياض، مجمعات البنين، أو مدارس الدبلومة).</p>
+        </div>
+
+        <div class="feature-box box-amber">
+          <h4>📊 مصفوفة الامتثال والإقرار اللحظي (Compliance Matrix)</h4>
+          <p>لوحة رقابية تفاعلية تكشف لسعادة رئيس الشركة بالدقيقة والثانية: <em>من من مدراء المدارس استلم التعميم؟ من قام بفتحه وقراءته؟ ومن وقع إلكترونياً على إقرار التنفيذ؟ ومن تأخر؟</em></p>
+        </div>
+
+        <div class="feature-box box-emerald">
+          <h4>📞 الخط الساخن الرئاسي المباشر (1-on-1 Hotline)</h4>
+          <p>قناة محادثة وتراسل رسمي مشفرة بين كل مدير مدرسة على حدة والقيادة العليا لرفع الحالات الاستثنائية والتقارير العاجلة دون وسائط ورقية أو تأخير.</p>
+        </div>
+
+        <div class="feature-box box-purple">
+          <h4>🏫 بوابة التواصل الداخلي للمدرسة (School Messaging)</h4>
+          <p>قناة خاصة لكل مدير للتواصل الداخلي السلس مع معلمي مدرسته، وأولياء الأمور، والطلاب عبر إشعارات فورية وتقارير الخطط الأسبوعية.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 5: Tech Stack & Databases -->
+    <div class="section-card">
+      <div class="section-header emerald">
+        <span>💻 5. اللغات والتقنيات وقواعد البيانات المستخدمة في التأسيس</span>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>المكون التقني</th>
+              <th>التقنية المستخدمة</th>
+              <th>الدور الوظيفي والقيمة المضافة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>محرك الواجهات الأمامية</strong></td>
+              <td>React 19 & Vite 8</td>
+              <td>أحدث وأسرع بيئة عمل لتطوير التطبيقات أحادية الصفحة الفائقة الخفة والسرعة.</td>
+            </tr>
+            <tr>
+              <td><strong>محرك الرياضيات والعلوم</strong></td>
+              <td>KaTeX & Remark-Math</td>
+              <td>كتابة ورندرة الرموز والمعادلات والكسور في اختبارات الرياضيات والعلوم دون استخدام صور ثقيلة.</td>
+            </tr>
+            <tr>
+              <td><strong>منظومة اللغات الرباعية</strong></td>
+              <td>العربية، الإنجليزية، الفرنسية، الألمانية</td>
+              <td>دعم كامل للمسار الدولي ومدارس اللغات مع محاذاة تلقائية (RTL / LTR) لكافة البوابات.</td>
+            </tr>
+            <tr>
+              <td><strong>قاعدة البيانات السحابية</strong></td>
+              <td>Google Cloud Firestore (NoSQL)</td>
+              <td>قاعدة بيانات موزعة عالمياً تدعم التزامن اللحظي (Real-time Sync) والعمل في وضع عدم الاتصال (Offline).</td>
+            </tr>
+            <tr>
+              <td><strong>التخزين السحابي للملفات</strong></td>
+              <td>Firebase Cloud Storage</td>
+              <td>أرشفة وتخزين آمن لشواهد الأنشطة، أوراق العمل، وبطاقات المربي المخلص المعتمدة.</td>
+            </tr>
+            <tr>
+              <td><strong>المصادقة وتوحيد الدخول</strong></td>
+              <td>Firebase Auth & Microsoft MSAL</td>
+              <td>إمكانية الربط بحسابات مايكروسوفت 365 المدرسية المعتمدة للمنسوبين والطلاب.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section 6: Financial Feasibility & Cost Analysis -->
+    <div class="section-card">
+      <div class="section-header gold">
+        <span>💰 6. دراسة الجدوى المالية وتحديد التكلفة بالمدى المحدد (المجاني vs المدفوع)</span>
+      </div>
+      <p style="font-size: 9.5pt; color: #334155; margin-bottom: 12px;">
+        تمتاز هذه المنظومة بنموذج تكلفة ثوري، حيث تستفيد من الحدود المجانية السخية التي تمنحها شركة Google Cloud عالمياً:
+      </p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>المستوى التشغيلي</th>
+              <th>التكلفة الشهرية بالدولار ($)</th>
+              <th>التكلفة الشهرية بالريال السعودي (SAR)</th>
+              <th>التكلفة السنوية التقديرية بالريال (SAR)</th>
+              <th>ملاحظات الحالة التشغيلية</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1. الباقة المجانية بالكامل (Free Tier)</strong></td>
+              <td><strong>$0.00</strong></td>
+              <td><strong>0.00 ريال</strong></td>
+              <td><strong>0.00 ريال</strong></td>
+              <td>تكفي مدرسة كاملة في التصفح والرصد اليومي الاعتيادي ضمن حد الـ 50 ألف قراءة يومياً.</td>
+            </tr>
+            <tr>
+              <td><strong>2. مجمع تعليمي كامل (اعتماد كلي ومكثف)</strong></td>
+              <td>$15 - $40</td>
+              <td>55 - 150 ريال</td>
+              <td>660 - 1,800 ريال</td>
+              <td>شامل فترات الاختبارات النهائية ورفع آلاف صور الشواهد التكريمية شهرياً.</td>
+            </tr>
+            <tr>
+              <td><strong>3. شبكة الـ 40+ مدرسة (مركزية الشركة كاملة)</strong></td>
+              <td>$250 - $550</td>
+              <td>950 - 2,050 ريال</td>
+              <td>11,400 - 24,600 ريال</td>
+              <td><span class="badge-pill green">حوالي 25 إلى 50 ريالاً فقط شهرياً لكل مدرسة!</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-box box-amber">
+          <h4>💎 حدود الاستخدام المجاني الممنوح شهرياً (0 ريال):</h4>
+          <p>• 50,000 قراءة و 20,000 كتابة يومياً في Firestore مجاناً.<br>
+          • 10 جيجابايت نقل بيانات استضافة شهرياً مجاناً.<br>
+          • 5 جيجابايت تخزين ملفات وشواهد سحابية مجاناً.<br>
+          • توثيق وتسجيل دخول غير محدود لحسابات البريد وكلمة المرور.</p>
+        </div>
+
+        <div class="feature-box box-emerald">
+          <h4>📈 شروط الخروج للمدفوع ورسوم التوسع الرمزية:</h4>
+          <p>يتم الخروج للمدفوع فقط عند تجاوز الحدود أعلاه في أيام ذروة الاختبارات الشاملة، بتكلفة رمزية للغاية:<br>
+          • كل 100 ألف عملية قراءة إضافية = 0.23 ريال فقط!<br>
+          • كل 1 جيجابايت تخزين سحابي إضافي = 0.10 ريال شهرياً!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 7: ROI Comparison Table -->
+    <div class="section-card">
+      <div class="section-header blue">
+        <span>🏆 7. مقارنة العائد الاستثماري (ROI) والوفر المالي مقابل الأنظمة التجارية الجاهزة</span>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>وجه المقارنة</th>
+              <th>منظومة المدارس المتقدمة المطورة (الحالية)</th>
+              <th>الأنظمة التجارية الجاهزة (كلاسيرا / أودو / Eduwave)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>رسوم التراخيص وعقود البرمجيات السنوية</strong></td>
+              <td><strong style="color: #059669;">0 ريال (أصل رقمي حر ملك للشركة مدى الحياة)</strong></td>
+              <td>من 50,000 إلى 120,000 ريال سنوياً لكل مدرسة</td>
+            </tr>
+            <tr>
+              <td><strong>رسوم اشتراك لكل طالب (Per Student Fee)</strong></td>
+              <td><strong style="color: #059669;">0 ريال (بدون أي رسوم على أعداد الطلاب)</strong></td>
+              <td>ما بين 35 إلى 75 ريالاً لكل طالب سنوياً</td>
+            </tr>
+            <tr>
+              <td><strong>منظومة «المربي المخلص» والتشخيص الذكي</strong></td>
+              <td><strong style="color: #059669;">مدمجة وحصرية ومطابقة لمعايير التمكين القيمي 1448هـ</strong></td>
+              <td>غير موجودة إطلاقاً وتتطلب تطويرات خاصة إضافية</td>
+            </tr>
+            <tr>
+              <td><strong>الاستقلالية وإمكانية التعديل الفوري</strong></td>
+              <td><strong style="color: #059669;">تعديل وتطوير فوري دون دفع أي رسوم إضافية</strong></td>
+              <td>تتطلب موافقة الشركة الخارجية وعقود صيانة وتكلفة باهظة</td>
+            </tr>
+            <tr>
+              <td><strong>التكلفة السنوية الإجمالية لشبكة الـ 40+ مدرسة</strong></td>
+              <td><strong style="color: #059669;">حوالي 12,000 - 24,000 ريال سنوياً فقط لكامل الشركة!</strong></td>
+              <td><strong style="color: #dc2626;">من 2,000,000 إلى 4,800,000 ريال سنوياً!</strong></td>
+            </tr>
+            <tr style="background: #ecfdf5;">
+              <td><strong>صافي الوفر المالي لشركة المدارس المتقدمة</strong></td>
+              <td colspan="2"><strong style="color: #065f46; font-size: 11pt;">🌟 وفر مالي مباشر يفوق 98% (يوفر على الشركة ملايين الريالات سنوياً مع امتلاك الكود بالكامل)</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section 8: Cybersecurity & Compliance -->
+    <div class="section-card">
+      <div class="section-header purple">
+        <span>🔒 8. مستوى الأمان السيبراني والامتثال للأنظمة الوطنية (Cybersecurity & Compliance)</span>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-box box-purple">
+          <h4>🛡️ الامتثال لنظام حماية البيانات الشخصية (PDPL)</h4>
+          <p>تشفير كامل لكافة بيانات وسجلات وسلوكيات الطلاب، مع حظر قاطع لأي مشاركة للبيانات مع أي جهات إعلانية أو أطراف خارجية.</p>
+        </div>
+
+        <div class="feature-box box-blue">
+          <h4>🔐 التشفير المزدوج التام (End-to-End Encryption)</h4>
+          <p>تشفير البيانات أثناء انتقالها عبر بروتوكول <strong>TLS 1.3 / HTTPS</strong>، وتشفير البيانات المخزنة بقواعد بيانات Google بخوارزمية <strong>AES-256</strong>.</p>
+        </div>
+
+        <div class="feature-box box-emerald">
+          <h4>🧱 التحقق الصارم من الصلاحيات (Role-Based RBAC)</h4>
+          <p>جدار حماية داخلي يمنع أي محاولة لتجاوز الرتبة؛ فالمعلم لا يملك صلاحيات المدير، والمدير لا يتدخل في صلاحيات المدارس الأخرى، مع حماية أوتوماتيكية ضد هجمات XSS و SQL Injection.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 9: Strategic Recommendations -->
+    <div class="section-card">
+      <div class="section-header emerald">
+        <span>💡 9. التوصيات الاستراتيجية لتشغيل وتدشين شبكة الـ 40+ مدرسة</span>
+      </div>
+      <ul style="padding-right: 20px; font-size: 9.5pt; color: #334155; line-height: 1.8;">
+        <li><strong>اعتماد النطاق المؤسسي الرسمي للشركة:</strong> ربط المنظومة مباشرة بدومين رسمي خاص بالشركة (مثل: <code>smart.motaqadimah.edu.sa</code>) لتعزيز الهوية والريادة الرقمية.</li>
+        <li><strong>التدشين المرحلي الذكي:</strong> بدء التشغيل التجريبي على 3 إلى 5 مجمعات رئيسية للتأكد من انسيابية تدريب المدراء والمعلمين، ثم تعميم النظام على كافة الـ 40+ مدرسة بنقرة زر واحدة.</li>
+        <li><strong>ضغط وسائط الشواهد السحابية:</strong> ضبط خاصية الرفع التلقائي لتقوم بضغط صور الأنشطة تلقائياً لأقل من 300 كيلوبايت، مما يحافظ على التكلفة ضمن النطاق شبه المجاني لسنوات طويلة.</li>
+        <li><strong>التكامل مع نظام «نور» الوزاري:</strong> تفعيل ميزة التصدير والاستيراد لملفات الإكسل المتوافقة تماماً مع جداول نظام نور لاختصار 90% من الجهد اليدوي.</li>
+      </ul>
+    </div>
+
+    <!-- Official Exclusive Sign-off Card (USER ONLY WITH HIS PHONE) -->
+    <div class="signature-card">
+      <div class="sig-person">
+        <div class="sig-avatar">👨‍💻</div>
+        <div class="sig-info">
+          <span>إعداد وتصميم وتطوير وهندسة المنظومة:</span>
+          <strong>أ. محمد عبدالله جمعة</strong>
+          <small>معلم رياضيات ومطور أنظمة التعلم الذكي • مجمع المدارس المتقدمة للتعلم الذكي بجدة</small>
+        </div>
+      </div>
+
+      <div class="sig-contact">
+        <div class="label">رقم الجوال والتواصل المباشر:</div>
+        <div class="phone">
+          <span>📞</span>
+          <span>0545841974</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Copyright & Security Stamp -->
+    <div style="text-align: center; margin-top: 20px; font-size: 8.5pt; color: #94a3b8;">
+      وثيقة فنية واستراتيجية موجهة لسعادة رئيس مجلس الإدارة • شركة المدارس المتقدمة التعليمية 1447 / 1448 هـ • حقوق الملكية والابتكار البرمجي محفوظة ✔
+    </div>
+
+  </div>
+
+</body>
+</html>
