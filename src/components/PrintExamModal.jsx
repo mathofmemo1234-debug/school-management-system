@@ -22,6 +22,19 @@ export default function PrintExamModal({
   const [supervisorName, setSupervisorName] = useState(exam?.supervisorName || userData?.supervisorName || 'أ. أحمد المقدم');
   const [principalName, setPrincipalName] = useState(exam?.principalName || userData?.principalName || 'أ. أنس الجهني');
 
+  // Custom typography and layout states
+  const [fontFamily, setFontFamily] = useState(exam?.fontFamily || "'Cairo', sans-serif");
+  const [fontColor, setFontColor] = useState(exam?.fontColor || '#000000');
+  const [fontSize, setFontSize] = useState(exam?.fontSize || '11pt');
+  const [optionsLayout, setOptionsLayout] = useState('single-row'); // 'single-row' | 'two-rows' | 'column'
+  const [paperTemplate, setPaperTemplate] = useState('standard'); // 'standard' | 'standard_plus_bubble' | 'bubble_only'
+  const [pageMargins, setPageMargins] = useState('10mm'); // '10mm' | '6mm' | '14mm'
+  const [lineSpacing, setLineSpacing] = useState('1.6');
+  const [showStudentBox, setShowStudentBox] = useState(true);
+  const [showSignatures, setShowSignatures] = useState(true);
+  const [showInstructions, setShowInstructions] = useState(true);
+  const [watermarkText, setWatermarkText] = useState('');
+
   const schoolName = userData?.schoolName || 'المجمع التعليمي';
   const logoUrl = userData?.logoUrl || `${import.meta.env.BASE_URL}logo.webp`;
   const teacherName = userData?.name || exam?.teacherName || 'معلم المادة';
@@ -72,6 +85,38 @@ export default function PrintExamModal({
     const printContent = document.getElementById('exam-printable-document');
     if (!printContent) return;
 
+    // Clone to manipulate for Word-specific markup
+    const clone = printContent.cloneNode(true);
+
+    // Convert flex options containers into single-row tables for Word compatibility
+    const optionContainers = clone.querySelectorAll('.exam-options-container');
+    optionContainers.forEach(container => {
+      const optionItems = container.children;
+      if (optionsLayout === 'single-row' && optionItems.length > 0) {
+        const table = document.createElement('table');
+        table.className = 'opt-table';
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.style.marginTop = '8px';
+        const tr = document.createElement('tr');
+        const colWidth = `${Math.floor(100 / optionItems.length)}%`;
+        Array.from(optionItems).forEach(item => {
+          const td = document.createElement('td');
+          td.style.width = colWidth;
+          td.style.border = '1px solid #cbd5e1';
+          td.style.padding = '6px 10px';
+          td.style.verticalAlign = 'middle';
+          td.style.background = '#fafafa';
+          td.innerHTML = item.innerHTML;
+          tr.appendChild(td);
+        });
+        table.appendChild(tr);
+        container.parentNode.replaceChild(table, container);
+      }
+    });
+
+    const bodyContent = clone.innerHTML;
+
     const htmlContent = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
@@ -80,7 +125,7 @@ export default function PrintExamModal({
         <style>
           @page Section1 {
             size: A4 portrait;
-            margin: 1.5cm 1.5cm 1.5cm 1.5cm;
+            margin: ${pageMargins === '6mm' ? '0.8cm' : pageMargins === '14mm' ? '1.8cm' : '1.2cm'};
             mso-header-margin: 36pt;
             mso-footer-margin: 36pt;
             mso-paper-source: 0;
@@ -89,11 +134,12 @@ export default function PrintExamModal({
             page: Section1;
           }
           body {
-            font-family: 'Traditional Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: ${fontFamily}, 'Traditional Arabic', 'Segoe UI', Tahoma, sans-serif;
             direction: rtl;
             text-align: right;
-            color: #1e293b;
-            line-height: 1.5;
+            color: ${fontColor};
+            font-size: ${fontSize};
+            line-height: ${lineSpacing};
           }
           table {
             width: 100%;
@@ -143,7 +189,7 @@ export default function PrintExamModal({
       </head>
       <body>
         <div class="Section1">
-          ${printContent.innerHTML}
+          ${bodyContent}
         </div>
       </body>
       </html>
@@ -227,6 +273,31 @@ export default function PrintExamModal({
     }}>
       {/* Printable CSS Injection */}
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700&family=Amiri:ital,wght@0,400;0,700;1,400&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;800&family=Noto+Kufi+Arabic:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap');
+
+        /* Options Single-Row Guarantee */
+        .print-options-single-row {
+          display: flex !important;
+          flex-direction: row !important;
+          flex-wrap: nowrap !important;
+          width: 100% !important;
+          gap: 8px !important;
+          align-items: stretch !important;
+        }
+        .print-options-single-row > div {
+          flex: 1 1 0% !important;
+          min-width: 0 !important;
+          box-sizing: border-box !important;
+        }
+
+        .custom-options-bar::-webkit-scrollbar {
+          height: 4px;
+        }
+        .custom-options-bar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+
         @media print {
           *, *:before, *:after {
             -webkit-print-color-adjust: exact !important;
@@ -240,7 +311,10 @@ export default function PrintExamModal({
             background: #ffffff !important;
             margin: 0 !important;
             padding: 0 !important;
-            font-size: 11pt !important;
+            font-size: ${fontSize} !important;
+            font-family: ${fontFamily} !important;
+            color: ${fontColor} !important;
+            line-height: ${lineSpacing} !important;
           }
           /* Completely hide EVERYTHING under body except the modal container so NO blank pages exist! */
           body > *:not(.exam-modal-root) {
@@ -273,6 +347,8 @@ export default function PrintExamModal({
           #exam-printable-document,
           #exam-printable-document * {
             visibility: visible !important;
+            font-family: ${fontFamily} !important;
+            color: ${fontColor} !important;
           }
           #exam-printable-document {
             position: static !important;
@@ -288,14 +364,23 @@ export default function PrintExamModal({
             border: none !important;
             background: white !important;
             display: block !important;
+            font-size: ${fontSize} !important;
+            line-height: ${lineSpacing} !important;
           }
           .avoid-break {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
+          .katex {
+            font-size: 1.05em !important;
+          }
+          .katex .text {
+            font-family: ${fontFamily} !important;
+            color: ${fontColor} !important;
+          }
           @page {
             size: A4 portrait;
-            margin: 12mm 12mm 12mm 12mm;
+            margin: ${pageMargins};
           }
         }
       `}</style>
@@ -475,52 +560,281 @@ export default function PrintExamModal({
           </div>
         </div>
 
-        {/* Customization Bar (Hidden on Print) */}
-        <div className="no-print" style={{
-          padding: '12px 24px',
-          background: '#f1f5f9',
-          borderBottom: '1px solid #e2e8f0',
+        {/* Customization Bar - ALL OPTIONS IN THE SAME LINE (Hidden on Print) */}
+        <div className="no-print custom-options-bar" style={{
+          padding: '10px 18px',
+          background: '#f8fafc',
+          borderBottom: '1.5px solid #cbd5e1',
           display: 'flex',
-          gap: '16px',
-          flexWrap: 'wrap',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          overflowX: 'auto',
           alignItems: 'center',
-          fontSize: '13px'
+          gap: '12px',
+          fontSize: '12px',
+          whiteSpace: 'nowrap',
+          scrollbarWidth: 'thin'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* 1. Font Family Selector */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <label style={{ color: '#0e7490', fontWeight: 'bold' }}>نوع الخط:</label>
+            <select
+              value={fontFamily}
+              onChange={e => setFontFamily(e.target.value)}
+              style={{
+                padding: '4px 8px',
+                fontSize: '12px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                fontWeight: '600',
+                color: '#1e293b'
+              }}
+            >
+              <option value="'Cairo', sans-serif">خط القاهرة (الافتراضي)</option>
+              <option value="'Amiri', serif">خط النسخ الأصيل (Amiri)</option>
+              <option value="'Traditional Arabic', serif">الخط العربي التقليدي</option>
+              <option value="'Tajawal', sans-serif">خط تجوال (Tajawal)</option>
+              <option value="'Almarai', sans-serif">خط المراعي (Almarai)</option>
+              <option value="'Noto Naskh Arabic', serif">خط نسخ المقررات (Noto Naskh)</option>
+              <option value="'Segoe UI', Tahoma, sans-serif">الخط المبسط (Segoe UI)</option>
+              <option value="'Aref Ruqaa', serif">خط الرقعة الجمالي</option>
+            </select>
+          </div>
+
+          {/* 2. Font Color Selector + Custom Color Picker */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <label style={{ color: '#0e7490', fontWeight: 'bold' }}>لون الخط:</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <select
+                value={fontColor}
+                onChange={e => setFontColor(e.target.value)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  fontWeight: 'bold',
+                  color: fontColor
+                }}
+              >
+                <option value="#000000">أسود طباعة ناصع (#000000)</option>
+                <option value="#0f172a">كحلي رسمي (#0f172a)</option>
+                <option value="#1e3a8a">أزرق ملكي (#1e3a8a)</option>
+                <option value="#14532d">أخضر زيتي (#14532d)</option>
+                <option value="#334155">رمادي فحمي (#334155)</option>
+              </select>
+              <input
+                type="color"
+                value={fontColor}
+                onChange={e => setFontColor(e.target.value)}
+                title="منتقي لون مخصص للكتابة"
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  padding: 0,
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '5px',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* 3. Font Size */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <label style={{ color: '#475569', fontWeight: 'bold' }}>الحجم:</label>
+            <select
+              value={fontSize}
+              onChange={e => setFontSize(e.target.value)}
+              style={{
+                padding: '4px 8px',
+                fontSize: '12px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff'
+              }}
+            >
+              <option value="10.5pt">مضغوط (10.5pt)</option>
+              <option value="11pt">قياسي (11pt)</option>
+              <option value="12pt">متوسط (12pt)</option>
+              <option value="13pt">كبير (13pt)</option>
+            </select>
+          </div>
+
+          {/* 4. Options Layout in Same Row */}
+          {mode === 'exam' && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <label style={{ color: '#0e7490', fontWeight: 'bold' }}>تخطيط الخيارات:</label>
+              <select
+                value={optionsLayout}
+                onChange={e => setOptionsLayout(e.target.value)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  borderRadius: '6px',
+                  border: '1.5px solid #0e7490',
+                  background: '#ecfeff',
+                  fontWeight: 'bold',
+                  color: '#0e7490'
+                }}
+              >
+                <option value="single-row">✓ كل الخيارات في نفس السطر (أفقي)</option>
+                <option value="two-rows">سطران (2 خيار بكل سطر)</option>
+                <option value="column">عمودي (خيار لكل سطر)</option>
+              </select>
+            </div>
+          )}
+
+          {/* 5. Paper Template */}
+          {mode === 'exam' && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <label style={{ color: '#0e7490', fontWeight: 'bold' }}>نموذج الورقة:</label>
+              <select
+                value={paperTemplate}
+                onChange={e => setPaperTemplate(e.target.value)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  borderRadius: '6px',
+                  border: '1.5px solid #0e7490',
+                  background: '#ecfeff',
+                  fontWeight: 'bold',
+                  color: '#0e7490'
+                }}
+              >
+                <option value="standard">📄 ورقة أسئلة عادية</option>
+                <option value="standard_plus_bubble">📝 أسئلة + ورقة تظليل (Bubble Sheet)</option>
+                <option value="bubble_only">⭕ ورقة تظليل فقط (OMR Sheet)</option>
+              </select>
+            </div>
+          )}
+
+          {/* 6. Page Margins */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <label style={{ color: '#475569', fontWeight: 'bold' }}>الهوامش:</label>
+            <select
+              value={pageMargins}
+              onChange={e => setPageMargins(e.target.value)}
+              style={{
+                padding: '4px 8px',
+                fontSize: '12px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff'
+              }}
+            >
+              <option value="10mm">قياسية (10mm)</option>
+              <option value="6mm">ضيقة / توفير ورق (6mm)</option>
+              <option value="14mm">واسعة (14mm)</option>
+            </select>
+          </div>
+
+          {/* 7. Line Spacing */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <label style={{ color: '#475569', fontWeight: 'bold' }}>التباعد:</label>
+            <select
+              value={lineSpacing}
+              onChange={e => setLineSpacing(e.target.value)}
+              style={{
+                padding: '4px 8px',
+                fontSize: '12px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff'
+              }}
+            >
+              <option value="1.4">مضغوط (1.4)</option>
+              <option value="1.6">قياسي (1.6)</option>
+              <option value="1.8">مريح (1.8)</option>
+            </select>
+          </div>
+
+          {/* 8. Visibility Toggles */}
+          {mode === 'exam' && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', background: '#ffffff', padding: '3px 8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0, fontWeight: '600', color: '#334155' }}>
+                <input
+                  type="checkbox"
+                  checked={showStudentBox}
+                  onChange={e => setShowStudentBox(e.target.checked)}
+                />
+                بيانات الطالب
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0, fontWeight: '600', color: '#334155' }}>
+                <input
+                  type="checkbox"
+                  checked={showInstructions}
+                  onChange={e => setShowInstructions(e.target.checked)}
+                />
+                التعليمات
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', margin: 0, fontWeight: '600', color: '#334155' }}>
+                <input
+                  type="checkbox"
+                  checked={showSignatures}
+                  onChange={e => setShowSignatures(e.target.checked)}
+                />
+                جدول الرصد
+              </label>
+            </div>
+          )}
+
+          {/* 9. Watermark */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <label style={{ color: '#475569', fontWeight: 'bold' }}>علامة مائية:</label>
+            <input
+              type="text"
+              placeholder="اختياري (سري/رسمي)..."
+              value={watermarkText}
+              onChange={e => setWatermarkText(e.target.value)}
+              style={{ padding: '4px 8px', fontSize: '12px', width: '130px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+            />
+          </div>
+
+          {/* 10. Exam Type Title */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
             <label style={{ color: '#475569', fontWeight: 'bold' }}>نوع الاختبار:</label>
             <input
               type="text"
               value={examTypeTitle}
               onChange={e => setExamTypeTitle(e.target.value)}
-              style={{ padding: '4px 10px', fontSize: '12px', width: '160px', borderRadius: '6px' }}
+              style={{ padding: '4px 8px', fontSize: '12px', width: '130px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+
+          {/* 11. Semester */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
             <label style={{ color: '#475569', fontWeight: 'bold' }}>الفصل:</label>
             <input
               type="text"
               value={semesterTitle}
               onChange={e => setSemesterTitle(e.target.value)}
-              style={{ padding: '4px 10px', fontSize: '12px', width: '150px', borderRadius: '6px' }}
+              style={{ padding: '4px 8px', fontSize: '12px', width: '120px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+
+          {/* 12. Academic Year */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
             <label style={{ color: '#475569', fontWeight: 'bold' }}>العام:</label>
             <input
               type="text"
               value={academicYear}
               onChange={e => setAcademicYear(e.target.value)}
-              style={{ padding: '4px 10px', fontSize: '12px', width: '130px', borderRadius: '6px' }}
+              style={{ padding: '4px 8px', fontSize: '12px', width: '110px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+
+          {/* 13. Principal Name */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
             <label style={{ color: '#475569', fontWeight: 'bold' }}>مدير المدرسة:</label>
             <input
               type="text"
               value={principalName}
               onChange={e => setPrincipalName(e.target.value)}
               placeholder="اسم المدير"
-              style={{ padding: '4px 10px', fontSize: '12px', width: '160px', borderRadius: '6px' }}
+              style={{ padding: '4px 8px', fontSize: '12px', width: '120px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
             />
           </div>
         </div>
@@ -537,16 +851,38 @@ export default function PrintExamModal({
           
           <div id="exam-printable-document" style={{
             width: '100%',
-            maxWidth: '800px',
+            maxWidth: '820px',
             background: '#ffffff',
             padding: '36px 40px',
             borderRadius: '12px',
-            border: '1px solid #e2e8f0',
+            border: '1.5px solid #cbd5e1',
             boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
             boxSizing: 'border-box',
-            color: '#0f172a',
-            fontFamily: 'Cairo, sans-serif'
+            color: fontColor,
+            fontFamily: fontFamily,
+            fontSize: fontSize,
+            position: 'relative',
+            overflow: 'hidden'
           }}>
+
+            {/* Optional Watermark */}
+            {watermarkText && (
+              <div style={{
+                position: 'absolute',
+                top: '45%',
+                left: '50%',
+                transform: 'translate(-50%, -50%) rotate(-35deg)',
+                fontSize: '68px',
+                fontWeight: '900',
+                color: 'rgba(15, 23, 42, 0.05)',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                zIndex: 0,
+                whiteSpace: 'nowrap'
+              }}>
+                {watermarkText}
+              </div>
+            )}
 
             {/* Official Header */}
             <div style={{
@@ -622,194 +958,426 @@ export default function PrintExamModal({
             {mode === 'exam' && (
               <div>
                 {/* Student Info & Marks Box */}
-                <div style={{
-                  border: '1.5px solid #0f172a',
-                  borderRadius: '8px',
-                  padding: '12px 16px',
-                  marginBottom: '24px',
-                  background: '#f8fafc'
-                }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '16px', fontSize: '13px', alignItems: 'center' }}>
-                    <div>
-                      <strong>اسم الطالب رباعي:</strong> ................................................................
-                    </div>
-                    <div>
-                      <strong>رقم الجلوس / الهوية:</strong> ......................
-                    </div>
-                    <div>
-                      <strong>الفصل:</strong> {exam?.targetClass || '........'}
+                {showStudentBox && paperTemplate !== 'bubble_only' && (
+                  <div style={{
+                    border: '1.5px solid #0f172a',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    marginBottom: '24px',
+                    background: '#f8fafc'
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '16px', fontSize: '13px', alignItems: 'center' }}>
+                      <div>
+                        <strong>اسم الطالب رباعي:</strong> ................................................................
+                      </div>
+                      <div>
+                        <strong>رقم الجلوس / الهوية:</strong> ......................
+                      </div>
+                      <div>
+                        <strong>الفصل:</strong> {exam?.targetClass || '........'}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Instructions */}
-                <div style={{
-                  background: '#f0fdf4',
-                  border: '1px solid #bbf7d0',
-                  color: '#166534',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  marginBottom: '24px',
-                  lineHeight: '1.6'
-                }}>
-                  <strong>📌 تعليمات هامة:</strong> استعن بالله تعالى أولاً • اقرأ الأسئلة بعناية قبل الإجابة • اختر إجابة واحدة صحيحة لكل فقرة بتظليل الحرف المناسب • الدرجة الكلية للاختبار: <strong>({exam?.questions?.length || 0}) درجة</strong>.
-                </div>
+                {showInstructions && paperTemplate !== 'bubble_only' && (
+                  <div style={{
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    color: '#166534',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    marginBottom: '24px',
+                    lineHeight: '1.6'
+                  }}>
+                    <strong>📌 تعليمات هامة:</strong> استعن بالله تعالى أولاً • اقرأ الأسئلة بعناية قبل الإجابة • اختر إجابة واحدة صحيحة لكل فقرة بتظليل الحرف المناسب • الدرجة الكلية للاختبار: <strong>({exam?.questions?.length || 0}) درجة</strong>.
+                  </div>
+                )}
 
                 {/* Questions List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {exam?.questions && exam.questions.length > 0 ? (
-                    exam.questions.map((q, qIdx) => {
-                      const letters = ['أ', 'ب', 'ج', 'د'];
-                      return (
-                        <div key={q.id || qIdx} style={{
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '10px',
-                          padding: '16px',
-                          background: '#ffffff',
-                          pageBreakInside: 'avoid'
-                        }}>
-                          {/* Question Header */}
-                          <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            borderBottom: '1px dashed #cbd5e1',
-                            paddingBottom: '8px',
-                            marginBottom: '12px'
+                {paperTemplate !== 'bubble_only' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {exam?.questions && exam.questions.length > 0 ? (
+                      exam.questions.map((q, qIdx) => {
+                        const letters = ['أ', 'ب', 'ج', 'د'];
+                        return (
+                          <div key={q.id || qIdx} style={{
+                            border: '1.5px solid #cbd5e1',
+                            borderRadius: '10px',
+                            padding: '16px',
+                            background: '#ffffff',
+                            pageBreakInside: 'avoid',
+                            breakInside: 'avoid',
+                            fontFamily: fontFamily,
+                            color: fontColor
                           }}>
-                            <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#0e7490' }}>
-                              السؤال ({qIdx + 1}):
+                            {/* Question Header */}
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              borderBottom: '1px dashed #cbd5e1',
+                              paddingBottom: '8px',
+                              marginBottom: '12px'
+                            }}>
+                              <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#0e7490' }}>
+                                السؤال ({qIdx + 1}):
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>
+                                [درجة واحدة]
+                              </div>
                             </div>
-                            <div style={{ fontSize: '12px', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>
-                              [درجة واحدة]
+
+                            {/* Question Text */}
+                            <div style={{ fontSize: fontSize, fontWeight: '600', marginBottom: '14px', color: fontColor, lineHeight: '1.7' }}>
+                              <MarkdownViewer content={q.text} />
                             </div>
-                          </div>
 
-                          {/* Question Text */}
-                          <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '14px', color: '#1e293b' }}>
-                            <MarkdownViewer content={q.text} />
-                          </div>
-
-                          {/* Options Grid */}
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-                            gap: '8px',
-                            fontSize: '12px'
-                          }}>
-                            {q.options && q.options.map((opt, optIdx) => {
-                              const isCorrect = q.correctOption === optIdx;
-                              return (
-                                <div key={optIdx} style={{
-                                   display: 'flex',
-                                   alignItems: 'center',
-                                   gap: '10px',
-                                   padding: '8px 12px',
-                                   borderRadius: '6px',
-                                   border: (showAnswerKey && isCorrect) ? '2px solid #10b981' : '1px solid #e2e8f0',
-                                   background: (showAnswerKey && isCorrect) ? '#ecfdf5' : '#f8fafc'
-                                }}>
-                                  <span style={{
-                                     width: '24px',
-                                     height: '24px',
-                                     borderRadius: '50%',
-                                     border: '1.5px solid #64748b',
+                            {/* Options Container (Displayed in the exact same line / single-row by default) */}
+                            <div 
+                              className={`exam-options-container ${optionsLayout === 'single-row' ? 'print-options-single-row' : ''}`}
+                              style={{
+                                display: optionsLayout === 'single-row' ? 'flex' : (optionsLayout === 'two-rows' ? 'grid' : 'flex'),
+                                flexDirection: optionsLayout === 'single-row' ? 'row' : (optionsLayout === 'two-rows' ? undefined : 'column'),
+                                gridTemplateColumns: optionsLayout === 'two-rows' ? 'repeat(2, minmax(0, 1fr))' : undefined,
+                                flexWrap: optionsLayout === 'single-row' ? 'nowrap' : undefined,
+                                gap: '8px',
+                                width: '100%',
+                                alignItems: 'stretch',
+                                fontSize: fontSize
+                              }}
+                            >
+                              {q.options && q.options.map((opt, optIdx) => {
+                                const isCorrect = q.correctOption === optIdx;
+                                return (
+                                  <div key={optIdx} style={{
+                                     flex: optionsLayout === 'single-row' ? '1 1 0%' : undefined,
+                                     minWidth: 0,
+                                     boxSizing: 'border-box',
                                      display: 'flex',
                                      alignItems: 'center',
-                                     justifyContent: 'center',
-                                     fontSize: '12px',
-                                     fontWeight: 'bold',
-                                     background: (showAnswerKey && isCorrect) ? '#10b981' : '#ffffff',
-                                     color: (showAnswerKey && isCorrect) ? '#ffffff' : '#1e293b'
+                                     gap: '8px',
+                                     padding: '7px 10px',
+                                     borderRadius: '6px',
+                                     border: (showAnswerKey && isCorrect) ? '2px solid #10b981' : '1px solid #cbd5e1',
+                                     background: (showAnswerKey && isCorrect) ? '#ecfdf5' : '#f8fafc',
+                                     color: fontColor
                                   }}>
-                                     {letters[optIdx] || optIdx + 1}
-                                  </span>
-                                  <span style={{ flex: 1 }}>
-                                    <MarkdownViewer content={opt} />
-                                  </span>
-                                  {showAnswerKey && isCorrect && (
-                                     <span style={{ color: '#10b981', fontSize: '11px', fontWeight: 'bold' }}>✓ الإجابة الصحيحة</span>
-                                  )}
+                                    <span style={{
+                                       width: '24px',
+                                       height: '24px',
+                                       minWidth: '24px',
+                                       borderRadius: '50%',
+                                       border: '1.5px solid #64748b',
+                                       display: 'flex',
+                                       alignItems: 'center',
+                                       justifyContent: 'center',
+                                       fontSize: '11px',
+                                       fontWeight: 'bold',
+                                       background: (showAnswerKey && isCorrect) ? '#10b981' : '#ffffff',
+                                       color: (showAnswerKey && isCorrect) ? '#ffffff' : fontColor
+                                    }}>
+                                       {letters[optIdx] || optIdx + 1}
+                                    </span>
+                                    <span style={{ flex: 1, minWidth: 0, overflowWrap: 'break-word', wordBreak: 'break-word', color: fontColor }}>
+                                      <MarkdownViewer content={opt} inline />
+                                    </span>
+                                    {showAnswerKey && isCorrect && (
+                                       <span style={{ color: '#10b981', fontSize: '10px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>✓ صح</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p style={{ textAlign: 'center', color: '#94a3b8' }}>لا توجد أسئلة مسجلة في هذا الاختبار.</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Grading Verification & Signatures Table */}
+                {showSignatures && paperTemplate !== 'bubble_only' && (
+                  <div style={{ marginTop: '36px', pageBreakInside: 'avoid' }}>
+                    <table style={{
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      textAlign: 'center',
+                      fontSize: '12px',
+                      border: '1.5px solid #0f172a'
+                    }}>
+                      <thead>
+                        <tr style={{ background: '#f1f5f9' }}>
+                          <th style={{ border: '1px solid #0f172a', padding: '8px' }}>الدرجة كتابة</th>
+                          <th style={{ border: '1px solid #0f172a', padding: '8px' }}>الدرجة رقماً</th>
+                          <th style={{ border: '1px solid #0f172a', padding: '8px' }}>المصحح</th>
+                          <th style={{ border: '1px solid #0f172a', padding: '8px' }}>المراجع</th>
+                          <th style={{ border: '1px solid #0f172a', padding: '8px' }}>المدقق</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td style={{ border: '1px solid #0f172a', padding: '14px' }}></td>
+                          <td style={{ border: '1px solid #0f172a', padding: '14px', fontWeight: 'bold' }}>/ {exam?.questions?.length || 0}</td>
+                          <td style={{ border: '1px solid #0f172a', padding: '14px' }}>{teacherName}</td>
+                          <td style={{ border: '1px solid #0f172a', padding: '14px' }}>...........................</td>
+                          <td style={{ border: '1px solid #0f172a', padding: '14px' }}>...........................</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: '24px',
+                      paddingTop: '16px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      color: '#334155'
+                    }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div>معلم المادة</div>
+                        <div style={{ marginTop: '30px' }}>{teacherName}</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div>ختم المدرسة</div>
+                        <div style={{
+                          width: '80px',
+                          height: '80px',
+                          border: '2px dashed #94a3b8',
+                          borderRadius: '50%',
+                          margin: '10px auto 0 auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '10px',
+                          color: '#94a3b8'
+                        }}>
+                          ختم الإدارة
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div>مدير المدرسة</div>
+                        <div style={{ marginTop: '14px', fontWeight: 'bold', color: '#0f172a' }}>{principalName}</div>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>الختم والتوقيع: .....................</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ======================================================== */}
+                {/* BUBBLE SHEET / OMR SECTION */}
+                {/* ======================================================== */}
+                {(paperTemplate === 'standard_plus_bubble' || paperTemplate === 'bubble_only') && (
+                  <div style={{
+                    pageBreakBefore: paperTemplate === 'standard_plus_bubble' ? 'always' : 'auto',
+                    breakBefore: paperTemplate === 'standard_plus_bubble' ? 'page' : 'auto',
+                    marginTop: paperTemplate === 'standard_plus_bubble' ? '36px' : '0',
+                    fontFamily: fontFamily,
+                    color: fontColor
+                  }}>
+                    {/* Bubble Sheet Header Banner */}
+                    <div style={{
+                      border: '2px solid #0f172a',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      marginBottom: '16px',
+                      background: '#f8fafc',
+                      textAlign: 'center'
+                    }}>
+                      <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: 'bold', color: fontColor }}>
+                        ورقة الإجابة والتظليل الرسمية المعتمدة (Bubble Sheet / OMR)
+                      </h3>
+                      <div style={{ fontSize: '11px', color: '#475569', display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                        <span><strong>المادة:</strong> {exam?.subject || 'عام'}</span>
+                        <span><strong>الصف:</strong> {exam?.targetClass || 'عام'}</span>
+                        <span><strong>عدد الفقرات:</strong> {exam?.questions?.length || 0} فقرة</span>
+                        <span><strong>الزمن:</strong> {exam?.duration || 45} دقيقة</span>
+                      </div>
+                    </div>
+
+                    {/* Student Info Box on Bubble Sheet */}
+                    {showStudentBox && (
+                      <div style={{
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        marginBottom: '16px',
+                        background: '#ffffff'
+                      }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', fontSize: '12px' }}>
+                          <div><strong>اسم الطالب رباعي:</strong> ................................................................</div>
+                          <div><strong>رقم الجلوس / الهوية:</strong> ......................</div>
+                          <div><strong>الفصل:</strong> {exam?.targetClass || '........'}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Shading Guide */}
+                    {showInstructions && (
+                      <div style={{
+                        border: '1px dashed #cbd5e1',
+                        borderRadius: '6px',
+                        padding: '8px 14px',
+                        marginBottom: '16px',
+                        background: '#f1f5f9',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '11px',
+                        flexWrap: 'wrap',
+                        gap: '8px'
+                      }}>
+                        <div>
+                          <strong>📌 تعليمات التظليل:</strong> استخدم قلم رصاص أو جاف • ظلل الدائرة بالكامل • لا تضع علامة صح أو خطأ
+                        </div>
+                        <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#0f172a', display: 'inline-block' }}></span>
+                            <span style={{ color: '#166534', fontWeight: 'bold' }}>تظليل صحيح</span>
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ width: '16px', height: '16px', borderRadius: '50%', border: '1.5px solid #0f172a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>✓</span>
+                            <span style={{ color: '#dc2626', fontWeight: 'bold' }}>خطأ</span>
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ width: '16px', height: '16px', borderRadius: '50%', border: '1.5px solid #0f172a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>✕</span>
+                            <span style={{ color: '#dc2626', fontWeight: 'bold' }}>خطأ</span>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bubbles Grid */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: (exam?.questions?.length || 0) <= 12 ? '1fr' : (exam?.questions?.length || 0) <= 24 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+                      gap: '14px',
+                      marginBottom: '20px'
+                    }}>
+                      {(() => {
+                        const qCount = exam?.questions?.length || 10;
+                        const questionsArray = exam?.questions && exam.questions.length > 0
+                          ? exam.questions
+                          : Array.from({ length: qCount }, (_, i) => ({ id: i, correctOption: 0 }));
+                        const numCols = qCount <= 12 ? 1 : qCount <= 24 ? 2 : 3;
+                        const chunkSize = Math.ceil(qCount / numCols);
+                        const columns = [];
+                        for (let c = 0; c < numCols; c++) {
+                          columns.push(questionsArray.slice(c * chunkSize, (c + 1) * chunkSize));
+                        }
+                        return columns.map((colQuestions, colIdx) => (
+                          <div key={colIdx} style={{
+                            border: '1.5px solid #cbd5e1',
+                            borderRadius: '8px',
+                            padding: '10px',
+                            background: '#ffffff'
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              padding: '4px 8px',
+                              background: '#f1f5f9',
+                              borderRadius: '4px',
+                              fontWeight: 'bold',
+                              fontSize: '11px',
+                              color: '#475569',
+                              marginBottom: '8px'
+                            }}>
+                              <span>رقم الفقرة</span>
+                              <div style={{ display: 'flex', gap: '16px', marginLeft: '6px' }}>
+                                <span>أ</span>
+                                <span>ب</span>
+                                <span>ج</span>
+                                <span>د</span>
+                              </div>
+                            </div>
+                            {colQuestions.map((q, qSubIdx) => {
+                              const actualIndex = colIdx * chunkSize + qSubIdx;
+                              return (
+                                <div key={q.id || actualIndex} style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '5px 8px',
+                                  borderRadius: '6px',
+                                  background: actualIndex % 2 === 0 ? '#f8fafc' : '#ffffff',
+                                  border: '1px solid #f1f5f9',
+                                  marginBottom: '4px'
+                                }}>
+                                  <div style={{ fontWeight: 'bold', fontSize: '12px', minWidth: '40px', color: '#0e7490' }}>
+                                    ({actualIndex + 1})
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    {['أ', 'ب', 'ج', 'د'].map((letter, optIdx) => {
+                                      const isCorrect = showAnswerKey && (q.correctOption === optIdx);
+                                      return (
+                                        <span
+                                          key={optIdx}
+                                          style={{
+                                            width: '24px',
+                                            height: '24px',
+                                            borderRadius: '50%',
+                                            border: isCorrect ? '2px solid #10b981' : '1.5px solid #334155',
+                                            background: isCorrect ? '#10b981' : '#ffffff',
+                                            color: isCorrect ? '#ffffff' : '#334155',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '11px',
+                                            fontWeight: 'bold'
+                                          }}
+                                        >
+                                          {isCorrect ? '✓' : letter}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               );
                             })}
                           </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <p style={{ textAlign: 'center', color: '#94a3b8' }}>لا توجد أسئلة مسجلة في هذا الاختبار.</p>
-                  )}
-                </div>
-
-                {/* Grading Verification & Signatures Table */}
-                <div style={{ marginTop: '36px', pageBreakInside: 'avoid' }}>
-                  <table style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                    textAlign: 'center',
-                    fontSize: '12px',
-                    border: '1.5px solid #0f172a'
-                  }}>
-                    <thead>
-                      <tr style={{ background: '#f1f5f9' }}>
-                        <th style={{ border: '1px solid #0f172a', padding: '8px' }}>الدرجة كتابة</th>
-                        <th style={{ border: '1px solid #0f172a', padding: '8px' }}>الدرجة رقماً</th>
-                        <th style={{ border: '1px solid #0f172a', padding: '8px' }}>المصحح</th>
-                        <th style={{ border: '1px solid #0f172a', padding: '8px' }}>المراجع</th>
-                        <th style={{ border: '1px solid #0f172a', padding: '8px' }}>المدقق</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style={{ border: '1px solid #0f172a', padding: '14px' }}></td>
-                        <td style={{ border: '1px solid #0f172a', padding: '14px', fontWeight: 'bold' }}>/ {exam?.questions?.length || 0}</td>
-                        <td style={{ border: '1px solid #0f172a', padding: '14px' }}>{teacherName}</td>
-                        <td style={{ border: '1px solid #0f172a', padding: '14px' }}>...........................</td>
-                        <td style={{ border: '1px solid #0f172a', padding: '14px' }}>...........................</td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginTop: '24px',
-                    paddingTop: '16px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    color: '#334155'
-                  }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div>معلم المادة</div>
-                      <div style={{ marginTop: '30px' }}>{teacherName}</div>
+                        ));
+                      })()}
                     </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div>ختم المدرسة</div>
+
+                    {/* Bubble Sheet Footer Verification */}
+                    {showSignatures && (
                       <div style={{
-                        width: '80px',
-                        height: '80px',
-                        border: '2px dashed #94a3b8',
-                        borderRadius: '50%',
-                        margin: '10px auto 0 auto',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '10px',
-                        color: '#94a3b8'
+                        marginTop: '20px',
+                        border: '1.5px solid #0f172a',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        background: '#f8fafc',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '12px',
+                        textAlign: 'center',
+                        fontSize: '12px'
                       }}>
-                        ختم الإدارة
+                        <div>
+                          <strong>الدرجة النهائية:</strong>
+                          <div style={{ marginTop: '8px', fontSize: '15px', fontWeight: 'bold', color: '#0e7490' }}>
+                            ........... / {exam?.questions?.length || 0}
+                          </div>
+                        </div>
+                        <div>
+                          <strong>المصحح / الراصد:</strong>
+                          <div style={{ marginTop: '8px' }}>{teacherName}</div>
+                        </div>
+                        <div>
+                          <strong>المراجع / رئيس الكنترول:</strong>
+                          <div style={{ marginTop: '8px' }}>...........................</div>
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div>مدير المدرسة</div>
-                      <div style={{ marginTop: '14px', fontWeight: 'bold', color: '#0f172a' }}>{principalName}</div>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>الختم والتوقيع: .....................</div>
-                    </div>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
             )}
 

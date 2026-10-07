@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import MarkdownViewer from './MarkdownViewer';
 import LatexMathToolbar from './LatexMathToolbar';
+import QuickLatexToolbar from './QuickLatexToolbar';
 import { Image as ImageIcon, Loader, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { compressImageToDataUrl } from '../utils/imageCompressor';
@@ -242,7 +243,21 @@ export default function MarkdownInput({
         </div>
       </div>
 
-      {/* Conditionally rendered LaTeX Math & Chemistry Toolbar */}
+      {/* Quick LaTeX & Arabic/English Math Toolbar */}
+      {!hideLatex && (
+        <div style={{ marginBottom: '6px' }}>
+          <QuickLatexToolbar 
+            compact={compact}
+            onInsert={(code) => insertTextAtCursor(code)}
+            showFullToggle={true}
+            isFullOpen={showLatexToolbar}
+            onToggleFull={() => setShowLatexToolbar(prev => !prev)}
+            title="رموز ومعادلات سريعة:"
+          />
+        </div>
+      )}
+
+      {/* Conditionally rendered Expanded LaTeX Math & Chemistry Toolbar */}
       {showLatexToolbar && (
         <div style={{ marginBottom: '8px' }}>
           <LatexMathToolbar compact={compact} onInsert={(code) => insertTextAtCursor(code)} />

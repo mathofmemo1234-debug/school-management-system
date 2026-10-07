@@ -145,8 +145,8 @@ export default function ExamPreviewModal({
     }
     .options-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
     }
     @media (max-width: 640px) {
       .options-grid { grid-template-columns: 1fr; }

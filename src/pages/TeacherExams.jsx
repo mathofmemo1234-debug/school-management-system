@@ -2829,6 +2829,67 @@ export default function TeacherExams() {
               <Plus size={18} /> {t('teacherExams.createNewExam')}
             </button>
 
+            {/* Button 1.5: Printable Paper Exam Template */}
+            <button 
+              className="btn" 
+              onClick={() => {
+                const baseExam = exams.find(e => !e.isExternal && e.questions?.length > 0) || exams[0];
+                const defaultPrintableExam = baseExam ? {
+                  ...baseExam,
+                  title: baseExam.title || 'اختبار تقويمي مطبوع'
+                } : {
+                  id: 'printable-template-1',
+                  title: 'نموذج اختبار تقويمي مطبوع',
+                  subject: subjectsList[0] || 'الرياضيات',
+                  targetClass: classesList[0] || 'الصف الأول',
+                  duration: 45,
+                  examDate: new Date().toISOString().split('T')[0],
+                  teacherName: userData?.name || 'معلم المادة',
+                  questions: [
+                    {
+                      id: 'q1',
+                      text: 'أوجد قيمة س في المعادلة التالية: $\\text{س}^2 + 5\\text{س} + 6 = 0$',
+                      options: ['$\\text{س} = -2$ أو $\\text{س} = -3$', '$\\text{س} = 2$ أو $\\text{س} = 3$', '$\\text{س} = 1$ أو $\\text{س} = 6$', '$\\text{س} = -1$ أو $\\text{س} = -6$'],
+                      correctOption: 0
+                    },
+                    {
+                      id: 'q2',
+                      text: 'إذا كان نصف قطر الدائرة $\\text{نق} = 7$ سم، فاحسب مساحتها بدلالة $\\text{ط}$:',
+                      options: ['$49\\,\\text{ط}$ سم²', '$14\\,\\text{ط}$ سم²', '$28\\,\\text{ط}$ سم²', '$7\\,\\text{ط}$ سم²'],
+                      correctOption: 0
+                    },
+                    {
+                      id: 'q3',
+                      text: 'Evaluate the following mathematical limit: $\\lim_{x \\to 0} \\frac{\\sin(x)}{x}$',
+                      options: ['$1$', '$0$', '$\\infty$', 'Undefined'],
+                      correctOption: 0
+                    },
+                    {
+                      id: 'q4',
+                      text: 'قانون نيوتن الثاني للحركة يُعبَّر عنه بالمعادلة الرياضية: $\\text{ق} = \\text{ك} \\times \\text{ت}$، فإذا كانت الكتلة $\\text{ك} = 5$ كجم والتسارع $\\text{ت} = 2$ م/ث²، فإن القوة $\\text{ق}$ تساوي:',
+                      options: ['$10$ نيوتن', '$2.5$ نيوتن', '$7$ نيوتن', '$25$ نيوتن'],
+                      correctOption: 0
+                    }
+                  ]
+                };
+                setPrintingExamData(defaultPrintableExam);
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #059669, #10b981)',
+                color: 'white',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 18px',
+                fontWeight: 'bold',
+                boxShadow: '0 3px 10px rgba(16, 185, 129, 0.3)'
+              }}
+              title="فتح نموذج اختبار ورقي مطبوع فوري عالي الجودة للطباعة والتصدير"
+            >
+              <Printer size={18} /> 📄 نموذج اختبار مطبوع (جاهز للطباعة والتحميل)
+            </button>
+
             {/* Button 2: Import / Record External Paper Exam */}
             <button 
               className="btn" 
@@ -3178,11 +3239,24 @@ export default function TeacherExams() {
                       {!exam.isExternal && (
                         <button 
                           className="btn btn-outline" 
-                          style={{ flex: 1, minWidth: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '12px', padding: '6px' }} 
+                          style={{
+                            flex: 1,
+                            minWidth: '105px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            fontSize: '12px',
+                            padding: '6px',
+                            borderColor: '#059669',
+                            color: '#059669',
+                            background: '#ecfdf5',
+                            fontWeight: 'bold'
+                          }} 
                           onClick={() => setPrintingExamData(exam)}
-                          title="طباعة وتصدير أسئلة الاختبار بصيغة Word و PDF"
+                          title="طباعة وتصدير أسئلة الاختبار كنموذج مطبوع فائق الجودة بصيغة Word و PDF"
                         >
-                          <Printer size={14} /> طباعة الأسئلة
+                          <Printer size={14} /> اختبار مطبوع
                         </button>
                       )}
                       
@@ -3530,6 +3604,46 @@ export default function TeacherExams() {
             title="معاينة تفاعلية فورية لمسودة الاختبار كما سيراها الطلاب قبل الحفظ"
           >
             <Eye size={18} /> معاينة الاختبار
+          </button>
+
+          <button
+            type="button"
+            className="btn"
+            style={{
+              padding: '12px 24px',
+              fontSize: '15px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'linear-gradient(135deg, #059669, #10b981)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              boxShadow: '0 3px 10px rgba(16, 185, 129, 0.3)'
+            }}
+            onClick={() => {
+              const defaultOptLetters = ['( أ )', '( ب )', '( ج )', '( د )'];
+              const draftForPrint = {
+                id: currentExam?.id || 'draft-print',
+                title: title || 'اختبار مطبوع',
+                targetClass: targetClass || 'غير محدد',
+                subject: subject || 'غير محدد',
+                duration: duration || '45',
+                examDate: examDate || new Date().toISOString().split('T')[0],
+                teacherName: userData?.name || 'معلم المادة',
+                questions: questions.map((q, idx) => ({
+                  id: q.id || `q_${idx}`,
+                  text: q.text || `سؤال ${idx + 1}`,
+                  correctOption: q.correctOption !== undefined ? q.correctOption : 0,
+                  options: [0, 1, 2, 3].map(optIdx => (q.options && q.options[optIdx] !== undefined && q.options[optIdx] !== '') ? q.options[optIdx] : defaultOptLetters[optIdx])
+                }))
+              };
+              setPrintingExamData(draftForPrint);
+            }}
+            title="معاينة وطباعة نموذج الاختبار المطبوع فورياً بجودة فائقة وتخصيص نوع ولون الخط"
+          >
+            <Printer size={18} /> 🖨️ طباعة نموذج الاختبار المطبوع فورياً
           </button>
 
           <button

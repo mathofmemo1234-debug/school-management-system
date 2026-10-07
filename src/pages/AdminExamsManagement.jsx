@@ -43,6 +43,7 @@ import { computePsychometrics } from '../utils/psychometricsEngine';
 import PsychometricCharts from '../components/PsychometricCharts';
 import { sortStudentList, STUDENT_SORT_OPTIONS } from '../utils/studentSorting';
 import ExamCorrelationModal from '../components/ExamCorrelationModal';
+import PrintExamModal from '../components/PrintExamModal';
 
 export default function AdminExamsManagement() {
   const { userData } = useAuth();
@@ -59,6 +60,9 @@ export default function AdminExamsManagement() {
   const [showCorrelationModal, setShowCorrelationModal] = useState(false);
   const [correlationExam1, setCorrelationExam1] = useState(null);
   const [correlationExam2, setCorrelationExam2] = useState(null);
+
+  // Printed Exam State
+  const [printingExam, setPrintingExam] = useState(null);
 
   // Remedial Matrix state
   const [remedialMatrix, setRemedialMatrix] = useState(ACADEMIC_LEVELS);
@@ -906,6 +910,16 @@ export default function AdminExamsManagement() {
                       بواسطة: {exam.createdBy || 'المدير'}
                     </span>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setPrintingExam(exam)}
+                        style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="طباعة نموذج الاختبار المطبوع فائق الجودة بصيغة Word و PDF مع تخصيص نوع ولون الخط"
+                      >
+                        <Printer size={14} />
+                        <span>اختبار مطبوع</span>
+                      </button>
+
                       <button 
                         onClick={() => {
                           setCorrelationExam1(exam);
@@ -1313,6 +1327,31 @@ export default function AdminExamsManagement() {
                     </option>
                   ))}
                 </select>
+
+                {activeAnalyticsExam && (
+                  <button
+                    type="button"
+                    onClick={() => setPrintingExam(activeAnalyticsExam)}
+                    className="btn"
+                    style={{
+                      background: '#ecfdf5',
+                      color: '#059669',
+                      border: '1.5px solid #10b981',
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer'
+                    }}
+                    title="طباعة نموذج الاختبار المطبوع فائق الجودة بصيغة Word و PDF"
+                  >
+                    <Printer size={15} />
+                    <span>🖨️ طباعة الاختبار المطبوع</span>
+                  </button>
+                )}
               </div>
 
             </div>
@@ -2481,6 +2520,15 @@ export default function AdminExamsManagement() {
           allExams={combinedExams}
           initialExam1={correlationExam1}
           initialExam2={correlationExam2}
+        />
+      )}
+
+      {/* Printed Exam Modal */}
+      {printingExam && (
+        <PrintExamModal
+          exam={printingExam}
+          mode="exam"
+          onClose={() => setPrintingExam(null)}
         />
       )}
 
