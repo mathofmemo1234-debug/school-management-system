@@ -118,3 +118,23 @@
   gap: 8px;
   justify-content: center;
 }
+
+@media (max-width: 640px) {
+  .login-container {
+    padding: 12px 10px 80px 10px;
+  }
+
+  .login-card {
+    padding: 24px 16px;
+  }
+
+  .logo-container {
+    width: 96px;
+    height: 96px;
+    margin-bottom: 14px;
+  }
+
+  .login-header h1 {
+    font-size: 1.25rem;
+  }
+}

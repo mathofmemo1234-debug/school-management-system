@@ -429,8 +429,38 @@ body {
 
 @media (max-width: 1024px) {
   .floating-qiyas-btn {
-    right: 20px !important;
-    bottom: 85px !important;
+    right: 16px !important;
+    bottom: 24px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .floating-about-btn {
+    bottom: 14px !important;
+    left: 10px !important;
+    padding: 7px 13px !important;
+    font-size: 11.5px !important;
+    gap: 6px !important;
+  }
+
+  .floating-qiyas-btn {
+    right: 10px !important;
+    bottom: 14px !important;
+    padding: 6px 12px 6px 10px !important;
+    gap: 7px !important;
+  }
+
+  .floating-qiyas-btn .qiyas-btn-icon-wrapper {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .floating-qiyas-btn .qiyas-title {
+    font-size: 11.5px !important;
+  }
+
+  .floating-qiyas-btn .qiyas-sub {
+    font-size: 9px !important;
   }
 }
 

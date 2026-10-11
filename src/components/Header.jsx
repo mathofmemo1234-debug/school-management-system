@@ -4,7 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { 
   Bell, Globe, Mail, Award, ShieldCheck, Building2,
   Sparkles, BookOpen, FileText, CheckCircle2, Clock, 
-  ChevronLeft, ExternalLink, X, AlertCircle, Layers
+  ChevronLeft, ExternalLink, X, AlertCircle, Layers, Menu
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
@@ -13,7 +13,7 @@ import { subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
 import LanguageSwitcher from './LanguageSwitcher';
 import { isClassOrStageMatch } from '../utils/classMatcher';
 
-export default function Header({ title, role }) {
+export default function Header({ title, role, onToggleSidebar }) {
   const { currentUser, userRole, userData, switchSchoolContext } = useAuth();
   const { lang, toggleLanguage, t } = useLanguage();
   const navigate = useNavigate();
@@ -557,12 +557,23 @@ export default function Header({ title, role }) {
 
   return (
     <header className="top-header">
-      <div className="header-title">{title}</div>
+      <div className="header-start">
+        <button
+          type="button"
+          className="mobile-menu-toggle-btn no-print"
+          onClick={onToggleSidebar}
+          aria-label="فتح القائمة الجانبية"
+          title="القائمة الجانبية"
+        >
+          <Menu size={22} />
+        </button>
+        <div className="header-title">{title}</div>
+      </div>
       
       <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         {(userData?.role === 'superadmin' || userRole === 'superadmin') && effectiveRole !== 'superadmin' && (
           <button
-            className="btn"
+            className="btn header-superadmin-btn"
             onClick={async () => {
               if (switchSchoolContext) await switchSchoolContext('ALL');
               navigate('/superadmin');
@@ -593,7 +604,7 @@ export default function Header({ title, role }) {
 
         {/* Electronic Portfolio Quick Button */}
         <button
-          className="btn"
+          className="btn header-portfolio-btn"
           onClick={() => navigate(`/${effectiveRole}/portfolio`)}
           style={{
             background: 'linear-gradient(135deg, rgba(14, 116, 144, 0.08), rgba(99, 178, 198, 0.15))',
@@ -693,7 +704,7 @@ export default function Header({ title, role }) {
 
           {/* Luxury Floating Dropdown Popover */}
           {showBellDropdown && (
-            <div style={{
+            <div className="bell-dropdown-popover" style={{
               position: 'absolute',
               top: 'calc(100% + 8px)',
               left: 0,

@@ -1,12 +1,12 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, Users, BookOpen, Calendar, Home, Settings, FileText, Star, UserCheck, ShieldCheck, CheckSquare, Globe, Mail, Award, ClipboardList, Layers, FileSpreadsheet, Sparkles } from 'lucide-react';
+import { LogOut, Users, BookOpen, Calendar, Home, Settings, FileText, Star, UserCheck, ShieldCheck, CheckSquare, Globe, Mail, Award, ClipboardList, Layers, FileSpreadsheet, Sparkles, X } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
-export default function Sidebar({ role }) {
+export default function Sidebar({ role, isOpen = false, onClose }) {
   const navigate = useNavigate();
   const { userData, logout } = useAuth();
   const { t } = useLanguage();
@@ -167,8 +167,17 @@ export default function Sidebar({ role }) {
   const logoSrc = userData?.logoUrl || `${import.meta.env.BASE_URL}logo.webp`;
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isOpen ? 'sidebar-open' : ''}`}>
       <div className="sidebar-logo-wrapper">
+        <button
+          type="button"
+          className="sidebar-mobile-close-btn no-print"
+          onClick={() => onClose && onClose()}
+          aria-label="إغلاق القائمة"
+          title="إغلاق القائمة"
+        >
+          <X size={20} />
+        </button>
         <img 
           src={logoSrc} 
           alt="School Logo" 
@@ -186,6 +195,7 @@ export default function Sidebar({ role }) {
             key={link.path}
             to={link.path}
             end={link.path === `/${role}`}
+            onClick={() => onClose && onClose()}
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <link.icon size={19} />
