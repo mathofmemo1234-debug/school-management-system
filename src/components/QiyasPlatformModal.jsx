@@ -1,12 +1,164 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   GraduationCap, Sparkles, ExternalLink, X, BookOpen, 
-  CheckCircle2, Clock, Zap, Target, FileText, Camera, ArrowLeft
+  CheckCircle2, Clock, Zap, Target, FileText, Camera, ArrowLeft, GripVertical
 } from 'lucide-react';
 
 export default function QiyasPlatformModal({ isLoginPage = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const qiyasUrl = 'https://mathofmemo1234-debug.github.io/qiyas-platform/';
+
+  // Draggable Floating Position State
+  const [position, setPosition] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nabeeh_button_pos');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.top === 'number' && typeof parsed.left === 'number') {
+          const clampedTop = Math.max(10, Math.min(window.innerHeight - 50, parsed.top));
+          const clampedLeft = Math.max(10, Math.min(window.innerWidth - 170, parsed.left));
+          return { top: clampedTop, left: clampedLeft };
+        }
+      }
+    } catch (e) {}
+
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const h = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const defaultLeft = isLoginPage ? Math.max(16, w - 190) : Math.max(16, w - 460);
+    const defaultTop = Math.max(16, h - 70);
+    return { top: defaultTop, left: defaultLeft };
+  });
+
+  const [isDragging, setIsDragging] = useState(false);
+  const dragInfoRef = useRef({
+    startX: 0,
+    startY: 0,
+    startTop: 0,
+    startLeft: 0,
+    hasMoved: false
+  });
+  const buttonRef = useRef(null);
+
+  // Keep button inside viewport on screen resize
+  useEffect(() => {
+    const handleResize = () => {
+      setPosition(prev => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        return {
+          top: Math.max(10, Math.min(h - 50, prev.top)),
+          left: Math.max(10, Math.min(w - 170, prev.left))
+        };
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Mouse Drag Handler
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    dragInfoRef.current = {
+      startX,
+      startY,
+      startTop: position.top,
+      startLeft: position.left,
+      hasMoved: false
+    };
+
+    const handleMouseMove = (moveEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      if (!dragInfoRef.current.hasMoved && Math.hypot(dx, dy) > 4) {
+        dragInfoRef.current.hasMoved = true;
+        setIsDragging(true);
+      }
+
+      if (dragInfoRef.current.hasMoved) {
+        moveEvent.preventDefault();
+        const btnW = buttonRef.current?.offsetWidth || 165;
+        const btnH = buttonRef.current?.offsetHeight || 36;
+        const newLeft = Math.max(10, Math.min(window.innerWidth - btnW - 10, dragInfoRef.current.startLeft + dx));
+        const newTop = Math.max(10, Math.min(window.innerHeight - btnH - 10, dragInfoRef.current.startTop + dy));
+        setPosition({ top: newTop, left: newLeft });
+      }
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      setIsDragging(false);
+
+      if (dragInfoRef.current.hasMoved) {
+        setPosition(curr => {
+          try {
+            localStorage.setItem('nabeeh_button_pos', JSON.stringify(curr));
+          } catch (e) {}
+          return curr;
+        });
+      } else {
+        setIsOpen(true);
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Touch Drag Handler for Tablets and Mobile
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0];
+    const startX = touch.clientX;
+    const startY = touch.clientY;
+    dragInfoRef.current = {
+      startX,
+      startY,
+      startTop: position.top,
+      startLeft: position.left,
+      hasMoved: false
+    };
+
+    const handleTouchMove = (moveEvent) => {
+      const t = moveEvent.touches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (!dragInfoRef.current.hasMoved && Math.hypot(dx, dy) > 4) {
+        dragInfoRef.current.hasMoved = true;
+        setIsDragging(true);
+      }
+
+      if (dragInfoRef.current.hasMoved) {
+        if (moveEvent.cancelable) moveEvent.preventDefault();
+        const btnW = buttonRef.current?.offsetWidth || 165;
+        const btnH = buttonRef.current?.offsetHeight || 36;
+        const newLeft = Math.max(10, Math.min(window.innerWidth - btnW - 10, dragInfoRef.current.startLeft + dx));
+        const newTop = Math.max(10, Math.min(window.innerHeight - btnH - 10, dragInfoRef.current.startTop + dy));
+        setPosition({ top: newTop, left: newLeft });
+      }
+    };
+
+    const handleTouchEnd = () => {
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+      setIsDragging(false);
+
+      if (dragInfoRef.current.hasMoved) {
+        setPosition(curr => {
+          try {
+            localStorage.setItem('nabeeh_button_pos', JSON.stringify(curr));
+          } catch (e) {}
+          return curr;
+        });
+      } else {
+        setIsOpen(true);
+      }
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+  };
 
   const handleOpenPlatform = () => {
     window.open(qiyasUrl, '_blank', 'noopener,noreferrer');
@@ -47,23 +199,30 @@ export default function QiyasPlatformModal({ isLoginPage = false }) {
 
   return (
     <>
-      {/* Attractive Floating Action Button (Far from the bottom-left About Us button) */}
+      {/* Draggable Compact Floating Action Button */}
       <button
+        ref={buttonRef}
         type="button"
-        className={`floating-qiyas-btn no-print ${isLoginPage ? 'floating-qiyas-login' : ''}`}
-        onClick={() => setIsOpen(true)}
-        title="منصة نَبِـيــهْ للقدرات العامة | تدريب تفاعلي ومحاكاة حقيقية لقياس"
+        className={`floating-qiyas-btn no-print ${isDragging ? 'is-dragging' : ''}`}
+        style={{
+          top: `${position.top}px`,
+          left: `${position.left}px`,
+          bottom: 'auto',
+          right: 'auto',
+          cursor: isDragging ? 'grabbing' : 'grab'
+        }}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        title="اسحب الزر لنقله لأي مكان فارغ • اضغط لفتح منصة نبيه للقدرات"
       >
-        <span className="qiyas-pulse-ring" />
-        <span className="qiyas-pulse-dot" />
+        <div className="qiyas-drag-grip" title="اسحب للتحريك">
+          <GripVertical size={13} />
+        </div>
         <div className="qiyas-btn-icon-wrapper">
-          <GraduationCap size={20} className="qiyas-btn-icon" />
+          <GraduationCap size={15} className="qiyas-btn-icon" />
         </div>
-        <div className="qiyas-btn-text">
-          <span className="qiyas-title">منصة نَبِـيــهْ للقدرات</span>
-          <span className="qiyas-sub">تدريب تفاعلي ومحاكي قياس</span>
-        </div>
-        <Sparkles size={16} className="qiyas-sparkle" />
+        <span className="qiyas-title">منصة نَبِـيــهْ للقدرات</span>
+        <Sparkles size={13} className="qiyas-sparkle" />
       </button>
 
       {/* Distinguished Introduction Modal */}
