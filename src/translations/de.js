@@ -12,6 +12,7 @@ export const deTranslations = {
   "header.user": "Benutzer",
   "sidebar.adminDashboard": "Schulleitungs-Dashboard",
   "sidebar.superAdminDashboard": "Master-Dashboard",
+  "sidebar.yearlyMigration": "Jahresdatenmigration & Neueinrichtung",
   "sidebar.teacherDashboard": "Lehrerportal",
   "sidebar.studentDashboard": "Schülerportal",
   "sidebar.parentDashboard": "Elternportal",

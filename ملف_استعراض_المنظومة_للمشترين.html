@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الملف التعريفي الاستثماري: استعراض شامل لمنظومة التعليم الذكي للمشترين والمستثمرين</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary-navy: #060d1f;
+      --secondary-navy: #0b152d;
+      --navy-card: #101c3d;
+      --navy-card-hover: #172652;
+      --accent-blue: #2563eb;
+      --accent-cyan: #06b6d4;
+      --accent-teal: #0d9488;
+      --accent-emerald: #059669;
+      --accent-gold: #f59e0b;
+      --accent-purple: #7c3aed;
+      --accent-rose: #e11d48;
+      
+      --bg-body: #f8fafc;
+      --bg-surface: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-light: #94a3b8;
+      --border-color: #cbd5e1;
+      --border-subtle: #e2e8f0;
+      
+      --gold-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+      --blue-gradient: linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%);
+      --teal-gradient: linear-gradient(135deg, #0f766e 0%, #0284c7 100%);
+      --dark-gradient: linear-gradient(135deg, #060d1f 0%, #0f172a 60%, #1e3a8a 100%);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Cairo', 'Tajawal', sans-serif;
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      line-height: 1.85;
+      font-size: 16px;
+      direction: rtl;
+      padding-bottom: 60px;
+    }
+
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Executive Top Bar */
+    .top-bar {
+      position: sticky;
+      top: 14px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(14px);
+      border: 1.5px solid var(--border-color);
+      border-radius: 18px;
+      padding: 12px 24px;
+      margin: 14px auto 26px auto;
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-badge {
+      width: 44px;
+      height: 44px;
+      background: var(--blue-gradient);
+      color: #ffffff;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: 900;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+    }
+
+    .brand-text h2 {
+      font-size: 1.15rem;
+      font-weight: 900;
+      color: var(--primary-navy);
+      line-height: 1.25;
+    }
+
+    .brand-text p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .nav-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .nav-pill {
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      padding: 7px 14px;
+      border-radius: 10px;
+      background: #f1f5f9;
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-pill:hover, .nav-pill.active {
+      background: #eff6ff;
+      color: var(--accent-blue);
+      border-color: #bfdbfe;
+    }
+
+    .action-btns {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-primary {
+      font-family: inherit;
+      background: var(--blue-gradient);
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-size: 0.92rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(29, 78, 216, 0.25);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(29, 78, 216, 0.35);
+    }
+
+    /* Hero Showcase Banner */
+    .hero-banner {
+      background: var(--dark-gradient);
+      color: #ffffff;
+      border-radius: 26px;
+      padding: 48px 52px;
+      margin-bottom: 35px;
+      border: 2px solid #1e293b;
+      box-shadow: 0 20px 50px rgba(6, 13, 31, 0.25);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-banner::after {
+      content: '';
+      position: absolute;
+      top: -120px;
+      left: -120px;
+      width: 420px;
+      height: 420px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .hero-tag-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .tag-product-id {
+      color: #fde047;
+      font-weight: 900;
+      font-size: 1.1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tag-buyer-pill {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid #34d399;
+      color: #a7f3d0;
+      padding: 5px 18px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .hero-banner h1 {
+      font-size: 2.55rem;
+      font-weight: 900;
+      line-height: 1.35;
+      margin-bottom: 18px;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 55%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-lead-text {
+      color: #e2e8f0;
+      font-size: 1.15rem;
+      line-height: 1.9;
+      max-width: 1080px;
+      margin-bottom: 30px;
+    }
+
+    .hero-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-top: 28px;
+    }
+
+    .hero-kpi-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 18px;
+      padding: 20px 24px;
+      backdrop-filter: blur(8px);
+    }
+
+    .hero-kpi-number {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #38bdf8;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hero-kpi-label {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    /* Showcase Chapter Section */
+    .showcase-chapter {
+      background: var(--bg-surface);
+      border-radius: 24px;
+      border: 1px solid var(--border-color);
+      padding: 40px 46px;
+      margin-bottom: 35px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+      scroll-margin-top: 90px;
+    }
+
+    .chapter-heading {
+      padding-bottom: 20px;
+      margin-bottom: 28px;
+      border-bottom: 3px solid var(--accent-blue);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .chapter-heading.teal { border-bottom-color: var(--accent-teal); }
+    .chapter-heading.emerald { border-bottom-color: var(--accent-emerald); }
+    .chapter-heading.purple { border-bottom-color: var(--accent-purple); }
+    .chapter-heading.gold { border-bottom-color: var(--accent-gold); }
+
+    .heading-title-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .chapter-badge-num {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--secondary-navy);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      font-weight: 900;
+    }
+
+    .heading-title-group h2 {
+      font-size: 1.85rem;
+      font-weight: 900;
+      color: var(--primary-navy);
+    }
+
+    .chapter-badge-pill {
+      padding: 6px 18px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 800;
+    }
+
+    .pill-blue { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .pill-teal { background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; }
+    .pill-emerald { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .pill-purple { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+    .pill-gold { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+
+    .chapter-intro {
+      font-size: 1.12rem;
+      color: var(--text-muted);
+      line-height: 1.9;
+      margin-bottom: 28px;
+      font-weight: 500;
+    }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    /* Cards */
+    .feature-card {
+      background: #f8fafc;
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 26px;
+      transition: all 0.25s ease;
+    }
+
+    .feature-card:hover {
+      border-color: var(--accent-blue);
+      box-shadow: 0 10px 28px rgba(37, 99, 235, 0.08);
+      transform: translateY(-3px);
+    }
+
+    .card-header-icon {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .icon-box {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    .icon-blue { background: #eff6ff; color: #1d4ed8; }
+    .icon-teal { background: #f0fdfa; color: #0f766e; }
+    .icon-emerald { background: #ecfdf5; color: #047857; }
+    .icon-gold { background: #fffbeb; color: #b45309; }
+    .icon-purple { background: #f5f3ff; color: #6d28d9; }
+    .icon-rose { background: #fff1f2; color: #be123c; }
+
+    .card-header-icon h4 {
+      font-size: 1.22rem;
+      font-weight: 900;
+      color: var(--primary-navy);
+    }
+
+    .card-desc {
+      font-size: 0.98rem;
+      color: var(--text-muted);
+      line-height: 1.75;
+      margin-bottom: 14px;
+    }
+
+    .card-checklist {
+      list-style: none;
+      padding: 0;
+    }
+
+    .card-checklist li {
+      position: relative;
+      padding-right: 24px;
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+      color: var(--text-main);
+      font-weight: 600;
+      line-height: 1.65;
+    }
+
+    .card-checklist li::before {
+      content: '✓';
+      position: absolute;
+      right: 0;
+      color: var(--accent-blue);
+      font-weight: 900;
+    }
+
+    /* Strategic Value Banner */
+    .value-box {
+      border-radius: 18px;
+      padding: 24px 28px;
+      margin-bottom: 28px;
+      border-right: 6px solid;
+    }
+
+    .value-blue {
+      background: #eff6ff;
+      border-color: var(--accent-blue);
+      color: #1e3a8a;
+    }
+
+    .value-teal {
+      background: #f0fdfa;
+      border-color: var(--accent-teal);
+      color: #0f766e;
+    }
+
+    .value-emerald {
+      background: #ecfdf5;
+      border-color: var(--accent-emerald);
+      color: #065f46;
+    }
+
+    .value-gold {
+      background: #fffbeb;
+      border-color: var(--accent-gold);
+      color: #78350f;
+    }
+
+    .value-title {
+      font-size: 1.2rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .value-text {
+      font-size: 1rem;
+      line-height: 1.85;
+      font-weight: 600;
+    }
+
+    /* Workflow Stepper */
+    .workflow-panel {
+      background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+      border: 1.5px solid #bfdbfe;
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 30px;
+    }
+
+    .workflow-head-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: var(--primary-navy);
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .workflow-steps-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+    }
+
+    .workflow-step-card {
+      background: #ffffff;
+      border: 1px solid #dbeafe;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.05);
+    }
+
+    .step-badge {
+      background: var(--accent-blue);
+      color: #ffffff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+    }
+
+    .workflow-step-card h5 {
+      font-size: 1.05rem;
+      font-weight: 900;
+      color: var(--primary-navy);
+      margin-bottom: 6px;
+    }
+
+    .workflow-step-card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Interactive Role Showcase Switcher */
+    .role-switcher-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+      background: #f1f5f9;
+      padding: 8px;
+      border-radius: 14px;
+    }
+
+    .role-tab-btn {
+      font-family: inherit;
+      font-size: 0.92rem;
+      font-weight: 800;
+      padding: 9px 18px;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .role-tab-btn:hover {
+      color: var(--accent-blue);
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    .role-tab-btn.active {
+      background: #ffffff;
+      color: var(--primary-navy);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .role-showcase-content {
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 28px;
+      background: #ffffff;
+      display: none;
+    }
+
+    .role-showcase-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .role-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .role-meta-title h3 {
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: var(--primary-navy);
+    }
+
+    .role-meta-title p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Comparison Table */
+    .comp-table-wrap {
+      overflow-x: auto;
+      margin-top: 22px;
+      margin-bottom: 26px;
+      border-radius: 16px;
+      border: 1.5px solid var(--border-color);
+    }
+
+    .comp-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: right;
+      font-size: 0.96rem;
+    }
+
+    .comp-table th {
+      background: var(--primary-navy);
+      color: #ffffff;
+      padding: 16px 20px;
+      font-weight: 900;
+      border-bottom: 2px solid #1e293b;
+    }
+
+    .comp-table td {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .comp-table tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    .comp-table tr:hover td {
+      background: #eff6ff;
+    }
+
+    .badge-check {
+      color: #059669;
+      font-weight: 900;
+      font-size: 1.15rem;
+    }
+
+    .badge-cross {
+      color: #e11d48;
+      font-weight: 900;
+      font-size: 1.15rem;
+    }
+
+    /* Acquisition Deals */
+    .deals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-top: 26px;
+    }
+
+    .deal-card {
+      border: 2px solid var(--border-subtle);
+      border-radius: 22px;
+      padding: 30px;
+      background: #ffffff;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .deal-card:hover {
+      border-color: var(--accent-blue);
+      box-shadow: 0 12px 35px rgba(37, 99, 235, 0.12);
+      transform: translateY(-4px);
+    }
+
+    .deal-card.premier {
+      border-color: var(--accent-gold);
+      background: linear-gradient(180deg, #ffffff 0%, #fffdf5 100%);
+    }
+
+    .deal-tag {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 900;
+      margin-bottom: 14px;
+    }
+
+    .tag-buyout { background: #fef9c3; color: #a16207; border: 1px solid #fde047; }
+    .tag-white { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .tag-saas { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+
+    .deal-card h3 {
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: var(--primary-navy);
+      margin-bottom: 10px;
+    }
+
+    .deal-card p.summary {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin-bottom: 18px;
+    }
+
+    code {
+      font-family: Consolas, Monaco, monospace;
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--primary-navy);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      direction: ltr;
+      display: inline-block;
+    }
+
+    /* Footer */
+    .master-footer {
+      background: var(--primary-navy);
+      color: #ffffff;
+      border-radius: 22px;
+      padding: 36px 48px;
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      border: 1.5px solid #1e293b;
+    }
+
+    .footer-info h4 {
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: var(--accent-gold);
+      margin-bottom: 6px;
+    }
+
+    .footer-info p {
+      font-size: 0.9rem;
+      color: var(--text-light);
+    }
+
+    /* Print Tweaks */
+    @media print {
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        font-size: 10.5pt !important;
+        color: #000000 !important;
+      }
+      .top-bar {
+        display: none !important;
+      }
+      .container {
+        max-width: 100% !important;
+        padding: 0 !important;
+      }
+      .showcase-chapter {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        break-inside: avoid;
+        margin-bottom: 24px !important;
+        padding: 24px !important;
+      }
+      .hero-banner {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        padding: 28px !important;
+      }
+      .role-showcase-content {
+        display: block !important;
+        margin-bottom: 20px !important;
+        break-inside: avoid;
+      }
+      .role-switcher-tabs {
+        display: none !important;
+      }
+      @page {
+        size: A4;
+        margin: 12mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Top Executive Nav Bar -->
+    <nav class="top-bar">
+      <div class="brand-wrap">
+        <div class="brand-badge">🏫</div>
+        <div class="brand-text">
+          <h2>بوابة التعليم الذكي المتكاملة • دليل الاستحواذ والعرض التنفيذي للمشترين</h2>
+          <p>جاهزية تقنية وتشغيلية متكاملة للتدشين الفوري والتملك المؤسسي</p>
+        </div>
+      </div>
+
+      <div class="nav-pills">
+        <a href="#migration" class="nav-pill active">🔄 ترحيل واستيعاب البيانات</a>
+        <a href="#roles" class="nav-pill">👥 استعراض البوابات الـ 7</a>
+        <a href="#ai" class="nav-pill">🧠 المحركات والذكاء الاصطناعي</a>
+        <a href="#resources" class="nav-pill">🏢 مشاركة الكوادر والموارد</a>
+        <a href="#tech" class="nav-pill">⚙️ المعمارية والأداء</a>
+        <a href="#commercial" class="nav-pill">💼 باقات الشراء والتملك</a>
+      </div>
+
+      <div class="action-btns">
+        <button class="btn-primary" onclick="window.print()">
+          <span>🖨️ طباعة العرض أو حفظ كـ PDF</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Master Showcase Hero -->
+    <header class="hero-banner">
+      <div class="hero-tag-row">
+        <div class="tag-product-id">
+          <span>🌟 منظومة المدارس الذكية المتقدمة • MSC Enterprise Learning Platform</span>
+        </div>
+        <div class="tag-buyer-pill">
+          ✓ وثيقة العرض التجاري والتقني الموجهة للمشترين وسلاسل المدارس
+        </div>
+      </div>
+
+      <h1>كتالوج الاستعراض الاستثماري والتقني الشامل لمنظومة التعليم الذكي</h1>
+      <p class="hero-lead-text">
+        عرض تسويقي وتقني متكامل موجه لقيادات الشركات التعليمية وسلاسل المدارس الكبرى الراغبة في <strong>شراء المنظومة، تملك كودها المصدري، أو الحصول على نسخة مرخصة مستقلة (White-Label)</strong>. تستعرض هذه الوثيقة مصفوفة الإمكانات الميدانية، واجهات المستخدم، ومحركات القياس الذكية، مع إبراز <strong>الحل الجذري لأكبر هاجس يؤرق الشركات التعليمية: استراتيجية ترحيل واستيعاب البيانات القديمة والأرشفة السنوية دون توقف ثانية واحدة</strong>.
+      </p>
+
+      <div class="hero-kpi-grid">
+        <div class="hero-kpi-card">
+          <div class="hero-kpi-number">40+</div>
+          <div class="hero-kpi-label">مجمعاً تعليمياً مستقلاً يُدار مركزياً بنقرة زر واحدة</div>
+        </div>
+        <div class="hero-kpi-card">
+          <div class="hero-kpi-number">&lt; 80ms</div>
+          <div class="hero-kpi-label">سرعة استجابة الاستعلامات اللحظية عبر Cloud Firestore</div>
+        </div>
+        <div class="hero-kpi-card">
+          <div class="hero-kpi-number">450k ر.س</div>
+          <div class="hero-kpi-label">وفر مالي سنوي موثق من ترشيد الكوادر وإلغاء البرامج المتفرقة</div>
+        </div>
+        <div class="hero-kpi-card">
+          <div class="hero-kpi-number">14 يوماً</div>
+          <div class="hero-kpi-label">المدة الزمنية القياسية لانطلاق وتشغيل كافة مدارس الشركة</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- =========================================================================
+         SECTION 1: THE CORE MASTER PILLAR FOR BUYERS: DATA MIGRATION
+         (أول وأهم هاجس للمشتري)
+         ========================================================================= -->
+    <section class="showcase-chapter" id="migration">
+      <div class="chapter-heading teal">
+        <div class="heading-title-group">
+          <div class="chapter-badge-num">1</div>
+          <h2>استراتيجية ترحيل واستيعاب البيانات: ضمان الانتقال السلس دون مخاطر</h2>
+        </div>
+        <span class="chapter-badge-pill pill-teal">الركيزة الاستراتيجية الأولى للمشتري (Zero-Risk Guarantee)</span>
+      </div>
+
+      <p class="chapter-intro">
+        إن أول سؤال يطرحه المشتري وصناع القرار قبل توقيع أي صفقة هو: <strong>«كيف سننقل آلاف الطلاب والمعلمين ودرجاتهم وسجلاتهم التاريخية من نظامنا الحالي (أو نظام نور أو ملفات إكسل) إلى هذه المنظومة؟ وهل سنفقد أي بيانات؟ وماذا يحدث في نهاية كل عام دراسي؟»</strong>. تم تصميم المنظومة بمحركات هندسية مدمجة تضمن حسم هذا التخوف وتقديم انتقال سلس ومؤتمت 100%.
+      </p>
+
+      <div class="grid-2">
+        <!-- Panel A -->
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-blue">📥</div>
+            <h4>استيعاب البيانات السابقة ومنظومة «نور»</h4>
+          </div>
+          <p class="card-desc">
+            أدوات مدمجة تمكّن من استيعاب بيانات مئات الفصول وآلاف الطلاب في دقائق معدودة:
+          </p>
+          <ul class="card-checklist">
+            <li><strong>اللصق الذكي الفوري (<code>batchGradesParser.js</code>):</strong> ينسخ مدخل البيانات أو المعلم جدولاً كاملاً من نظام نور أو إكسل ويلصقه مباشرة داخل شاشات النظام، ليتعرف المحرك آلياً على أعمدة الهوية والدرجة وحالات الغياب.</li>
+            <li><strong>محرك مطابقة الفصول الآلي (<code>classMatcher.js</code>):</strong> يحلل تسميات الفصول تلقائياً (مثل "1/ث/أ" و "أول ثانوي - شعبة 1") ويربط الطلاب بفصولهم ومدارسهم بدقة متناهية.</li>
+            <li><strong>الفحص الاستباقي قبل الكتابة (Pre-flight Validation Gate):</strong> تدقيق آلي يمنع تكرار السجلات أو تداخل الهويات الوطنية، ويعرض تقرير تدقيق شامل للمشرف قبل حفظ السجلات بالسحابة.</li>
+          </ul>
+        </div>
+
+        <!-- Panel B -->
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-teal">🔄</div>
+            <h4>الترحيل السنوي وتأسيس العام الجديد</h4>
+          </div>
+          <p class="card-desc">
+            محرك مدمج في لوحة Super Admin (<code>yearlyMigrationService.js</code>) يدير دورة حياة العام الدراسي:
+          </p>
+          <ul class="card-checklist">
+            <li><strong>الأرشفة السحابية المجزأة (Chunked Cloud Snapshots):</strong> أرشفة سجلات العام في مستندات سحابية فرعية مفهرسة بالعام (مثل: <code>1446-1447 هـ</code>) لمنع تجاوز حدود الوثائق والحفاظ على سرعة النظام.</li>
+            <li><strong>تصدير الأرشيف المحلي (Offline JSON Snapshot):</strong> تنزيل فوري لملف أرشيف موحد بصيغة JSON يُحفظ على حاسوب الإدارة العليا كنسخة احتياطية خارج السحابة.</li>
+            <li><strong>التصفير الانتقائي الذكي (Clean Slate):</strong> تصفير السجلات اليومية (الغياب، الحصص، التحاضير المؤقتة، المراسلات) مع <strong>الحماية المطلقة للبيانات الهيكلية</strong> (المدارس، الكوادر، الطلاب، الفصول، ملفات الإنجاز، ومعايير التميز).</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Stepper Flow -->
+      <div class="workflow-panel">
+        <div class="workflow-head-title">
+          <span>🚀 مسار ترحيل وتأسيس العام الدراسي الجديد بنقرة زر واحدة (5 مراحل مؤتمتة)</span>
+        </div>
+        <div class="workflow-steps-row">
+          <div class="workflow-step-card">
+            <div class="step-badge">1</div>
+            <h5>تحديد النطاق والعام</h5>
+            <p>تحديد نطاق الترحيل (كافة مجمعات الشركة الـ 40 أو مجمع محدد) واختيار العام الدراسي الحالي والمستهدف.</p>
+          </div>
+          <div class="workflow-step-card">
+            <div class="step-badge">2</div>
+            <h5>تجميع وأرشفة 23+ جدولاً</h5>
+            <p>سحب كافة السجلات التشغيلية والدرجات والتحاضير وبناء كائن أرشيف رقمي مشفر موحد فائق الدقة.</p>
+          </div>
+          <div class="workflow-step-card">
+            <div class="step-badge">3</div>
+            <h5>الأرشفة المزدوجة</h5>
+            <p>حفظ الأرشيف في Firestore Subcollections مجزأة + تنزيل ملف JSON شامل على حاسوب الإدارة.</p>
+          </div>
+          <div class="workflow-step-card">
+            <div class="step-badge">4</div>
+            <h5>التصفير الانتقائي المحمي</h5>
+            <p>تصفير جداول الغياب، الواجبات، والمراسلات بنظام Batches الآمن مع حماية المعلمين والطلاب والمدارس.</p>
+          </div>
+          <div class="workflow-step-card">
+            <div class="step-badge">5</div>
+            <h5>تدشين العام الجديد ونظافة النظام</h5>
+            <p>تحديث إعدادات النظام للعام الجديد، ترقية المراحل الدراسية، وبدء الدراسة بسرعة استعلام فائقة كأنها اليوم الأول.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="value-box value-teal">
+        <div class="value-title">
+          <span>🛡️ صمام الأمان والتعافي من الكوارث (One-Click Disaster Recovery & Rollback)</span>
+        </div>
+        <div class="value-text">
+          تمنح المنظومة المشتري طمأنينة مطلقة؛ ففي حال حدوث أي خطأ بشري أثناء الترحيل، يوفر النظام تبويب <strong>«استعادة عام دراسي سابق»</strong> بنقرة زر واحدة؛ حيث يقوم المحرك بضخ مئات الآلاف من السجلات المؤرشفة بنظام الكتابة المجمعة المدمجة (Batch Set with Merge) بمعدل 250 وثيقة بالدفعة الواحدة، مما يلغي تماماً أي خطر تشغيلي.
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SECTION 2: VISUAL SHOWCASE OF THE 7 PORTALS (WHAT THE BUYER GETS)
+         ========================================================================= -->
+    <section class="showcase-chapter" id="roles">
+      <div class="chapter-heading blue">
+        <div class="heading-title-group">
+          <div class="chapter-badge-num">2</div>
+          <h2>استعراض الواجهات التشغيلية: 7 بوابات متخصصة تغطي المجتمع المدرسي</h2>
+        </div>
+        <span class="chapter-badge-pill pill-blue">35+ شاشة تفاعلية متكاملة الصلاحيات</span>
+      </div>
+
+      <p class="chapter-intro">
+        عندما تشتري شركتكم هذه المنظومة، فإنكم تتملكون نظام تشغيل مدرسي متكامل يربط الإدارة العليا، مدراء المدارس، المشرفين، المعلمين، الطلاب، وأولياء الأمور في حلقة عمل واحدة متناسقة دون الحاجة لأي برامج وسيطة:
+      </p>
+
+      <!-- Role Switcher Tabs -->
+      <div class="role-switcher-tabs">
+        <button class="role-tab-btn active" onclick="switchRoleShowcase('role-superadmin', this)">👑 الإدارة العليا (Super Admin)</button>
+        <button class="role-tab-btn" onclick="switchRoleShowcase('role-admin', this)">🏢 مدير المدرسة (School Admin)</button>
+        <button class="role-tab-btn" onclick="switchRoleShowcase('role-supervisor', this)">🔍 المشرف التربوي (Supervisor)</button>
+        <button class="role-tab-btn" onclick="switchRoleShowcase('role-teacher', this)">👨‍🏫 بوابة المعلم (Teacher)</button>
+        <button class="role-tab-btn" onclick="switchRoleShowcase('role-student', this)">🎓 بوابة الطالب (Student)</button>
+        <button class="role-tab-btn" onclick="switchRoleShowcase('role-parent', this)">👨‍👩‍👦 ولي الأمر (Parent)</button>
+        <button class="role-tab-btn" onclick="switchRoleShowcase('role-counselor', this)">📋 الموجه الطلابي والإداري</button>
+      </div>
+
+      <!-- Tab Content 1: Super Admin -->
+      <div id="role-superadmin" class="role-showcase-content active">
+        <div class="role-meta-row">
+          <div class="role-meta-title">
+            <h3>بوابة الإدارة العامة والماستر العام (Super Admin Dashboard)</h3>
+            <p>مخصصة للرئيس التنفيذي، مجلس الإدارة، والقيادات المشرفة على سلاسل المدارس</p>
+          </div>
+          <span class="chapter-badge-pill pill-purple">التحكم المركزي في 40+ مدرسة</span>
+        </div>
+        <div class="grid-2">
+          <div>
+            <h5 style="font-size: 1.15rem; font-weight: 900; margin-bottom: 12px; color: var(--primary-navy);">أهم الإمكانات المعروضة للمشتري:</h5>
+            <ul class="card-checklist">
+              <li><strong>غرفة عمليات مركزية للمجمعات:</strong> مراقبة نسب الحضور، نسب التحضير، ومؤشرات الأداء اللحظية لـ 43+ مجمعاً في شاشة موحدة.</li>
+              <li><strong>مركز ترحيل البيانات السنوي:</strong> تفعيل الأرشفة السحابية والمحلية وتأسيس الأعوام الدراسية بنقرة زر واحدة.</li>
+              <li><strong>سوق الموارد والكوادر المشتركة:</strong> إصدار قرارات الندب وتدوير المعلمين الفائضين بين المدارس لسد العجز.</li>
+              <li><strong>مركز التعاميم الموحدة:</strong> بث الإعلانات والقرارات الرسمية لكافة مدارس الشركة أو لمدارس محددة بضغطة زر.</li>
+            </ul>
+          </div>
+          <div class="value-box value-blue" style="margin: 0;">
+            <div class="value-title">💼 العائد على المشتري:</div>
+            <div class="value-text">
+              حوكمة مطلقة تلغي الحاجة للاتصالات الهاتفية أو التقارير الورقية؛ حيث ترى الإدارة العامة نبض المدارس لحظياً من مقر الشركة الرئيسي، وتكتشف أي خلل أو عجز فوري صباح كل يوم.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 2: School Admin -->
+      <div id="role-admin" class="role-showcase-content">
+        <div class="role-meta-row">
+          <div class="role-meta-title">
+            <h3>بوابة مدير المدرسة وقائد المجمع (School Admin Portal)</h3>
+            <p>مخصصة لمدراء المدارس ووكلائهم لتسيير العمليات اليومية بانضباط</p>
+          </div>
+          <span class="chapter-badge-pill pill-blue">القيادة الميدانية المنضبطة</span>
+        </div>
+        <div class="grid-2">
+          <div>
+            <h5 style="font-size: 1.15rem; font-weight: 900; margin-bottom: 12px; color: var(--primary-navy);">أهم الإمكانات المعروضة للمشتري:</h5>
+            <ul class="card-checklist">
+              <li><strong>متابعة واعتماد التحاضير اليومية:</strong> استعراض تحاضير المعلمين وخططهم الأسبوعية واعتمادها إلكترونياً.</li>
+              <li><strong>إدارة الفصول والجداول المدرسية:</strong> توزيع الطلاب، إدارة شعب الفصول، وجداول الحصص الأسبوعية التفاعلية.</li>
+              <li><strong>الرصد الفوري للغياب والكنترول:</strong> حصر الغياب اليومي صباحاً، طباعة كشوف الكنترول، وإصدار إشعارات الحرمان التلقائية.</li>
+              <li><strong>إدارة الاختبارات والدرجات المدرسية:</strong> اعتماد بنوك الأسئلة، مراجعة رصد الدرجات، واستخراج الشهادات المروّسة.</li>
+            </ul>
+          </div>
+          <div class="value-box value-blue" style="margin: 0;">
+            <div class="value-title">💼 العائد على المشتري:</div>
+            <div class="value-text">
+              تمكين مدراء المدارس من إدارة مجمعاتهم بأقل جهد ورقي، وتوفير أكثر من ساعتين عمل يومياً لكل مدير مدرسة للتركيز على القيادة التربوية وجودة التعليم.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 3: Supervisor -->
+      <div id="role-supervisor" class="role-showcase-content">
+        <div class="role-meta-row">
+          <div class="role-meta-title">
+            <h3>بوابة المشرف التربوي والتعليمي (Supervisor Portal)</h3>
+            <p>مخصصة لمشرفي المواد وضمان الجودة والاعتماد المدرسي</p>
+          </div>
+          <span class="chapter-badge-pill pill-teal">الجودة والتطوير المهني للمعلمين</span>
+        </div>
+        <div class="grid-2">
+          <div>
+            <h5 style="font-size: 1.15rem; font-weight: 900; margin-bottom: 12px; color: var(--primary-navy);">أهم الإمكانات المعروضة للمشتري:</h5>
+            <ul class="card-checklist">
+              <li><strong>استمارة الزيارة الصفية الرقمية:</strong> استمارة إشرافية إلكترونية معتمدة يملؤها المشرف من الجوال أو التابلت أثناء الحصة.</li>
+              <li><strong>التغذية الراجعة الفورية والاعتماد:</strong> إرسال الملاحظات والتوصيات فوراً لشاشة المعلم مع ميزة التوقيع الرقمي المعتمد.</li>
+              <li><strong>مصفوفات تقييم الأداء المهني:</strong> رصد المنحنى التراكمي لتطور أداء المعلم عبر الزيارات المتتالية وتحديد الاحتياجات التدريبية.</li>
+              <li><strong>مقارنات نواتج التعلم:</strong> قياس نسب إنجاز المناهج وتحليل الفجوات التعليمية بين مختلف المجمعات.</li>
+            </ul>
+          </div>
+          <div class="value-box value-teal" style="margin: 0;">
+            <div class="value-title">💼 العائد على المشتري:</div>
+            <div class="value-text">
+              رفع التصنيف العام لمدارس الشركة لدى وزارة التعليم وهيئة تقويم التعليم (أداء/مقتبس) من خلال توثيق رقمي رصين لكافة معايير الجودة والإشراف.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 4: Teacher -->
+      <div id="role-teacher" class="role-showcase-content">
+        <div class="role-meta-row">
+          <div class="role-meta-title">
+            <h3>بوابة المعلم التفاعلية (Teacher Portal)</h3>
+            <p>المحرك اليومي للعملية التعليمية ومركز تحفيز الطلاب</p>
+          </div>
+          <span class="chapter-badge-pill pill-emerald">السرعة والذكاء وسهولة الاستخدام</span>
+        </div>
+        <div class="grid-2">
+          <div>
+            <h5 style="font-size: 1.15rem; font-weight: 900; margin-bottom: 12px; color: var(--primary-navy);">أهم الإمكانات المعروضة للمشتري:</h5>
+            <ul class="card-checklist">
+              <li><strong>محرك التحضير الذكي للدروس:</strong> قوالب تحضير معتمدة مع مساعد توليدي للأهداف السلوكية واستراتيجيات التدريس.</li>
+              <li><strong>الرصد السريع واللصق من نور وإكسل:</strong> رصد درجات الفصل كاملاً في ثوانٍ عبر اللصق المباشر من الحافظة.</li>
+              <li><strong>بناء الاختبارات والتصحيح الآلي:</strong> بنوك أسئلة مصنفة حسب مستويات بلوم مع تصحيح فوري وترحيل تلقائي للدرجات.</li>
+              <li><strong>توليد أوراق العمل بالذكاء الاصطناعي:</strong> إنشاء أوراق عمل علاجية وإثرائية متدرجة الصعوبة بضغطة زر واحدة.</li>
+              <li><strong>ملف الإنجاز المهني الإلكتروني:</strong> توثيق الشواهد والمبادرات وتصدير ملف الإنجاز بصيغة PDF معتمدة.</li>
+            </ul>
+          </div>
+          <div class="value-box value-emerald" style="margin: 0;">
+            <div class="value-title">💼 العائد على المشتري:</div>
+            <div class="value-text">
+              إقبال وحماس منقطع النظير من المعلمين لأن النظام يخفف عنهم 70% من الأعمال الروتينية الورقية، مما يمنع مقاومة التغيير ويضمن نجاح التطبيق الميداني.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 5: Student -->
+      <div id="role-student" class="role-showcase-content">
+        <div class="role-meta-row">
+          <div class="role-meta-title">
+            <h3>بوابة الطالب العصرية (Student Portal)</h3>
+            <p>بيئة تفاعلية محفزة ترفع دافعية التعلم وتنمي التنافس الإيجابي</p>
+          </div>
+          <span class="chapter-badge-pill pill-gold">التحفيز الرقمي والتعلم الممتع</span>
+        </div>
+        <div class="grid-2">
+          <div>
+            <h5 style="font-size: 1.15rem; font-weight: 900; margin-bottom: 12px; color: var(--primary-navy);">أهم الإمكانات المعروضة للمشتري:</h5>
+            <ul class="card-checklist">
+              <li><strong>جدول الحصص والتكليفات اليومية:</strong> واجهة أنيقة تستعرض الدروس المشروحة والواجبات والمواعيد النهائية.</li>
+              <li><strong>أداء الاختبارات الإلكترونية التفاعلية:</strong> حل الامتحانات بنماذجها المتعددة ومعرفة النتيجة والتحليل فور التسليم.</li>
+              <li><strong>نظام التحفيز والأوسمة (Gamification):</strong> كسب نقاط وأوسمة تفوق عند أداء الواجبات والانضباط الصباحي.</li>
+              <li><strong>الملف التراكمي للإنجاز:</strong> توثيق المشاركات والشهادات والأنشطة اللاصفية في سجل رقمي دائم.</li>
+            </ul>
+          </div>
+          <div class="value-box value-gold" style="margin: 0;">
+            <div class="value-title">💼 العائد على المشتري:</div>
+            <div class="value-text">
+              سمعة تسويقية مرموقة للمدارس أمام المجتمع؛ حيث يرى أولياء الأمور والطلاب منصة تعليمية عصرية تضاهي المنصات العالمية المتقدمة.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 6: Parent -->
+      <div id="role-parent" class="role-showcase-content">
+        <div class="role-meta-row">
+          <div class="role-meta-title">
+            <h3>بوابة ولي الأمر (Parent Portal)</h3>
+            <p>شراكة مجتمعية وثقة متبادلة ومتابعة لحظية للأبناء</p>
+          </div>
+          <span class="chapter-badge-pill pill-purple">الشفافية الكاملة وبناء الولاء</span>
+        </div>
+        <div class="grid-2">
+          <div>
+            <h5 style="font-size: 1.15rem; font-weight: 900; margin-bottom: 12px; color: var(--primary-navy);">أهم الإمكانات المعروضة للمشتري:</h5>
+            <ul class="card-checklist">
+              <li><strong>حساب أسري موحد:</strong> متابعة جميع الأبناء والبنات في مختلف المراحل والمدارس التابعة للشركة من شاشة واحدة.</li>
+              <li><strong>إشعارات الغياب والسلوك الصباحية:</strong> تنبيهات فورية مجانية عبر التطبيق بوصول الابن للمدرسة أو غيابه.</li>
+              <li><strong>الاطلاع اللحظي على الدرجات والواجبات:</strong> متابعة تقدم التحصيل الدراسي وملاحظات المعلمين أولاً بأول.</li>
+              <li><strong>قناة تواصل آمنة مع المدرسة:</strong> مراسلة الإدارة والمعلمين وتلقي التعاميم الرسمية دون الحاجة لمجموعات واتساب عشوائية.</li>
+            </ul>
+          </div>
+          <div class="value-box value-blue" style="margin: 0;">
+            <div class="value-title">💼 العائد على المشتري:</div>
+            <div class="value-text">
+              رفع معدلات التجديد والاحتفاظ بالطلاب (Student Retention)؛ لأن أولياء الأمور يشعرون باهتمام فائق وشفافية تجعلهم يفضلون مدارسكم دائماً.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 7: Counselor -->
+      <div id="role-counselor" class="role-showcase-content">
+        <div class="role-meta-row">
+          <div class="role-meta-title">
+            <h3>بوابة الموجه الطلابي والكادر الإداري (Counselor & Staff Portal)</h3>
+            <p>الرعاية الطلابية الشاملة وأتمتة التقارير الإرشادية والسجلات</p>
+          </div>
+          <span class="chapter-badge-pill pill-teal">الرعاية الاستباقية والسجل الشامل 360°</span>
+        </div>
+        <div class="grid-2">
+          <div>
+            <h5 style="font-size: 1.15rem; font-weight: 900; margin-bottom: 12px; color: var(--primary-navy);">أهم الإمكانات المعروضة للمشتري:</h5>
+            <ul class="card-checklist">
+              <li><strong>السجل الشامل للطالب 360°:</strong> ملف رقمي موحد يجمع التاريخ الأكاديمي، الصحي، السلوكي، ومعدلات الانضباط.</li>
+              <li><strong>توليد التقارير الشهرية بالذكاء الاصطناعي:</strong> صياغة تقارير الرعاية الطلابية الرسمية بنقرة زر واحدة بأسلوب تربوي معتمد.</li>
+              <li><strong>متابعة حالات التعثر والتفوق:</strong> كشف الطلاب الذين تراجعت درجاتهم أو تكرر غيابهم لوضع خطط التدخل المبكر.</li>
+              <li><strong>إدارة خطابات الإنذار والمخالفات:</strong> رصد السلوك وفق لائحة قواعد السلوك والمواظبة الرسمية مع إصدار الإشعارات آلياً.</li>
+            </ul>
+          </div>
+          <div class="value-box value-teal" style="margin: 0;">
+            <div class="value-title">💼 العائد على المشتري:</div>
+            <div class="value-text">
+              تحويل التوجيه الطلابي من عمل مكتبي أرشيفي يغرق في الأوراق إلى رعاية تربوية استباقية تحمي الطلاب وترفع نتائجهم في الاختبارات الوطنية.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SECTION 3: PROPRIETARY AI & ANALYTICAL ENGINES
+         ========================================================================= -->
+    <section class="showcase-chapter" id="ai">
+      <div class="chapter-heading emerald">
+        <div class="heading-title-group">
+          <div class="chapter-badge-num">3</div>
+          <h2>المحركات الذكية والذكاء الاصطناعي: أصول برمجية فريدة يمتلكها المشتري</h2>
+        </div>
+        <span class="chapter-badge-pill pill-emerald">ابتكارات علمية حصرية لا توجد في السوق</span>
+      </div>
+
+      <p class="chapter-intro">
+        لا تقتصر المنظومة على تسجيل الدرجات والغياب، بل تتضمن <strong>محركات برمجية خوارزمية ذكية مطورة بالكامل</strong> ترفع القيمة الاستثمارية للصفقة وتمنح مدارس المشتري تفوقاً نوعياً لا يضاهى:
+      </p>
+
+      <div class="grid-2">
+        <!-- Engine 1 -->
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-emerald">📊</div>
+            <h4>محرك القياس النفسي والتربوي (Psychometrics Engine)</h4>
+          </div>
+          <p class="card-desc">
+            مبني داخل <code>psychometricsEngine.js</code>؛ حيث يحلل نتائج اختبارات الطلاب رياضياً لاستخراج مؤشرات جودة الأسئلة:
+          </p>
+          <ul class="card-checklist">
+            <li><strong>معامل الصعوبة (Difficulty Index):</strong> يوضح ما إذا كان السؤال شديد السهولة أو بالغ التعقيد.</li>
+            <li><strong>معامل التمييز (Discrimination Index):</strong> يقيس قدرة السؤال على فرز الطلاب المتفوقين عن المتعثرين وكشف الأسئلة المعيبة.</li>
+            <li><strong>معامل الاتساق الداخلي (Cronbach's Alpha):</strong> يحدد الموثوقية والثبات العلمي للاختبار كأداة تقويم دقيقة.</li>
+          </ul>
+        </div>
+
+        <!-- Engine 2 -->
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-teal">🔗</div>
+            <h4>محرك معاملات الارتباط واكتشاف الوهن الدراسي</h4>
+          </div>
+          <p class="card-desc">
+            مبني داخل <code>examCorrelationEngine.js</code>؛ حيث يربط بين المتغيرات المدرسية لمعالجة المشكلات قبل تفاقمها:
+          </p>
+          <ul class="card-checklist">
+            <li>ربط درجات الطالب بمعدلات غيابه وسلوكه اليومي عبر معادلات الارتباط الإحصائي.</li>
+            <li>اكتشاف حالات التعثر الأكاديمي وصعوبات التعلم مبكراً قبل نهاية الفصل الدراسي بأسابيع.</li>
+            <li>تقديم توصيات إرشادية وتدريبية علاجية فورية للموجه والمعلم لكل طالب.</li>
+          </ul>
+        </div>
+
+        <!-- Engine 3 -->
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-purple">🤖</div>
+            <h4>محرك توليد التحاضير والخطط الدراسية</h4>
+          </div>
+          <p class="card-desc">
+            مبني داخل <code>aiPlanGenerator.js</code>؛ حيث يقدم مسانداً توليدياً للمعلم:
+          </p>
+          <ul class="card-checklist">
+            <li>صياغة الأهداف السلوكية والإجرائية وفق مستويات بلوم المعرفية تلقائياً.</li>
+            <li>اقتراح استراتيجيات التدريس النشط، أدوات التقويم المرحلي، والوسائل التعليمية المناسبة للدرس.</li>
+            <li>توفير آلاف الساعات السنوية على الكادر التعليمي ليفرغ طاقته للتدريس المباشر.</li>
+          </ul>
+        </div>
+
+        <!-- Engine 4 -->
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-gold">📝</div>
+            <h4>محرك توليد أوراق العمل والتقارير الشهرية</h4>
+          </div>
+          <p class="card-desc">
+            مبني داخل <code>aiWorksheetGenerator.js</code> و <code>aiMonthlyReportGenerator.js</code>:
+          </p>
+          <ul class="card-checklist">
+            <li>توليد أوراق عمل مخصصة ومتدرجة الصعوبة (علاجية للمتأخرين، وإثرائية للموهوبين) جاهزة للطباعة.</li>
+            <li>تجميع بيانات الرعاية الطلابية وصياغة تقارير شهرية منسقة بأسلوب رسمي معتمد في 3 ثوانٍ.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SECTION 4: RESOURCE SHARING & STAFF HUB
+         ========================================================================= -->
+    <section class="showcase-chapter" id="resources">
+      <div class="chapter-heading gold">
+        <div class="heading-title-group">
+          <div class="chapter-badge-num">4</div>
+          <h2>حوكمة الموارد المشتركة وسد العجز: وفر مالي مباشر للمشتري</h2>
+        </div>
+        <span class="chapter-badge-pill pill-gold">وفر موثق يفوق 350,000 ريال سنوياً</span>
+      </div>
+
+      <p class="chapter-intro">
+        تمتلك سلاسل المدارس والشركات التعليمية هدراً مالياً كبيراً بسبب العجز المفاجئ في بعض التخصصات في مجمع، يقابله فائض في نصاب الحصص في مجمع آخر قريب. تقدم المنظومة حلاً مؤسسياً عبقرياً عبر شاشة <strong><code>SchoolResourcesHub.jsx</code> (سوق الموارد والكوادر المشتركة)</strong>:
+      </p>
+
+      <div class="grid-2">
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-gold">🔄</div>
+            <h4>آلية سوق الموارد المشتركة وسد العجز</h4>
+          </div>
+          <ul class="card-checklist">
+            <li><strong>إعلان الفائض والاحتياج الداخلي:</strong> يعلن مدير المجمع عن وجود معلم بنصاب منخفض (مثلاً 12 حصة بدلاً من 24) جاهز للندب الجزئي.</li>
+            <li><strong>المطابقة الجغرافية والتخصصية:</strong> يقترح النظام المجمعات القريبة التابعة للشركة التي تعاني من نقص في نفس التخصص.</li>
+            <li><strong>القرارات الإدارية الفورية:</strong> يصدر الماستر العام (Super Admin) قرار الندب بنقرة واحدة، وتُحدث جداول الحصص في المجمعين آلياً.</li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-emerald">💰</div>
+            <h4>العائد المالي المباشر على الشركة المشترية</h4>
+          </div>
+          <ul class="card-checklist">
+            <li>الاستغناء عن التعاقدات الطارئة لمعلمين بالساعة أو توظيف كوادر جديدة فائضة عن الحاجة.</li>
+            <li>الاستفادة القصوى من الطاقات التدريسية الحالية التي تدفع الشركة رواتبها بالفعل.</li>
+            <li><strong>تحقيق وفر مالي سنوي مباشر:</strong> يتراوح بين <strong>200,000 إلى 450,000 ريال</strong> للشركات التي تشغل 15 مجمعاً فأكثر.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SECTION 5: ARCHITECTURE, SECURITY & LOW TCO
+         ========================================================================= -->
+    <section class="showcase-chapter" id="tech">
+      <div class="chapter-heading purple">
+        <div class="heading-title-group">
+          <div class="chapter-badge-num">5</div>
+          <h2>المعمارية السحابية والأمان السيبراني والتكلفة التشغيلية الزهيدة</h2>
+        </div>
+        <span class="chapter-badge-pill pill-purple">بنية 2026: سرعة فائقة وتكلفة سحابية أقل من 250$ شهرياً</span>
+      </div>
+
+      <p class="chapter-intro">
+        بنيت المنظومة بأحدث معايير هندسة البرمجيات لتضمن للمشتري استقراراً تاماً وتكاليف استضافة شبه معدومة مقارنة بالأنظمة التقليدية القديمة:
+      </p>
+
+      <div class="grid-3">
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-blue">⚡</div>
+            <h4>React 19 + Vite 8</h4>
+          </div>
+          <p class="card-desc">
+            أسرع مكدس تقني في الصناعة؛ بناء كامل لـ 2,260 موديول في <strong>4.4 ثوانٍ</strong>، مع تجزئة الكود وفتحه بأجزاء من الثانية.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-teal">☁️</div>
+            <h4>Cloud Firestore Serverless</h4>
+          </div>
+          <p class="card-desc">
+            تزامن لحظي للدرجات والغياب والمراسلات مع زمن استجابة استعلامات أقل من <strong>80ms</strong> وتمدد ذاتي يتحمل 100k مستخدم.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-emerald">💻</div>
+            <h4>المعالجة الطرفية (Edge)</h4>
+          </div>
+          <p class="card-desc">
+            توزيع عمليات التصحيح والتحليل الإحصائي على متصفح المستخدم مباشرة، مما يحمي السيرفرات ويجعل فاتورة السحابة <strong>150-350$ شهرياً فقط</strong> لـ 40 مدرسة.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-purple">🛡️</div>
+            <h4>الامتثال لنظام حماية البيانات السعودي (PDPL)</h4>
+          </div>
+          <ul class="card-checklist">
+            <li>تشفير قياسي كامل للبيانات المخزنة والمنقولة عبر <code>AES-256</code> و <code>TLS 1.3</code>.</li>
+            <li>قواعد أمان فايرستور المشددة (<code>firestore.rules</code>) تضمن العزل التام للمدارس (Tenant Isolation).</li>
+            <li>جاهزية كاملة للاستضافة في مركز بيانات Google Cloud السعودية (منطقة الدمام <code>me-central2</code>).</li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <div class="card-header-icon">
+            <div class="icon-box icon-gold">📱</div>
+            <h4>تطبيقات الجوال والعمل أوفلاين (Capacitor & PWA)</h4>
+          </div>
+          <ul class="card-checklist">
+            <li>مهيأ للعمل كتطبيق أصيل على متجري Apple App Store و Google Play عبر <code>@capacitor/core v8.5</code>.</li>
+            <li>تطبيق ويب تقدمي (PWA) يتيح التثبيت الفوري والعمل دون إنترنت (Offline-First) مع مزامنة صامتة عند عودة الشبكة.</li>
+            <li>منظومة مراسلات سحابية مجانية 100% تلغي الحاجة لرسائل SMS وتوفر عشرات الآلاف سنوياً.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SECTION 6: COMPARISON WITH CONVENTIONAL MARKET ALTERNATIVES
+         ========================================================================= -->
+    <section class="showcase-chapter">
+      <div class="chapter-heading blue">
+        <div class="heading-title-group">
+          <div class="chapter-badge-num">6</div>
+          <h2>جدول المقارنة الحاسم: لماذا تتفوق منظومتنا على أي بديل في السوق؟</h2>
+        </div>
+        <span class="chapter-badge-pill pill-blue">مقارنة موضوعية للمشتري والمستثمر</span>
+      </div>
+
+      <div class="comp-table-wrap">
+        <table class="comp-table">
+          <thead>
+            <tr>
+              <th>المعيار والقدرة التشغيلية</th>
+              <th>منظومة التعليم الذكي الحديثة (2026)</th>
+              <th>الأنظمة والمنصات الكلاسيكية الشائعة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>ترحيل واستيعاب البيانات السابقة</strong></td>
+              <td><span class="badge-check">✓</span> لصق مباشر واستيراد فوري من نور وإكسل بنقرة زر</td>
+              <td><span class="badge-cross">✗</span> عمليات يدوية معقدة تتطلب تدخلاً برمجياً وأشهراً طويلة</td>
+            </tr>
+            <tr>
+              <td><strong>إغلاق وتأسيس العام الدراسي الجديد</strong></td>
+              <td><span class="badge-check">✓</span> أرشفة مزدوجة (سحابية + محلية) وتصفير انتقائي في 3 دقائق</td>
+              <td><span class="badge-cross">✗</span> حذف عشوائي أو بقاء بيانات قديمة تسبب بطء وتضخم النظام</td>
+            </tr>
+            <tr>
+              <td><strong>الاستعادة والتعافي من الكوارث</strong></td>
+              <td><span class="badge-check">✓</span> استرجاع فوري لبيانات أي عام سابق بنقرة زر (One-Click)</td>
+              <td><span class="badge-cross">✗</span> استرجاع قواعد بيانات سيرفرية يستغرق أياماً مع مخاطر فقدان</td>
+            </tr>
+            <tr>
+              <td><strong>المكدس التقني وسرعة الاستجابة</strong></td>
+              <td><span class="badge-check">✓</span> React 19 + Vite 8 + Firestore (بناء في 4.4 ثوانٍ واستجابة &lt;80ms)</td>
+              <td><span class="badge-cross">✗</span> PHP/Laravel قديم أو monolith ثقيل وبطيء التحديث</td>
+            </tr>
+            <tr>
+              <td><strong>استيعاب الذروة والتكلفة السحابية</strong></td>
+              <td><span class="badge-check">✓</span> معالجة طرفية Edge وفاتورة سحابة زهيدة (150-350$ شهرياً)</td>
+              <td><span class="badge-cross">✗</span> ضغط كامل على السيرفرات وفواتير استضافة تتجاوز 4,000$ شهرياً</td>
+            </tr>
+            <tr>
+              <td><strong>محركات القياس النفسي والتربوي</strong></td>
+              <td><span class="badge-check">✓</span> كشف معاملات التمييز والصعوبة والاتساق والوهن الدراسي</td>
+              <td><span class="badge-cross">✗</span> غير متوفرة (تقتصر على جمع وطرح الدرجات ورصد الغياب فقط)</td>
+            </tr>
+            <tr>
+              <td><strong>سد العجز ومشاركة الكوادر بين المجمعات</strong></td>
+              <td><span class="badge-check">✓</span> سوق موارد وسد عجز مركزي بين المجمعات يوفر ملايين الريالات</td>
+              <td><span class="badge-cross">✗</span> إدارة كل مدرسة منعزلة دون أي تكامل موارد بين الفروع</td>
+            </tr>
+            <tr>
+              <td><strong>حقوق التملك والكود المصدري</strong></td>
+              <td><span class="badge-check">✓</span> خيار متاح لشراء الكود المصدري بالكامل وتوطينه كأصل للمشتري</td>
+              <td><span class="badge-cross">✗</span> اشتراكات دورية احتكارية تمنع العميل من تملك أصله الرقمي</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SECTION 7: COMMERCIAL DEALS & ACQUISITION PACKAGES
+         ========================================================================= -->
+    <section class="showcase-chapter" id="commercial">
+      <div class="chapter-heading gold">
+        <div class="heading-title-group">
+          <div class="chapter-badge-num">7</div>
+          <h2>باقات الشراء والتملك المتاحة للشركة المشترية وخطة التدشين</h2>
+        </div>
+        <span class="chapter-badge-pill pill-gold">خيارات استثمارية مرنة تناسب أهدافكم</span>
+      </div>
+
+      <p class="chapter-intro">
+        نقدم لشركتكم ثلاثة مسارات تعاقدية واضحة ومحددة، تضمن لكم اختيار النموذج الأمثل وفق خطتكم المالية والتوسعية:
+      </p>
+
+      <div class="deals-grid">
+        <!-- Deal 1 -->
+        <div class="deal-card premier">
+          <span class="deal-tag tag-buyout">المسار الاستراتيجي الأعلى عائداً</span>
+          <h3>1. التملك الكامل للكود المصدري (Full IP Buyout)</h3>
+          <p class="summary">
+            شراء كلي لحقوق الملكية الفكرية، المستودع البرمجي، وكامل الشاشات وقواعد البيانات وتوطينها كأصل رقمي استثماري مسجل باسم شركتكم.
+          </p>
+          <ul class="card-checklist">
+            <li>تسليم كامل الكود المصدري (React 19 + Configs + Engines).</li>
+            <li>نقل ملكية مستودعات GitHub وبيئة السحابة لحساب الشركة.</li>
+            <li>توثيق التنازل القانوني عن الملكية الفكرية لدى الهيئة المختصة.</li>
+            <li>ضمان تشغيلي مجاني لمدة 12 شهراً لإصلاح أي خلل طارئ.</li>
+            <li>برنامج تدريبي مكثف لنقل المعرفة لفريق تقنية المعلومات لديكم.</li>
+          </ul>
+        </div>
+
+        <!-- Deal 2 -->
+        <div class="deal-card">
+          <span class="deal-tag tag-white">المسار المؤسسي الأكثر طلباً</span>
+          <h3>2. رخصة مخصصة بهويتكم (Dedicated White-Label License)</h3>
+          <p class="summary">
+            تثبيت نسخة سحابية مستقلة خاصة بالشركة بهويتها ونطاقها الخاص، مع تولينا عمليات الصيانة والتحديثات السنوية.
+          </p>
+          <ul class="card-checklist">
+            <li>بيئة سحابية معزولة تماماً باسم وشعار ودومين الشركة.</li>
+            <li>استضافة وإدارة سحابية بأعلى معايير الأمن والأداء.</li>
+            <li>تحديثات دورية وميزات جديدة تُضاف للمنظومة تلقائياً.</li>
+            <li>دعم فني مخصص على مدار الساعة للعمليات التشغيلية.</li>
+          </ul>
+        </div>
+
+        <!-- Deal 3 -->
+        <div class="deal-card">
+          <span class="deal-tag tag-saas">المسار المرن الاقتصادي</span>
+          <h3>3. الاشتراك السحابي حسب الحجم (Enterprise Cloud SaaS)</h3>
+          <p class="summary">
+            بدء التشغيل الفوري دون أي تكاليف استثمارية رأسمالية، مع دفع اشتراك سنوي مرن بحسب عدد المجمعات والمدارس.
+          </p>
+          <ul class="card-checklist">
+            <li>انطلاق فوري وتشغيل كامل في أقل من 72 ساعة.</li>
+            <li>صفر تكاليف سيرفرات أو بنية تحتية على عاتق المشتري.</li>
+            <li>مناسب للمجمعات التي ترغب في التجربة قبل خيار التملك.</li>
+            <li>إمكانية الترقية لخيار التملك الكامل لاحقاً مع خصم الاشتراكات.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Implementation Timeline -->
+      <div class="workflow-panel" style="margin-top: 30px;">
+        <div class="workflow-head-title">
+          <span>⏱️ الجدول الزمني القياسي للتدشين ونقل المعرفة (14 يوماً عمل فقط)</span>
+        </div>
+        <div class="workflow-steps-row">
+          <div class="workflow-step-card">
+            <div class="step-badge">1</div>
+            <h5>الأيام 1 - 3</h5>
+            <p>تجهيز البيئة السحابية للشركة، ضبط النطاق الخاص (Custom Domain)، والشعار والسمات البصرية.</p>
+          </div>
+          <div class="workflow-step-card">
+            <div class="step-badge">2</div>
+            <h5>الأيام 4 - 7</h5>
+            <p>استيراد وترحيل بيانات المجمعات، الطلاب، والكوادر عبر محركات الاستيعاب الذكية وفحص تكامل السجلات.</p>
+          </div>
+          <div class="workflow-step-card">
+            <div class="step-badge">3</div>
+            <h5>الأيام 8 - 11</h5>
+            <p>ورش عمل تدريبية مكثفة لمنسقي المدارس (Train-the-Trainer) ونقل المعرفة لفريق الـ IT.</p>
+          </div>
+          <div class="workflow-step-card">
+            <div class="step-badge">4</div>
+            <h5>الأيام 12 - 14</h5>
+            <p>الإطلاق الرسمي والتشغيل الميداني الكامل (Go-Live) لكافة المدارس وبدء اليوم الدراسي دون أي تعطل.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Master Executive Footer -->
+    <footer class="master-footer">
+      <div class="footer-info">
+        <h4>بوابة التعليم الذكي المتكاملة • العرض التجاري والاستثماري للمشترين</h4>
+        <p>جاهزية تقنية وعملياتية استثنائية لتملّك أصل رقمي متطور يضع شركتكم في صدارة قطاع التعليم الذكي لعام 2026 - 2027.</p>
+      </div>
+      <div>
+        <button class="btn-primary" onclick="window.print()">
+          <span>🖨️ طباعة العرض التعريفي (PDF)</span>
+        </button>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    function switchRoleShowcase(targetId, btnEl) {
+      // Deactivate all tabs
+      document.querySelectorAll('.role-tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.role-showcase-content').forEach(content => content.classList.remove('active'));
+      
+      // Activate clicked tab
+      btnEl.classList.add('active');
+      const targetContent = document.getElementById(targetId);
+      if (targetContent) {
+        targetContent.classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>

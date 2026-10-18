@@ -11,6 +11,7 @@ export const zhTranslations = {
   "header.user": "用户",
   "sidebar.adminDashboard": "学校管理仪表板",
   "sidebar.superAdminDashboard": "总管理员仪表板",
+  "sidebar.yearlyMigration": "学年数据迁移与新学年建立",
   "sidebar.teacherDashboard": "教师工作台",
   "sidebar.studentDashboard": "学生工作台",
   "sidebar.parentDashboard": "家长服务门户",

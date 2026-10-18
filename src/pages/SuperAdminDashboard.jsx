@@ -23,6 +23,7 @@ import SchoolResourcesHub from './SchoolResourcesHub';
 import MonthlyMentorReports from './MonthlyMentorReports';
 import { ADVANCED_SCHOOLS_CATALOG } from '../data/resourceData';
 import { broadcastRealtimeEvent, subscribeRealtimeEvents } from '../utils/realtimeBroadcast';
+import YearlyMigrationModal from '../components/YearlyMigrationModal';
 
 function SuperAdminHome() {
   const { userData, currentUser } = useAuth();
@@ -60,6 +61,7 @@ function SuperAdminHome() {
   const [showAddSchoolModal, setShowAddSchoolModal] = useState(false);
   const [showAddAdminModal, setShowAddAdminModal] = useState(false);
   const [showAddSuperAdminModal, setShowAddSuperAdminModal] = useState(false);
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
   const [editingSchool, setEditingSchool] = useState(null);
 
   // Incoming Resource Transfer Requests (Surplus / Deficit from Schools)
@@ -1390,6 +1392,40 @@ function SuperAdminHome() {
             >
               <Plus size={18} strokeWidth={3} />
               <span>إضافة مدرسة جديدة</span>
+            </button>
+
+            <button
+              onClick={() => setShowMigrationModal(true)}
+              style={{
+                background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.45) 0%, rgba(56, 189, 248, 0.35) 100%)',
+                color: '#ffffff',
+                border: '1px solid rgba(56, 189, 248, 0.6)',
+                borderRadius: '30px',
+                padding: '10px 22px',
+                fontSize: '14px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                backdropFilter: 'blur(6px)',
+                boxShadow: '0 4px 15px rgba(37, 99, 235, 0.25)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(37, 99, 235, 0.65) 0%, rgba(56, 189, 248, 0.55) 100%)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(56, 189, 248, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(37, 99, 235, 0.45) 0%, rgba(56, 189, 248, 0.35) 100%)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(37, 99, 235, 0.25)';
+              }}
+              title="ترحيل البيانات السنوية، الأرشفة السحابية والمحلية، وتهيئة وتأسيس العام الدراسي الجديد لكافة المدارس والمجمعات"
+            >
+              <Archive size={18} color="#38bdf8" />
+              <span>ترحيل البيانات السنوية وإغلاق العام الدراسي</span>
             </button>
 
             <button
@@ -3928,6 +3964,13 @@ function SuperAdminHome() {
         </div>
       )}
 
+      {/* Annual Data Migration & Academic Year Setup Modal */}
+      <YearlyMigrationModal
+        isOpen={showMigrationModal}
+        onClose={() => setShowMigrationModal(false)}
+        schools={schools}
+      />
+
     </div>
   );
 }
@@ -3945,6 +3988,7 @@ export default function SuperAdminDashboard() {
         <Route path="/portfolio" element={<AchievementPortfolioPage targetRole="superadmin" />} />
         <Route path="/messages" element={<MasterMessagingHub />} />
         <Route path="/excellence" element={<SchoolExcellenceDashboard />} />
+        <Route path="/migration" element={<YearlyMigrationModal isFullPage={true} />} />
         <Route path="/settings" element={<div style={{ padding: '24px' }}><ChangePassword /></div>} />
         <Route path="*" element={<SuperAdminHome />} />
       </Routes>

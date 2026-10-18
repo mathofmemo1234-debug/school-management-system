@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, Users, BookOpen, Calendar, Home, Settings, FileText, Star, UserCheck, ShieldCheck, CheckSquare, Globe, Mail, Award, ClipboardList, Layers, FileSpreadsheet, Sparkles, X } from 'lucide-react';
+import { LogOut, Users, BookOpen, Calendar, Home, Settings, FileText, Star, UserCheck, ShieldCheck, CheckSquare, Globe, Mail, Award, ClipboardList, Layers, FileSpreadsheet, Sparkles, X, Database } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
@@ -101,6 +101,7 @@ export default function Sidebar({ role, isOpen = false, onClose }) {
 
   const superAdminLinks = [
     { path: '/superadmin', icon: Home, label: t('sidebar.superAdminDashboard') },
+    { path: '/superadmin/migration', icon: Database, label: t('sidebar.yearlyMigration') || 'ترحيل وتأسيس العام الدراسي' },
     { path: '/superadmin/monthly-reports', icon: Star, label: t('sidebar.superAdminMonthlyReports') },
     { path: '/superadmin/resources', icon: Layers, label: t('sidebar.companyResourcesManagement') },
     { path: '/superadmin/messages', icon: Mail, label: t('sidebar.messagesAndCirculars') },

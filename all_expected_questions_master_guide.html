@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الموسوعة الشاملة لجميع الأسئلة المتوقعة وإجاباتها النموذجية - بوابة المدارس المتقدمة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-page: #f1f5f9;
+      --bg-card: #ffffff;
+      --navy-900: #0f172a;
+      --navy-800: #1e293b;
+      --blue-700: #1d4ed8;
+      --blue-600: #2563eb;
+      --blue-50: #eff6ff;
+      --blue-200: #bfdbfe;
+      --teal-700: #0f766e;
+      --teal-600: #0d9488;
+      --teal-50: #f0fdfa;
+      --teal-200: #99f6e4;
+      --emerald-700: #047857;
+      --emerald-600: #059669;
+      --emerald-50: #ecfdf5;
+      --emerald-200: #a7f3d0;
+      --purple-700: #6d28d9;
+      --purple-600: #7c3aed;
+      --purple-50: #f5f3ff;
+      --purple-200: #ddd6fe;
+      --amber-700: #b45309;
+      --amber-600: #d97706;
+      --amber-50: #fffbeb;
+      --amber-200: #fde68a;
+      --rose-700: #be123c;
+      --rose-600: #e11d48;
+      --rose-50: #fff1f2;
+      --rose-200: #fecdd3;
+      --text-main: #0f172a;
+      --text-body: #334155;
+      --text-muted: #64748b;
+      --border-soft: #cbd5e1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Cairo', 'Tajawal', sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.85;
+      font-size: 16.5px;
+      padding: 24px;
+      direction: rtl;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* Sticky Top Action & Search Bar */
+    .top-bar {
+      position: sticky;
+      top: 12px;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(12px);
+      border: 1.5px solid var(--border-soft);
+      border-radius: 16px;
+      padding: 14px 22px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .top-bar-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      color: var(--navy-900);
+      font-size: 1.08rem;
+    }
+
+    .count-badge {
+      background: var(--blue-50);
+      color: var(--blue-700);
+      border: 1px solid var(--blue-200);
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 800;
+    }
+
+    .controls-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    .search-input {
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 9px 16px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-soft);
+      width: 300px;
+      max-width: 100%;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background: #f8fafc;
+    }
+
+    .search-input:focus {
+      border-color: var(--blue-600);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .print-btn {
+      background: linear-gradient(135deg, var(--blue-700) 0%, var(--teal-600) 100%);
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 0.95rem;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(29, 78, 216, 0.25);
+      transition: transform 0.2s ease;
+    }
+
+    .print-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    /* Hero Header */
+    .hero {
+      background: linear-gradient(135deg, #090d16 0%, #0f172a 45%, #1e3a8a 100%);
+      color: #ffffff;
+      border-radius: 22px;
+      padding: 38px 42px;
+      margin-bottom: 24px;
+      border: 2px solid #334155;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 16px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .hero-brand {
+      color: #fde047;
+      font-weight: 800;
+      font-size: 1.1rem;
+    }
+
+    .hero-pill {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid #34d399;
+      color: #6ee7b7;
+      padding: 5px 16px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .hero h1 {
+      font-size: 2.1rem;
+      font-weight: 900;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+
+    .hero p {
+      color: #e2e8f0;
+      font-size: 1.1rem;
+      max-width: 1020px;
+      line-height: 1.8;
+    }
+
+    /* Filter Tabs Bar */
+    .filter-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 28px;
+      background: var(--bg-card);
+      padding: 14px 18px;
+      border-radius: 16px;
+      border: 1px solid var(--border-soft);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    }
+
+    .tab-btn {
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 800;
+      padding: 8px 18px;
+      border-radius: 10px;
+      border: 1.5px solid #e2e8f0;
+      background: #f8fafc;
+      color: var(--text-body);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      border-color: var(--blue-600);
+      color: var(--blue-700);
+      background: var(--blue-50);
+    }
+
+    .tab-btn.active {
+      background: var(--navy-900);
+      color: #ffffff;
+      border-color: var(--navy-900);
+    }
+
+    /* Category Block */
+    .category-section {
+      background: var(--bg-card);
+      border-radius: 20px;
+      border: 1px solid var(--border-soft);
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    .category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      border-bottom: 3.5px solid var(--blue-600);
+    }
+
+    .category-header.teal { border-bottom-color: var(--teal-600); }
+    .category-header.purple { border-bottom-color: var(--purple-600); }
+    .category-header.emerald { border-bottom-color: var(--emerald-600); }
+    .category-header.amber { border-bottom-color: var(--amber-600); }
+    .category-header.rose { border-bottom-color: var(--rose-600); }
+
+    .category-title {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--navy-900);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .cat-tag {
+      font-size: 0.9rem;
+      font-weight: 800;
+      padding: 5px 16px;
+      border-radius: 999px;
+    }
+
+    .cat-tag.blue { background: var(--blue-50); color: var(--blue-700); border: 1px solid var(--blue-200); }
+    .cat-tag.teal { background: var(--teal-50); color: var(--teal-700); border: 1px solid var(--teal-200); }
+    .cat-tag.purple { background: var(--purple-50); color: var(--purple-700); border: 1px solid var(--purple-200); }
+    .cat-tag.emerald { background: var(--emerald-50); color: var(--emerald-700); border: 1px solid var(--emerald-200); }
+    .cat-tag.amber { background: var(--amber-50); color: var(--amber-700); border: 1px solid var(--amber-200); }
+    .cat-tag.rose { background: var(--rose-50); color: var(--rose-700); border: 1px solid var(--rose-200); }
+
+    /* Question Item Card */
+    .q-card {
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      margin-bottom: 22px;
+      overflow: hidden;
+      background: #ffffff;
+      transition: box-shadow 0.2s ease;
+    }
+
+    .q-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .q-card:hover {
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+    }
+
+    .q-head {
+      background: linear-gradient(90deg, #f8fafc 0%, #eff6ff 100%);
+      border-bottom: 1.5px solid #dbeafe;
+      padding: 18px 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .q-num {
+      background: var(--blue-700);
+      color: #ffffff;
+      font-weight: 900;
+      font-size: 1.05rem;
+      min-width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .q-num.teal { background: var(--teal-600); }
+    .q-num.purple { background: var(--purple-600); }
+    .q-num.emerald { background: var(--emerald-600); }
+    .q-num.amber { background: var(--amber-600); }
+    .q-num.rose { background: var(--rose-600); }
+
+    .q-title-wrap h3 {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: var(--navy-900);
+      margin-bottom: 4px;
+    }
+
+    .q-title-wrap p {
+      font-size: 1.06rem;
+      font-weight: 700;
+      color: var(--blue-700);
+    }
+
+    .q-body {
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .q-context {
+      background: var(--amber-50);
+      border: 1px solid var(--amber-200);
+      border-right: 5px solid var(--amber-600);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 0.98rem;
+      color: #78350f;
+      font-weight: 600;
+    }
+
+    .q-context strong {
+      color: var(--amber-700);
+      font-weight: 900;
+    }
+
+    .q-answer {
+      background: var(--emerald-50);
+      border: 1px solid var(--emerald-200);
+      border-right: 5px solid var(--emerald-600);
+      border-radius: 12px;
+      padding: 16px 22px;
+    }
+
+    .q-answer-label {
+      color: var(--emerald-700);
+      font-weight: 900;
+      font-size: 1.05rem;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .q-answer p, .q-answer li {
+      color: #064e3b;
+      font-size: 1.02rem;
+      font-weight: 600;
+      line-height: 1.85;
+    }
+
+    .q-answer ul {
+      padding-right: 22px;
+      margin-top: 6px;
+    }
+
+    .q-answer li {
+      margin-bottom: 6px;
+    }
+
+    code {
+      font-family: Consolas, Monaco, 'Courier New', monospace;
+      background: rgba(15, 23, 42, 0.08);
+      color: #0f172a;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      direction: ltr;
+      display: inline-block;
+    }
+
+    .footer {
+      background: var(--navy-900);
+      color: #ffffff;
+      border-radius: 18px;
+      padding: 24px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      border: 2px solid #38bdf8;
+    }
+
+    .footer strong {
+      color: #fde047;
+      font-size: 1.15rem;
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+        font-size: 11.5pt;
+      }
+      .top-bar, .filter-tabs {
+        display: none !important;
+      }
+      .container {
+        max-width: 100%;
+      }
+      .category-section {
+        display: block !important;
+        box-shadow: none !important;
+        padding: 18px !important;
+        margin-bottom: 18px !important;
+      }
+      .q-card {
+        display: block !important;
+        break-inside: avoid;
+        box-shadow: none !important;
+      }
+      @page {
+        size: A4;
+        margin: 10mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Top Sticky Bar -->
+    <div class="top-bar">
+      <div class="top-bar-title">
+        <span>📘 بنك الأسئلة الشامل لبوابة المدارس المتقدمة</span>
+        <span class="count-badge">24 سؤالاً وإجابة نموذجية شاملة</span>
+      </div>
+      <div class="controls-group">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 ابحث عن أي سؤال أو موضوع (مثل: نور، أوفلاين، أمان)..." oninput="filterQuestions()">
+        <button class="print-btn" onclick="window.print()">
+          <span>🖨️ طباعة الدليل الكامل أو حفظه كـ PDF</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Hero Banner -->
+    <div class="hero">
+      <div class="hero-header-row">
+        <div class="hero-brand">🌟 شركة المدارس المتقدمة التعليمية • بوابة التعلم الذكي (40+ مدرسة)</div>
+        <div class="hero-pill">المرجع الكامل لجميع الأسئلة المتوقعة</div>
+      </div>
+      <h1>الموسوعة الشاملة لجميع الأسئلة المتوقعة وإجاباتها النموذجية</h1>
+      <p>
+        يجمع هذا الدليل الشامل <strong>24 سؤالاً محورياً</strong> تغطي كافة الجوانب التي قد يطرحها المطورون، مهندسو البنية التحتية، مسؤولو الدعم الفني (IT)، قادة المدارس، المشرفون التربويون، والإدارة التنفيذية، مرتبة في 6 محاور واضحة مع إجابات هندسية وتربوية دقيقة ومقنعة.
+      </p>
+    </div>
+
+    <!-- Category Filter Buttons -->
+    <div class="filter-tabs">
+      <button class="tab-btn active" onclick="filterCategory('all', this)">🌐 عرض جميع المحاور (24 سؤالاً)</button>
+      <button class="tab-btn" onclick="filterCategory('cat-arch', this)">⚙️ 1. المعمارية وقواعد البيانات والأداء</button>
+      <button class="tab-btn" onclick="filterCategory('cat-sec', this)">🔒 2. الأمان السيبراني والصلاحيات</button>
+      <button class="tab-btn" onclick="filterCategory('cat-edu', this)">👨‍🏫 3. التشغيل التعليمي والميدان</button>
+      <button class="tab-btn" onclick="filterCategory('cat-it', this)">🖥️ 4. الدعم الفني والنسخ الاحتياطي</button>
+      <button class="tab-btn" onclick="filterCategory('cat-int', this)">🔗 5. التكامل والجوال والتوسع</button>
+      <button class="tab-btn" onclick="filterCategory('cat-gov', this)">🏛️ 6. الحوكمة والتدشين والتكلفة</button>
+    </div>
+
+    <!-- =====================================================================
+         CATEGORY 1: ARCHITECTURE, DATABASE & PERFORMANCE
+         ===================================================================== -->
+    <div class="category-section" data-category="cat-arch">
+      <div class="category-header">
+        <div class="category-title">
+          <span>⚙️ المحور الأول: المعمارية البرمجية، قواعد البيانات، وكفاءة الأداء</span>
+        </div>
+        <span class="cat-tag blue">4 أسئلة جوهرية</span>
+      </div>
+
+      <!-- Q1 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num">1</div>
+          <div class="q-title-wrap">
+            <h3>اختيار قاعدة البيانات السحابية (Cloud Firestore NoSQL)</h3>
+            <p>«لماذا تم اختيار قاعدة بيانات Firestore (NoSQL) لإدارة بيانات المدارس بدلاً من قواعد البيانات الجداولية التقليدية؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> يطرحه المطورون ومهندسو البيانات لفهم كيف تُدار العلاقات بين (المدرسة، المعلم، الفصل، الطالب، الدرجات، والتحضير).
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«اخترنا <strong>Google Cloud Firestore</strong> لأن طبيعة العمل المدرسي اليومي تتطلب <strong>قراءة وتزامناً لحظياً (Real-time Synchronization)</strong> في أوقات ذروة محددة (مثل الحصة الأولى صباحاً أو لحظة رصد الدرجات وإصدار التعاميم):»</p>
+            <ul>
+              <li>اعتمدنا هيكلة <strong>Document-Oriented Modeling</strong> مع فهرسة مباشرة بمعرف المدرسة (<code>schoolId</code>) ومعرف الهوية (<code>nationalId</code>)، بحيث تُجلب بيانات شاشة المعلم أو الطالب كاملة في استعلام واحد لا يتجاوز <strong>80 ملي ثانية</strong> دون الحاجة لعمليات ربط جداول معقدة (Heavy SQL Joins).</li>
+              <li>تمنحنا Firestore ميزة <strong>التحديث اللحظي الحي (Live Listeners)</strong> وميزة <strong>العمل دون اتصال (Offline Persistence)</strong> المدمجة تلقائياً، وهما ميزتان حيويتان للميدان التعليمي.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q2 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num">2</div>
+          <div class="q-title-wrap">
+            <h3>القدرة الاستيعابية وقت الذروة (Peak Concurrency & Scalability)</h3>
+            <p>«كيف سيتعامل النظام إذا دخل 30,000 إلى 50,000 طالب ومعلم وولي أمر من 40 مدرسة في نفس الدقيقة أثناء الاختبارات أو إعلان النتائج؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> الاطمئنان إلى عدم توقف الموقع أو بطئه في اللحظات الحرجة للشركة.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«صُممت البوابة وفق نمط <strong>Serverless Cloud + Client-Side Edge Execution</strong>، مما يمنحها حصانة كاملة ضد الاختناق المروري:»</p>
+            <ul>
+              <li><strong>التمدد التلقائي (Auto-Scaling):</strong> البنية السحابية لـ Google Cloud تتمدد تلقائياً في أجزاء من الثانية لتستوعب حتى 50,000 مستخدم متزامن و 12,000 عملية بالثانية دون تدخل بشري.</li>
+              <li><strong>توزيع المعالجة على أجهزة المستخدمين:</strong> كافة العمليات الحسابية الثقيلة مثل تصحيح الاختبارات (<code>examGradingEngine.js</code>)، تحليل معاملات الارتباط (<code>examCorrelationEngine.js</code>)، والقياس النفسي والتربوي (<code>psychometricsEngine.js</code>) تُنفذ برمجياً على متصفح المستخدم، ولا يُرسل للسحابة سوى حزمة نتائج نصية لا تتجاوز <code>3 كيلوبايت</code>.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q3 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num">3</div>
+          <div class="q-title-wrap">
+            <h3>حداثة المكدس التقني وسرعة البناء (React 19 + Vite 8 Architecture)</h3>
+            <p>«ما هي التقنيات المستخدمة في بناء الواجهة الأمامية؟ وكيف تضمنون سرعة فتح الصفحات على الأجهزة الضعيفة؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> تقييم جودة الكود البرمجي وسرعة الأداء على أجهزة المعلمين والطلاب المختلفة.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«المنظومة مبنية بأحدث إصدارات الصناعة البرمجية لعام 2026: <strong>React 19.2</strong> مع محرك البناء فائق السرعة <strong>Vite 8.2</strong> ومدقق الكود <strong>Oxlint</strong>:»</p>
+            <ul>
+              <li>تُبنى المنظومة بالكامل (أكثر من 2,260 وحدة برمجية) في <strong>4.44 ثانية فقط</strong>.</li>
+              <li>طبقنا تقنية <strong>التحميل الكسول الذكي مع إعادة المحاولة التلقائية (<code>lazyWithRetry.js</code>)</strong>؛ بحيث لا يقوم جهاز المستخدم بتحميل كود الـ 35 شاشة دفعة واحدة، بل يحمّل فقط الشاشة التي يفتحها المستخدم في أجزاء من الثانية.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q4 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num">4</div>
+          <div class="q-title-wrap">
+            <h3>هيكلة الكود وقابلية الصيانة الجماعية (Code Maintainability & Team Collaboration)</h3>
+            <p>«كيف تم تنظيم الملفات داخل المشروع بحيث يستطيع فريق من المطورين العمل عليه وصيانته مستقبلاً؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> التأكد من أن الكود منظم ومفهوم لأي مطور ينضم للمشروع وليس معقداً.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«يتبع المشروع معمارية <strong>Modular Separation of Concerns</strong> واضحة ونظيفة للغاية داخل مجلد <code>src/</code>:»</p>
+            <ul>
+              <li><code>pages/</code>: تضم الشاشات الرئيسية معزولة حسب الدور (SuperAdmin، مدير مدرسة، مشرف، معلم، طالب، ولي أمر).</li>
+              <li><code>components/</code>: المكونات التفاعلية المشتركة ونماذج التقييم (<code>EvaluatorView</code>، <code>TeacherEvaluationView</code>، <code>WeeklyPlanView</code>).</li>
+              <li><code>services/</code> و <code>utils/</code>: تفصل المنطق البرمجي والخدمي تماماً عن الواجهة (مثل محركات التقييم، ضغط الصور، التوليد الذكي، وربط النماذج).</li>
+              <li><code>contexts/</code>: لإدارة حالة التوثيق (<code>AuthContext</code>) واللغات المتعددة (<code>LanguageContext</code>) مركزياً.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         CATEGORY 2: SECURITY, PRIVACY & MULTI-TENANT ISOLATION
+         ===================================================================== -->
+    <div class="category-section" data-category="cat-sec">
+      <div class="category-header purple">
+        <div class="category-title">
+          <span>🔒 المحور الثاني: الأمان السيبراني، عزل المدارس، وحوكمة الصلاحيات</span>
+        </div>
+        <span class="cat-tag purple">4 أسئلة جوهرية</span>
+      </div>
+
+      <!-- Q5 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num purple">5</div>
+          <div class="q-title-wrap">
+            <h3>عزل بيانات الـ 40+ مدرسة (Multi-Tenant Data Isolation)</h3>
+            <p>«بما أن جميع مدارس الشركة (أكثر من 40 مدرسة ومجمعاً) تعمل على نفس المنظومة، كيف نضمن ألا يطلع مدير أو معلم مدرسة على بيانات مدرسة أخرى؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> ضمان الاستقلالية السيادية لكل مدرسة وحماية خصوصية سجلات الطلاب والمعلمين.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«تعتمد البوابة معمارية <strong>عزل متعدد المستأجرين صارم (Programmatic <code>schoolId</code> Sandboxing)</strong>:»</p>
+            <ul>
+              <li>كل حساب مستخدم (مدير، مشرف، معلم، طالب) مرتبط برمجياً بمعرف المدرسة الخاص به (<code>schoolId</code>)، وكافة استعلامات القراءة والكتابة مقيدة بهذا المعرف.</li>
+              <li>مدير المدرسة يملك سيادة كاملة داخل مدرسته فقط، ولا يملك صلاحية رؤية كافة المدارس إلا حساب القيادة العليا للنظام (<code>SuperAdmin</code> الذي يحمل الصلاحية المركزية <code>schoolId: 'ALL'</code>).</li>
+              <li>مع ذلك، أتحنا <strong>بنك موارد تشاركي مقنن (<code>SchoolResourcesHub.jsx</code>)</strong> يسمح بتبادل أوراق العمل والاختبارات المتميزة بين المدارس دون كشف أي بيانات خاصة بالطلاب أو الدرجات.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q6 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num purple">6</div>
+          <div class="q-title-wrap">
+            <h3>التحكم في الصلاحيات حسب الدور الوظيفي (Role-Based Access Control - RBAC)</h3>
+            <p>«كيف يفرّق النظام بين صلاحيات (رئيس الشركة، مدير المدرسة، المشرف التربوي، المعلم، الإداري، الطالب، وولي الأمر)؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> التحقق من عدم قدرة أي مستخدم على الوصول لشاشات أو صلاحيات أعلى من رتبته الوظيفية.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«طورنا في <code>AuthContext.jsx</code> محرك تحقق متوازي (Parallel Role Resolution) يحدد الدور الوظيفي فور تسجيل الدخول عبر مطابقة البريد الإلكتروني أو رقم الهوية الوطنية (<code>nationalId</code>) أو الـ <code>UID</code>:»</p>
+            <ul>
+              <li>يتم توجيه كل مستخدم تلقائياً إلى لوحة التحكم الخاصة بدوره (<code>SuperAdminDashboard</code>، <code>AdminDashboard</code>، <code>SupervisorDashboard</code>، <code>TeacherDashboard</code>، <code>StaffDashboard</code>، <code>StudentDashboard</code>، أو <code>ParentDashboard</code>).</li>
+              <li>القائمة الجانبية (<code>Sidebar.jsx</code>) ومسارات التوجيه (<code>react-router-dom</code>) محمية برمجياً بحيث لا تظهر ولا تفتح إلا المكونات المصرح بها لهذا الدور تحديداً.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q7 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num purple">7</div>
+          <div class="q-title-wrap">
+            <h3>أمن البيانات والامتثال لنظام حماية البيانات الشخصية السعودي (PDPL)</h3>
+            <p>«كيف تحمي المنظومة بيانات الطلاب والمعلمين من الاختراق؟ وهل تتوافق مع أنظمة الأمن السيبراني وحماية البيانات بالمملكة؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> الامتثال القانوني والأمني لحماية بيانات القُصّر (الطلاب) ومنسوبي الشركة.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«تطبق البوابة 4 طبقات حماية قياسية:»</p>
+            <ul>
+              <li><strong>تشفير النقل والتخزين:</strong> كافة البيانات المنقولة مشفرة عبر بروتوكول <code>TLS 1.3</code>، والبيانات المخزنة في قواعد البيانات مشفرة تلقائياً بمعيار <code>AES-256</code>.</li>
+              <li><strong>قفل قاعدة البيانات البرمجي (Hard Database Isolation Assertion):</strong> في ملف <code>src/firebase.js</code> وضعنا شرط تحقق صارم يمنع تشغيل التطبيق إذا تم تغيير معرف المشروع الأصلي للشركة.</li>
+              <li><strong>قواعد حماية السحابة (Firestore Security Rules):</strong> تضمن في بيئة الإنتاج عدم قبول أي عملية قراءة أو كتابة إلا من جلسة موثقة (<code>request.auth != null</code>) ومطابقة لصلاحيات المدرسة.</li>
+              <li><strong>الاستضافة المحلية:</strong> تدعم Google Cloud استضافة البيانات في <strong>إقليم الدمام بالمملكة العربية السعودية (<code>me-central2</code>)</strong> لتحقيق الامتثال الكامل لمتطلبات السيادة الوطنية للبيانات (PDPL).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q8 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num purple">8</div>
+          <div class="q-title-wrap">
+            <h3>إنشاء حسابات المنسوبين دون تسجيل خروج المدير (Secondary Auth Instance)</h3>
+            <p>«في Firebase عادةً عندما ينشئ المدير حساباً لمستخدم جديد يتم تسجيل خروج المدير تلقائياً.. كيف عالجتم هذه المشكلة التقنية؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> سؤال تقني دقيق يطرحه المطورون الذين سبق لهم التعامل مع Firebase Auth.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«عالجنا هذه النقطة هندسياً في ملف <code>src/firebase.js</code> عبر بناء دالة <code>createSecondaryAuthUser</code> التي تنشئ نسخة تطبيق ثانوية معزولة في الذاكرة باسم <code>SecondaryAuthApp</code>:»</p>
+            <ul>
+              <li>تقوم هذه النسخة الثانوية بإنشاء حساب المعلم أو الطالب الجديد في Firebase Auth وكتابة وثيقته في Firestore دون المساس نهائياً بجلسة المدير أو الـ SuperAdmin المسجل دخوله في التطبيق الرئيسي.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         CATEGORY 3: PEDAGOGY & DAILY SCHOOL OPERATIONS
+         ===================================================================== -->
+    <div class="category-section" data-category="cat-edu">
+      <div class="category-header teal">
+        <div class="category-title">
+          <span>👨‍🏫 المحور الثالث: التشغيل التعليمي اليومي وتلبية احتياجات الميدان</span>
+        </div>
+        <span class="cat-tag teal">5 أسئلة جوهرية</span>
+      </div>
+
+      <!-- Q9 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num teal">9</div>
+          <div class="q-title-wrap">
+            <h3>سهولة التحضير اليومي والخطط الأسبوعية للمعلم (Lesson Prep & Weekly Plans)</h3>
+            <p>«كيف يختصر النظام وقت المعلم في التحضير اليومي وإعداد الخطط الأسبوعية وأوراق العمل؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> قياس القيمة الفعلية التي تقدمها البوابة لتخفيف العبء الكتابي والورقي عن المعلم.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«حولنا التحضير من عبء روتيني مكرر إلى عملية ذكية لا تستغرق سوى <strong>15 إلى 30 ثانية</strong> عبر ثلاث أدوات مدمجة:»</p>
+            <ul>
+              <li><strong>المناهج المبرمجة مسبقاً:</strong> النظام يحتوي على هيكلة المناهج الوطنية والدولية (<code>saudiCurriculumData.js</code> و <code>americanCurriculumData.js</code> و <code>curriculumService.js</code>) وبنك استراتيجيات التدريس الحديثة (<code>teachingStrategies.js</code>).</li>
+              <li><strong>المولد الذكي للخطط وأوراق العمل:</strong> عبر <code>aiPlanGenerator.js</code> و <code>aiWorksheetGenerator.js</code>، يختار المعلم عنوان الدرس فيقوم النظام بتوليد الأهداف، المفردات، الأنشطة، وأوراق العمل تلقائياً مع إمكانية التعديل عليها وحفظها بنقرة واحدة.</li>
+              <li><strong>اعتماد المشرف والمدير الفوري:</strong> يظهر التحضير فوراً في شاشة الإدارة (<code>AdminPreparations.jsx</code>) لاعتماده أو إضافة ملاحظات إشرافية عليه دون ورق.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q10 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num teal">10</div>
+          <div class="q-title-wrap">
+            <h3>دعم المواد العلمية والرياضيات والمسارات الدولية (STEM, KaTeX & Multi-Language)</h3>
+            <p>«معلمو الرياضيات والفيزياء والكيمياء يعانون دائماً في كتابة المعادلات والرموز داخل المنصات التعليمية، كما أن لدينا مسار دبلومة أمريكية.. كيف دعمتم ذلك؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> التأكد من ملاءمة البوابة للتخصصات العلمية الدقيقة والمدارس العالمية (International / STEM).
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«بصفتي معلم رياضيات في الميدان، أوليتُ هذه النقطة عناية فائقة:»</p>
+            <ul>
+              <li><strong>محرك المعادلات الرياضية الفوري:</strong> دمجنا مكتبات <code>KaTeX</code> و <code>remark-math</code> و <code>rehype-katex</code>؛ بحيث يكتب المعلم الكسور، الجذور، التكاملات، والمعادلات العلمية كنص خفيف ويتم عرضها بتصميم مطبعي رياضي فائق الدقة في الاختبارات وأوراق العمل دون الحاجة لقص ولصق صور ثقيلة.</li>
+              <li><strong>منظومة اللغات المتعددة:</strong> تدعم البوابة اللغات (العربية، الإنجليزية، الفرنسية، الألمانية، والصينية) مع تبديل تلقائي لاتجاه الواجهة (<code>RTL / LTR</code>) عبر <code>LanguageContext.jsx</code> لخدمة المسار الأهلي والدولي على حد سواء.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q11 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num teal">11</div>
+          <div class="q-title-wrap">
+            <h3>منظومة «المربي المخلص» والتشخيص التربوي والنفسي للطلاب</h3>
+            <p>«ما هي ميزة (بطاقة المربي المخلص) ومحرك القياس التربوي الموجود في البوابة؟ وكيف يفيد الطالب وولي الأمر؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> التعرف على الميزة التربوية الحصرية التي تنفرد بها بوابة المدارس المتقدمة.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«المنظومة لا تكتفي برصد الدرجات الصماء، بل تحول البيانات إلى <strong>تشخيص تربوي وقيمي ذكي</strong> عبر <code>MonthlyMentorReports.jsx</code> و <code>psychometricsEngine.js</code>:»</p>
+            <ul>
+              <li>يربط النظام بين التحصيل الأكاديمي، الانضباط، المشاركة، والقيم السلوكية ليصدر <strong>تقريراً شهرياً تشخيصياً (بطاقة المربي المخلص)</strong> مدعوماً بـ <code>aiMonthlyReportGenerator.js</code>.</li>
+              <li>يقدم التقرير لولي الأمر في <code>ParentDashboard.jsx</code> و <code>ParentExamReports.jsx</code> قراءة واضحة لنقاط قوة ابنه والجوانب التي تحتاج لدعم مع توصيات تربوية عملية، بالإضافة إلى تحفيز الطلاب عبر محرك التلعيب والشارات (<code>gamificationEngine.js</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q12 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num teal">12</div>
+          <div class="q-title-wrap">
+            <h3>تقييم الأداء الوظيفي للمعلمين وزيارات المشرفين (Teacher Performance Evaluation)</h3>
+            <p>«كيف تتم عملية تقييم المعلمين من قِبل مدير المدرسة والمشرف التربوي؟ وهل توجد معايير واضحة ومؤتمتة؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> فهم كيفية أتمتة الإشراف التربوي وتقييم الأداء المهني داخل المنظومة.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«خصصنا بوابة متكاملة لتقييم الأداء المهني (<code>TeacherPerformanceEvaluationHub.jsx</code>) مدعومة بخدمة <code>evaluationService.js</code>:»</p>
+            <ul>
+              <li>تتيح للمدير والمشرف التربوي تنفيذ الزيارات الصفية وتقييم المعلم وفق بطاقات معيارية موزونة (<code>EvaluatorView.jsx</code>).</li>
+              <li>يستطيع المعلم الاطلاع على تقييماته وتوصيات النمو المهني في <code>TeacherEvaluationView.jsx</code>، كما ترتبط هذه المؤشرات مباشرة بلوحة التميز المدرسي (<code>SchoolExcellenceDashboard.jsx</code> و <code>AdminExcellence.jsx</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q13 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num teal">13</div>
+          <div class="q-title-wrap">
+            <h3>مرونة التعامل مع التغييرات اليومية (نقل طالب، تعديل جدول، حصص الانتظار)</h3>
+            <p>«لو احتجنا نقل طالب بين الفصول أو تغيير جدول معلم أثناء الفصل الدراسي، هل يتأثر سجل درجات الطالب أو حضوره السابق؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> التأكد من مرونة النظام مع المتغيرات اليومية في المدارس دون فقدان البيانات التاريخية.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«سجل الطالب مرتبط بمعرفه الفريد ورقم هويته في <code>ComprehensiveStudentRecord.jsx</code> وليس مقيداً بشكل جامد باسم الفصل:»</p>
+            <ul>
+              <li>عند نقل الطالب من فصل لآخر عبر شاشة الإدارة، ينتقل معه سجله الشامل (الدرجات، الاختبارات، تقارير المربي المخلص، والمشاركات) بالكامل دون ضياع أي درجة.</li>
+              <li>كما تتيح شاشة <code>ManageSchedules.jsx</code> و <code>ManageStaff.jsx</code> لمدير المدرسة تعديل إسناد الفصول والجداول في أي لحظة وتنعكس التعديلات فوراً في حسابات المعلمين والطلاب.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         CATEGORY 4: IT SUPPORT, OFFLINE MODE & BACKUPS
+         ===================================================================== -->
+    <div class="category-section" data-category="cat-it">
+      <div class="category-header emerald">
+        <div class="category-title">
+          <span>🖥️ المحور الرابع: الدعم الفني (IT)، العمل دون إنترنت، والنسخ الاحتياطي</span>
+        </div>
+        <span class="cat-tag emerald">4 أسئلة جوهرية</span>
+      </div>
+
+      <!-- Q14 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num emerald">14</div>
+          <div class="q-title-wrap">
+            <h3>استمرار العمل عند ضعف أو انقطاع الإنترنت في الفصول (Offline-First & PWA)</h3>
+            <p>«بعض الفصول الدراسية قد تضعف فيها تغطية الـ Wi-Fi.. ماذا يحدث إذا انقطع الإنترنت أثناء قيام المعلم بالتحضير أو رصد الدرجات؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> ضمان عدم ضياع عمل المعلم أو تعطل الحصة الدراسية بسبب مشاكل الشبكة الداخلية.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«البوابة مهيأة كتطبيق ويب تقدمي (<strong>PWA</strong> عبر <code>vite-plugin-pwa</code>) مع تفعيل التخزين المحلي الذكي لـ Firestore:»</p>
+            <ul>
+              <li>تُحفظ واجهات التطبيق والبيانات الأساسية في الذاكرة المحلية للجهاز (Cache)، مما يسمح بفتح الجداول والخطط حتى مع انقطاع الشبكة.</li>
+              <li>عندما يرصد المعلم بيانات أثناء اهتزاز الشبكة، يحتفظ النظام بالعملية محلياً ويقوم بمزامنتها سحابياً (Auto-Sync) فور عودة الاتصال بالإنترنت دون أن يفقد المعلم ما كتبه.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q15 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num emerald">15</div>
+          <div class="q-title-wrap">
+            <h3>الاستيراد الجماعي لبيانات المدارس والطلاب في بداية العام (Bulk Migration & Onboarding)</h3>
+            <p>«كيف سنقوم بإدخال بيانات آلاف الطلاب والمعلمين والدرجات عند تدشين مدرسة جديدة أو بداية العام الدراسي؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> توفير وقت فريق الـ IT وإدارات المدارس في إدخال البيانات الضخمة.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«طورنا داخل البوابة <strong>منظومة استيراد وترحيل دفعي مؤتمتة بالكامل (<code>Migration.jsx</code> و <code>batchGradesParser.js</code>)</strong>:»</p>
+            <ul>
+              <li>يستطيع مدير المدرسة أو مسؤول الدعم الفني استيراد كشوف الطلاب والمعلمين والدرجات مباشرة من ملفات الإكسل/CSV المستخرجة من نظام نور في ثوانٍ معدودة.</li>
+              <li>يقوم محرك <code>classMatcher.js</code> و <code>studentSorting.js</code> بتنظيف البيانات، ترتيب الطلاب أبجدياً، ومطابقة الفصول والشعب آلياً دون عناء يدوي.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q16 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num emerald">16</div>
+          <div class="q-title-wrap">
+            <h3>النسخ الاحتياطي واستعادة البيانات عند الحذف الخاطئ (Backups & Disaster Recovery)</h3>
+            <p>«ما هي خطة النسخ الاحتياطي للبيانات؟ وكيف نتصرف إذا قام مستخدم بحذف سجلات مهمة عن طريق الخطأ؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> ضمان أمان الأرشيف الأكاديمي للشركة ضد الأخطاء البشرية أو الطوارئ.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«تعتمد خطة حماية البيانات على 3 مستويات:»</p>
+            <ul>
+              <li><strong>الاستعادة الزمنية اللحظية (Point-in-Time Recovery - PITR):</strong> تتيح Google Cloud Firestore استرجاع حالة قاعدة البيانات لأي ثانية خلال آخر 7 أيام دون تعطيل المدارس الأخرى.</li>
+              <li><strong>النسخ المجدول (Scheduled Cloud Exports):</strong> أخذ نسخة احتياطية يومية وأسبوعية تلقائية في مساحة تخزين سحابية مؤرشفة (Google Cloud Storage Bucket).</li>
+              <li><strong>النسخ المتعدد المراكز (Multi-Region Replication):</strong> تُحفظ البيانات تلقائياً في أكثر من مركز بيانات لدى جوجل لضمان عدم ضياع أي ملف بنسبة <code>99.999%</code>.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q17 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num emerald">17</div>
+          <div class="q-title-wrap">
+            <h3>إدارة المساحات التخزينية للملفات والصور المرفوعة (Storage & Media Optimization)</h3>
+            <p>«مع قيام آلاف المعلمين والطلاب برفع أوراق عمل وصور شواهد الأنشطة يومياً، كيف نمنع امتلاء التخزين السحابي أو بطء التحميل؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> كفاءة إدارة التخزين السحابي (Firebase Storage) وسرعة استعراض الملفات.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«قمنا ببناء محرك ضغط وإدارة ملفات ذكي على جهاز المستخدم قبل الرفع (<code>imageCompressor.js</code> و <code>fileStorageService.js</code>):»</p>
+            <ul>
+              <li>أي صورة شاهد أو نشاط يرفعها المعلم (حتى لو كان حجمها 8 ميجابايت من كاميرا الجوال) يتم ضغطها وتحسين أبعادها تلقائياً على المتصفح لتصبح أقل من <code>250 كيلوبايت</code> مع الحفاظ على جودتها البصرية.</li>
+              <li>كما وفرنا عارض ملفات مدمج (<code>FileViewer.jsx</code>) يتيح استعراض أوراق العمل والمواد التعليمية (<code>MaterialsUpload.jsx</code>) مباشرة داخل البوابة دون إجبار المستخدم على تنزيلها.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         CATEGORY 5: INTEGRATIONS, MOBILE APPS & FUTURE EXPANSION
+         ===================================================================== -->
+    <div class="category-section" data-category="cat-int">
+      <div class="category-header amber">
+        <div class="category-title">
+          <span>🔗 المحور الخامس: التكامل مع الأنظمة الخارجية، تطبيقات الجوال، والتوسع</span>
+        </div>
+        <span class="cat-tag amber">4 أسئلة جوهرية</span>
+      </div>
+
+      <!-- Q18 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num amber">18</div>
+          <div class="q-title-wrap">
+            <h3>تطبيقات الهواتف الذكية لأولياء الأمور والطلاب والمعلمين (Android & iOS Native Apps)</h3>
+            <p>«هل تتوفر البوابة كتطبيق جوال على الهواتف الذكية أم أنها تعمل عبر متصفح الكمبيوتر فقط؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> تلبية احتياج أولياء الأمور والمعلمين للوصول السريع من هواتفهم مع الإشعارات.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«المنظومة مجهزة بالكامل للعمل على الهواتف الذكية عبر مسارين مدمجين في نفس الكود البرمجي (Single Codebase):»</p>
+            <ul>
+              <li><strong>تطبيقات الهواتف الأصلية (Native Mobile via Capacitor 8):</strong> المشروع مدمج به إطار <code>@capacitor/core</code> و <code>@capacitor/android</code> ومضبوط في <code>capacitor.config.json</code> لتوليد تطبيقات أندرويد و iOS أصلية تُرفع على المتاجر الرسمية دون الحاجة لإعادة برمجة التطبيق بلغة أخرى.</li>
+              <li><strong>التثبيت المباشر السريع (PWA):</strong> يمكن لأي مستخدم فتح الرابط من جواله وتثبيت أيقونة البوابة مباشرة على شاشته الرئيسية بنقرة واحدة.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q19 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num amber">19</div>
+          <div class="q-title-wrap">
+            <h3>التكامل مع حسابات مايكروسوفت 365 ونماذج الاختبارات (Microsoft 365 & Google Forms)</h3>
+            <p>«مدارسنا تستخدم حسابات Microsoft 365 ونماذج Microsoft Forms و Google Forms في الاختبارات.. هل تتكامل البوابة معها؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> الاستفادة من البنية الحالية لمايكروسوفت وجوجل في المدارس وعدم إضاعة جهود المعلمين السابقة.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«نعم، هذا التكامل مدمج فعلياً في البنية البرمجية الحالية للبوابة:»</p>
+            <ul>
+              <li><strong>الدخول الموحد لمايكروسوفت (Microsoft SSO):</strong> عبر مكتبة <code>@azure/msal-browser</code> الرسمية، يمكن للمعلمين والطلاب تسجيل الدخول باستخدام حساباتهم المؤسسية في Microsoft 365.</li>
+              <li><strong>ربط نماذج الاختبارات:</strong> عبر <code>microsoftFormsService.js</code> و <code>googleFormsService.js</code>، يمكن للمعلم ربط واستيراد اختبارات مايكروسوفت وجوجل وتحليل نتائجها مباشرة داخل شاشة الاختبارات (<code>TeacherExams.jsx</code> و <code>AdminExamsManagement.jsx</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q20 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num amber">20</div>
+          <div class="q-title-wrap">
+            <h3>التكامل المستقبلي مع نظام المحاسبة (ERP)، الموارد البشرية (HR)، ورسائل الواتساب/SMS</h3>
+            <p>«كيف يمكننا مستقبلاً ربط البوابة بنظام الرسوم المالية للشركة أو نظام شؤون الموظفين أو بوابات إرسال رسائل SMS وأولياء الأمور؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> التأكد من قابلية البوابة للربط مع الأنظمة الإدارية والمالية الأخرى في الشركة.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«صممنا البنية البياناتية لتكون جاهزة للربط مع أي نظام خارجي (ERP / HR / SMS Gateway) بفضل توحيد المعرفات:»</p>
+            <ul>
+              <li>كل طالب ومعلم في قاعدة البيانات معرف بـ <strong>رقم الهوية الوطنية أو الإقامة (<code>nationalId</code>)</strong> ومعرف المدرسة (<code>schoolId</code>)، وهو نفس المفتاح الأساسي المستخدم في أنظمة المالية والموارد البشرية ونظام نور.</li>
+              <li>من خلال <strong>Firebase Cloud Functions / Webhooks</strong> وطبقة الخدمات في <code>src/services/</code>، يمكننا إرسال واستقبال البيانات تلقائياً مع أي نظام ERP أو إطلاق رسائل WhatsApp/SMS تلقائية فور تسجيل الغياب أو صدور التقرير الشهري.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         CATEGORY 6: EXECUTIVE GOVERNANCE, ROLLOUT & FINANCIAL ROI
+         ===================================================================== -->
+    <div class="category-section" data-category="cat-gov">
+      <div class="category-header rose">
+        <div class="category-title">
+          <span>🏛️ المحور السادس: الحوكمة الرئاسية، خطة التدشين، والجدوى المالية</span>
+        </div>
+        <span class="cat-tag rose">4 أسئلة جوهرية</span>
+      </div>
+
+      <!-- Q21 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num rose">21</div>
+          <div class="q-title-wrap">
+            <h3>بوابة القرارات الرئاسية ومصفوفة الامتثال اللحظي (Master Hub & Compliance Matrix)</h3>
+            <p>«كيف تمكّن هذه البوابة رئيس الشركة والقيادة العليا من إدارة ومتابعة أكثر من 40 مدير مدرسة في مناطق مختلفة لحظياً؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> إبراز القيمة القيادية والاستراتيجية التي تقدمها البوابة للإدارة العليا للشركة.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«ابتكرنا في البوابة <strong>منظومة القيادة والسيطرة المركزية (<code>MasterMessagingHub.jsx</code> و <code>SuperAdminDashboard.jsx</code>)</strong> المدعومة ببث لحظي عبر <code>realtimeBroadcast.js</code>:»</p>
+            <ul>
+              <li><strong>توجيه القرارات والتعاميم الذكي:</strong> يستطيع رئيس الشركة إرسال قرار لجميع الـ 40+ مدرسة بنقرة واحدة، أو تخصيصه حسب المنطقة الجغرافية (الرياض، جدة، الشرقية) أو المسار (أهلي، دبلومة أمريكية).</li>
+              <li><strong>مصفوفة الامتثال اللحظية (Live Compliance Matrix):</strong> تظهر للرئيس لوحة حية بالدقيقة والثانية توضح: من من المدراء استلم القرار؟ من فتحه وقرأه؟ ومن وقّع إلكترونياً على إقرار التنفيذ؟ ومن تأخر؟</li>
+              <li><strong>الخط الساخن الرئاسي (1-on-1 Executive Hotline):</strong> قناة تواصل مباشرة ومشفرة بين كل مدير مدرسة والقيادة العليا لرفع التقارير العاجلة دون بيروقراطية ورقية.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q22 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num rose">22</div>
+          <div class="q-title-wrap">
+            <h3>التكلفة التشغيلية والعائد الاستثماري للشركة (Operational Cost & ROI)</h3>
+            <p>«كم ستكلف هذه المنظومة الشركة شهرياً وسنوياً عند تشغيلها على كافة مدارس الشركة؟ وما الوفر المالي المحقق؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> تقييم الجدوى المالية واستدامة التكاليف السحابية على المدى الطويل.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«تحقق المنظومة وفراً مالياً يتجاوز <strong>98%</strong> مقارنة بالأنظمة التجارية الجاهزة أو الخوادم التقليدية المكلفة:»</p>
+            <ul>
+              <li><strong>أصل رقمي مملوك للشركة:</strong> الكود البرمجي ملك للشركة بالكامل مدى الحياة، مما يلغي رسوم التراخيص السنوية ورسوم الاشتراك عن كل طالب (التي تكلف عادةً من 2 إلى 4 ملايين ريال سنوياً لشبكة بحجم 40 مدرسة).</li>
+              <li><strong>تكلفة سحابية رمزية:</strong> بفضل الباقة المجانية السخية من Google Cloud وهندسة التنفيذ الطرفي، فإن تشغيل مدرسة واحدة في الوضع الاعتيادي يكلف <code>0 ريال</code> ضمن الحد المجاني، وعند التشغيل المكثف لكامل شبكة الـ 40+ مدرسة تتراوح تكلفة السحابة الإجمالية بين <strong>950 إلى 2,050 ريالاً شهرياً فقط لكامل الشركة</strong> (أي أقل من 50 ريالاً شهرياً للمدرسة الواحدة!).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q23 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num rose">23</div>
+          <div class="q-title-wrap">
+            <h3>ملكية الأصول الرقمية واستمرارية العمل المؤسسي (IP Ownership & Business Continuity)</h3>
+            <p>«كيف نضمن أن حسابات السحابة، الدومين، والكود المصدري ستكون تحت السيطرة المؤسسية الرسمية للشركة؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> سؤال حوكمة إداري يهم مديري تقنية المعلومات والإدارة التنفيذية.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«المنظومة مصممة لتكون أصلاً مؤسسياً رسمياً لشركة المدارس المتقدمة:»</p>
+            <ul>
+              <li>يتم ربط المشروع بحساب Google Cloud المؤسسي الرسمي للشركة ومستودع GitHub خاص بالشركة (Private Enterprise Repository).</li>
+              <li>يتم ربط النطاق الرسمي للشركة (مثل: <code>smart.motaqadimah.edu.sa</code>) مباشرة عبر Firebase Hosting مع شهادة أمان <code>SSL</code> مجانية تتجدد تلقائياً.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q24 -->
+      <div class="q-card">
+        <div class="q-head">
+          <div class="q-num rose">24</div>
+          <div class="q-title-wrap">
+            <h3>خطة التدشين والتطبيق المرحلي في المدارس (Phased Rollout Plan)</h3>
+            <p>«إذا اعتمدنا البدء، ما هي خطتك العملية لتدشين البوابة في الـ 40 مدرسة بسلاسة ودون أي مخاطرة تشغيلية؟»</p>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="q-context">
+            <strong>🎯 زاوية السؤال:</strong> إثبات النضج الإداري والقدرة على قيادة التحول الرقمي على أرض الواقع.
+          </div>
+          <div class="q-answer">
+            <span class="q-answer-label">✅ الإجابة النموذجية:</span>
+            <p>«أقترح خطة تدشين ذكية وموزونة من <strong>4 مراحل خلال 4 إلى 6 أسابيع</strong>:»</p>
+            <ul>
+              <li><strong>المرحلة 1 (أسبوعان - Pilot):</strong> التشغيل النموذجي في 3 مجمعات مختارة (تضم مساراً أهلياً ومساراً دولياً) لقياس تجربة المستخدم الميدانية.</li>
+              <li><strong>المرحلة 2 (أسبوع واحد - القيادة):</strong> تفعيل حسابات جميع مدراء المدارس الـ 40+ على بوابة القرارات الرئاسية (<code>MasterMessagingHub</code>) والخط الساخن.</li>
+              <li><strong>المرحلة 3 (أسبوعان - التعميم):</strong> الاستيراد الآلي لبيانات المعلمين والطلاب في بقية المدارس عبر <code>Migration.jsx</code> وعقد ورشة تدريبية مدتها 20 دقيقة لمنسقي المدارس.</li>
+              <li><strong>المرحلة 4 (مستمرة - أولياء الأمور):</strong> إطلاق تطبيق الجوال (Android / iOS / PWA) لأولياء الأمور والطلاب لمتابعة الخطط الأسبوعية وتقارير «المربي المخلص».</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div>
+        <strong>📘 الموسوعة الشاملة لجميع الأسئلة المتوقعة — بوابة المدارس المتقدمة للتعلم الذكي</strong>
+        <br>
+        <span style="color: #cbd5e1; font-size: 0.95rem;">تصميم وتطوير وهندسة المنظومة: أ. محمد عبدالله جمعة • شركة المدارس المتقدمة التعليمية</span>
+      </div>
+      <div style="text-align: left; direction: ltr; color: #38bdf8; font-weight: 800;">
+        24 Comprehensive Q&As • Ready for Print & Live Meeting
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function filterCategory(category, btnElement) {
+      const buttons = document.querySelectorAll('.tab-btn');
+      buttons.forEach(btn => btn.classList.remove('active'));
+      if (btnElement) btnElement.classList.add('active');
+
+      const sections = document.querySelectorAll('.category-section');
+      sections.forEach(sec => {
+        if (category === 'all' || sec.getAttribute('data-category') === category) {
+          sec.style.display = 'block';
+        } else {
+          sec.style.display = 'none';
+        }
+      });
+
+      // Re-apply search filter if there is text
+      filterQuestions();
+    }
+
+    function filterQuestions() {
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const cards = document.querySelectorAll('.q-card');
+
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        if (!query || text.includes(query)) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>

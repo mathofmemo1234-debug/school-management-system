@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>خطة الأسئلة المتوقعة من الشخصيات غير المنافسة (البنّاءة والتشغيلية) - بوابة المدارس المتقدمة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --navy-dark: #0f172a;
+      --teal-dark: #115e59;
+      --teal-mid: #0d9488;
+      --teal-light: #f0fdfa;
+      --teal-border: #99f6e4;
+      --royal-blue: #1e40af;
+      --blue-mid: #2563eb;
+      --blue-light: #eff6ff;
+      --blue-border: #bfdbfe;
+      --emerald-dark: #065f46;
+      --emerald-mid: #059669;
+      --emerald-light: #ecfdf5;
+      --emerald-border: #a7f3d0;
+      --indigo-dark: #3730a3;
+      --indigo-mid: #4f46e5;
+      --indigo-light: #eef2ff;
+      --indigo-border: #c7d2fe;
+      --amber-dark: #92400e;
+      --amber-mid: #d97706;
+      --amber-light: #fffbeb;
+      --amber-border: #fde68a;
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #64748b;
+      --border-color: #cbd5e1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Cairo', 'Tajawal', sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.8;
+      font-size: 16px;
+      padding: 24px;
+      direction: rtl;
+    }
+
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+    }
+
+    /* Action Bar */
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 14px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .action-bar-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      color: var(--navy-dark);
+      font-size: 1.05rem;
+    }
+
+    .action-bar-badge {
+      background: var(--teal-light);
+      color: var(--teal-dark);
+      border: 1px solid var(--teal-border);
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 800;
+    }
+
+    .print-btn {
+      background: linear-gradient(135deg, var(--teal-mid) 0%, var(--royal-blue) 100%);
+      color: #ffffff;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 0.95rem;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .print-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(13, 148, 136, 0.35);
+    }
+
+    /* Hero Banner */
+    .hero-banner {
+      background: linear-gradient(135deg, #042f2e 0%, #0f172a 55%, #1e3a8a 100%);
+      color: #ffffff;
+      border-radius: 20px;
+      padding: 36px 40px;
+      margin-bottom: 28px;
+      position: relative;
+      overflow: hidden;
+      border: 2px solid #0d9488;
+      box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 18px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .hero-brand {
+      color: #5eead4;
+      font-weight: 800;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hero-tag {
+      background: rgba(253, 224, 71, 0.15);
+      border: 1px solid #fde047;
+      color: #fef08a;
+      padding: 5px 16px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .hero-title {
+      font-size: 2rem;
+      font-weight: 900;
+      line-height: 1.4;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+
+    .hero-subtitle {
+      font-size: 1.1rem;
+      color: #e2e8f0;
+      max-width: 980px;
+      line-height: 1.75;
+      margin-bottom: 24px;
+    }
+
+    /* Personas Overview Grid */
+    .persona-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .persona-pill {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .persona-pill h4 {
+      color: #fde047;
+      font-size: 0.98rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .persona-pill p {
+      color: #cbd5e1;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    /* Section Wrapper */
+    .section-wrapper {
+      background: var(--bg-card);
+      border-radius: 18px;
+      border: 1px solid var(--border-color);
+      padding: 30px;
+      margin-bottom: 28px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      border-bottom: 3px solid var(--teal-mid);
+    }
+
+    .section-header.blue { border-bottom-color: var(--blue-mid); }
+    .section-header.indigo { border-bottom-color: var(--indigo-mid); }
+    .section-header.emerald { border-bottom-color: var(--emerald-mid); }
+    .section-header.amber { border-bottom-color: var(--amber-mid); }
+
+    .section-title {
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: var(--navy-dark);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-badge {
+      font-size: 0.9rem;
+      font-weight: 800;
+      padding: 6px 16px;
+      border-radius: 999px;
+    }
+
+    .badge-teal { background: var(--teal-light); color: var(--teal-dark); border: 1px solid var(--teal-border); }
+    .badge-blue { background: var(--blue-light); color: var(--royal-blue); border: 1px solid var(--blue-border); }
+    .badge-indigo { background: var(--indigo-light); color: var(--indigo-dark); border: 1px solid var(--indigo-border); }
+    .badge-emerald { background: var(--emerald-light); color: var(--emerald-dark); border: 1px solid var(--emerald-border); }
+    .badge-amber { background: var(--amber-light); color: var(--amber-dark); border: 1px solid var(--amber-border); }
+
+    /* Constructive QA Card */
+    .qa-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 22px;
+    }
+
+    .qa-card {
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.02);
+    }
+
+    .qa-top {
+      background: linear-gradient(90deg, #f0fdfa 0%, #e0f2fe 100%);
+      border-bottom: 1.5px solid #bae6fd;
+      padding: 16px 22px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .qa-icon {
+      background: var(--teal-mid);
+      color: #ffffff;
+      font-weight: 900;
+      font-size: 1.1rem;
+      min-width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .qa-top-content h3 {
+      color: var(--navy-dark);
+      font-size: 1.15rem;
+      font-weight: 900;
+      margin-bottom: 2px;
+    }
+
+    .qa-top-content p {
+      color: var(--royal-blue);
+      font-size: 1.03rem;
+      font-weight: 700;
+    }
+
+    .qa-content {
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .intent-box {
+      background: var(--indigo-light);
+      border: 1px solid var(--indigo-border);
+      border-right: 5px solid var(--indigo-mid);
+      border-radius: 10px;
+      padding: 12px 18px;
+    }
+
+    .intent-box strong {
+      color: var(--indigo-dark);
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.98rem;
+    }
+
+    .intent-box p {
+      color: #1e1b4b;
+      font-size: 0.98rem;
+      font-weight: 600;
+    }
+
+    .solution-box {
+      background: var(--emerald-light);
+      border: 1px solid var(--emerald-border);
+      border-right: 5px solid var(--emerald-mid);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+
+    .solution-box strong.title {
+      color: var(--emerald-dark);
+      display: block;
+      margin-bottom: 8px;
+      font-size: 1.04rem;
+      font-weight: 900;
+    }
+
+    .solution-box p, .solution-box li {
+      color: #064e3b;
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.8;
+    }
+
+    .solution-box ul {
+      padding-right: 20px;
+      margin-top: 6px;
+    }
+
+    .solution-box li {
+      margin-bottom: 6px;
+    }
+
+    code {
+      font-family: Consolas, Monaco, 'Courier New', monospace;
+      background: rgba(15, 23, 42, 0.08);
+      color: #0f172a;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      direction: ltr;
+      display: inline-block;
+    }
+
+    /* Rollout Timeline Cards */
+    .roadmap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+
+    .roadmap-card {
+      background: var(--amber-light);
+      border: 1.5px solid var(--amber-border);
+      border-top: 5px solid var(--amber-mid);
+      border-radius: 14px;
+      padding: 20px;
+    }
+
+    .roadmap-phase {
+      display: inline-block;
+      background: var(--amber-mid);
+      color: #ffffff;
+      font-weight: 900;
+      padding: 3px 12px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      margin-bottom: 10px;
+    }
+
+    .roadmap-card h4 {
+      color: var(--amber-dark);
+      font-size: 1.1rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+
+    .roadmap-card p {
+      color: #78350f;
+      font-size: 0.96rem;
+      font-weight: 600;
+      line-height: 1.7;
+    }
+
+    /* Footer */
+    .footer-card {
+      background: var(--navy-dark);
+      color: #ffffff;
+      border-radius: 16px;
+      padding: 24px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      border: 2px solid var(--teal-mid);
+    }
+
+    .footer-card strong {
+      color: #5eead4;
+      font-size: 1.15rem;
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+        font-size: 11.5pt;
+      }
+      .action-bar { display: none !important; }
+      .container { max-width: 100%; }
+      .section-wrapper, .qa-card, .roadmap-card {
+        break-inside: avoid;
+        box-shadow: none !important;
+      }
+      @page {
+        size: A4;
+        margin: 12mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Top Action Bar -->
+    <div class="action-bar">
+      <div class="action-bar-info">
+        <span>🤝 خطة الحوار البنّاء والتشغيلي (بعيداً عن المقارنات التنافسية)</span>
+        <span class="action-bar-badge">الأسئلة الموضوعية • التشغيل • التوسع • الحوكمة</span>
+      </div>
+      <button class="print-btn" onclick="window.print()">
+        <span>🖨️ طباعة الخطة أو حفظها كـ PDF</span>
+      </button>
+    </div>
+
+    <!-- Hero Banner -->
+    <div class="hero-banner">
+      <div class="hero-top">
+        <div class="hero-brand">
+          <span>🏫 بوابة المدارس المتقدمة للتعلم الذكي</span>
+          <span>|</span>
+          <span style="color: #cbd5e1; font-size: 0.95rem;">إعداد وتطوير: أ. محمد عبدالله جمعة</span>
+        </div>
+        <div class="hero-tag">دليل الإجابة على الشخصيات الموضوعية والداعمة</div>
+      </div>
+
+      <h1 class="hero-title">خطة الأسئلة المتوقعة من الشخصيات غير المنافسة (المحايدة، التشغيلية، والتنفيذية)</h1>
+      <p class="hero-subtitle">
+        عندما تتحدث مع شخصيات لا تنافسك (مثل: مطور متعاون، مسؤول دعم فني IT، مشرف جودة واعتماد، أو مدير تشغيل تعليمي)، فإنهم لا يبحثون عن إفشال المنصة أو مقارنتها بالماضي، بل يبحثون عن <strong>«الاطمئنان التشغيلي، الاستمرارية، سهولة التدريب، والتكامل المستقبلي»</strong>. هذا الدليل يمنحك الإجابات الاحترافية التي تحولهم إلى <strong>حلفاء وداعمين أقوياء لمشروعك</strong>.
+      </p>
+
+      <div class="persona-grid">
+        <div class="persona-pill">
+          <h4>👨‍🏫 1. قادة التشغيل والميدان</h4>
+          <p>يهتمون بسهولة تدريب المعلمين، الحالات الاستثنائية اليومية، والتقارير المعتمدة.</p>
+        </div>
+        <div class="persona-pill">
+          <h4>🖥️ 2. فريق الدعم الفني (IT Helpdesk)</h4>
+          <p>يهتمون بإنشاء الحسابات، استعادة كلمات المرور، والنسخ الاحتياطي الآلي.</p>
+        </div>
+        <div class="persona-pill">
+          <h4>🛠️ 3. المطورون المتعاونون</h4>
+          <p>يهتمون بهيكلة الكود، بيئة الاختبار (Staging)، والتكامل عبر APIs مستقبلاً.</p>
+        </div>
+        <div class="persona-pill">
+          <h4>🏅 4. مسؤولو الجودة والاعتماد</h4>
+          <p>يهتمون بدقة المؤشرات، معايير التقويم والتميز، وأرشفة الشواهد التاريخية.</p>
+        </div>
+        <div class="persona-pill">
+          <h4>🏛️ 5. الإدارة التنفيذية والحوكمة</h4>
+          <p>يهتمون بملكية الأصول الرقمية للشركة، وخطة التدشين المرحلي الآمن.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category 1: Educational Operations & School Principals -->
+    <div class="section-wrapper">
+      <div class="section-header">
+        <div class="section-title">
+          <span>👨‍🏫 المحور الأول: أسئلة قادة التشغيل التعليمي والمدراء والمشرفين</span>
+        </div>
+        <span class="section-badge badge-teal">التركيز: سهولة التطبيق اليومي في المدارس</span>
+      </div>
+
+      <div class="qa-grid">
+        <div class="qa-card">
+          <div class="qa-top">
+            <div class="qa-icon">1</div>
+            <div class="qa-top-content">
+              <h3>إدارة التغيير وتدريب الكوادر (Onboarding & Training)</h3>
+              <p>«لدينا آلاف المعلمين، وبعضهم غير متمكن تقنياً.. كم نحتاج من الوقت لتدريبهم على البوابة دون تعطيل الدراسة؟»</p>
+            </div>
+          </div>
+          <div class="qa-content">
+            <div class="intent-box">
+              <strong>🎯 الهدف الحقيقي للسائل:</strong>
+              <p>الاطمئنان إلى أن إطلاق البوابة لن يسبب إرباكاً للمعلمين أو شكاوى من صعوبة الاستخدام في الأسابيع الأولى.</p>
+            </div>
+            <div class="solution-box">
+              <strong class="title">✅ الإجابة النموذجية المطمئنة:</strong>
+              <p>«صُممت البوابة وفق مبدأ <strong>(Zero-Training UI / واجهة لا تحتاج لتدريب مسبق)</strong>؛ لأن القوائم مصممة بنفس المصطلحات اليومية للمعلم في الفصل:»</p>
+              <ul>
+                <li>عندما يدخل المعلم على حسابه، يجد أمامه مباشرة جدوله اليومي (<code>TeacherSchedule.jsx</code>)، وزر تحضير الدرس (<code>LessonPreparation.jsx</code>)، ورصد الدرجات (<code>TeacherGradeEntry.jsx</code>).</li>
+                <li>الخطط الأسبوعية وأوراق العمل مدعومة بـ <strong>توليد تلقائي ذكي</strong> (<code>aiPlanGenerator.js</code>)؛ فالمعلم يختار المادة والدرس فقط، والنظام يقترح عليه الأهداف والاستراتيجيات التدريسية جاهزة من بنك الاستراتيجيات المدمج (<code>teachingStrategies.js</code>).</li>
+                <li>تكفي <strong>ورشة عمل واحدة مدتها 20 دقيقة</strong> أو مقطع فيديو تفاعلي قصير ليتقن أي معلم استخدام النظام بالكامل.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="qa-card">
+          <div class="qa-top">
+            <div class="qa-icon">2</div>
+            <div class="qa-top-content">
+              <h3>التعامل مع الحالات الاستثنائية اليومية في المدرسة (Daily Edge Cases)</h3>
+              <p>«ماذا لو انتقل طالب من فصل لآخر في منتصف الفصل الدراسي؟ أو تغيب معلم وأسندنا حصته لمعلم بديل؟ أو أردنا تعديل جدول المدرسة؟»</p>
+            </div>
+          </div>
+          <div class="qa-content">
+            <div class="intent-box">
+              <strong>🎯 الهدف الحقيقي للسائل:</strong>
+              <p>التأكد من مرونة النظام مع الواقع اليومي المتغير للمدرسة وعدم جموده.</p>
+            </div>
+            <div class="solution-box">
+              <strong class="title">✅ الإجابة النموذجية المطمئنة:</strong>
+              <p>«لأنني معلم في الميدان وأعيش هذه التفاصيل يومياً، فقد صممتُ لوحة مدير المدرسة لتمنحه <strong>السيادة والمرونة اللحظية الكاملة</strong> دون الحاجة للرجوع للدعم الفني:»</p>
+              <ul>
+                <li><strong>إدارة الجداول والفصول الديناميكية:</strong> عبر شاشة <code>ManageSchedules.jsx</code> ومحرك مطابقة الفصول <code>classMatcher.js</code>، يمكن للمدير أو الوكيل تعديل الجدول أو نقل الطالب بين الفصول بنقرة زر مع احتفاظ الطالب بكامل سجله التراكمي (<code>ComprehensiveStudentRecord.jsx</code>).</li>
+                <li><strong>إدارة الكادر المرن:</strong> عبر شاشة <code>ManageStaff.jsx</code> و <code>TeacherSubjectSelector.jsx</code>، يمكن إسناد فصول أو مواد إضافية لأي معلم في ثوانٍ وتنعكس فوراً في شاشته.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="qa-card">
+          <div class="qa-top">
+            <div class="qa-icon">3</div>
+            <div class="qa-top-content">
+              <h3>التقارير الرسمية وزيارات المشرفين ولجان الاعتماد (Official Documentation)</h3>
+              <p>«عند زيارة مشرفي وزارة التعليم أو لجان التميز، هل يمكن استخراج ملفات إنجاز وتقارير رسمية قابلة للطباعة والتوثيق؟»</p>
+            </div>
+          </div>
+          <div class="qa-content">
+            <div class="intent-box">
+              <strong>🎯 الهدف الحقيقي للسائل:</strong>
+              <p>التأكد من أن البوابة تغني المدرسة عن الملفات الورقية التقليدية أمام الجهات الرقابية.</p>
+            </div>
+            <div class="solution-box">
+              <strong class="title">✅ الإجابة النموذجية المطمئنة:</strong>
+              <p>«نعم بالكامل؛ البوابة تضم 4 منظومات توثيق رسمية جاهزة للطباعة والعرض الفوري أمام أي لجنة زائرة:»</p>
+              <ul>
+                <li><strong>واجهة الزائر والمقيم الرسمي (<code>VisitorEvaluationView.jsx</code> و <code>EvaluatorView.jsx</code>):</strong> واجهة مخصصة للمشرفين والزوار لاستعراض وتقييم الأداء مباشرة.</li>
+                <li><strong>ملف الإنجاز المهني الرقمي (<code>AchievementPortfolioPage.jsx</code>):</strong> يجمع شواهد المعلم والمدرسة بشكل مؤتمت ومنظم.</li>
+                <li><strong>بطاقة «المربي المخلص» الشهرية (<code>MonthlyMentorReports.jsx</code>):</strong> تقارير تشخيصية وتربوية معتمدة لكل طالب جاهزة للطباعة أو الإرسال لولي الأمر.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category 2: IT Support & System Administration -->
+    <div class="section-wrapper">
+      <div class="section-header blue">
+        <div class="section-title">
+          <span>🖥️ المحور الثاني: أسئلة فريق تقنية المعلومات والدعم الفني (IT & Helpdesk)</span>
+        </div>
+        <span class="section-badge badge-blue">التركيز: إدارة الحسابات، النسخ الاحتياطي، والدعم</span>
+      </div>
+
+      <div class="qa-grid">
+        <div class="qa-card">
+          <div class="qa-top">
+            <div class="qa-icon">4</div>
+            <div class="qa-top-content">
+              <h3>تهيئة العام الدراسي الجديد واستيراد آلاف الطلاب والمعلمين (Bulk Provisioning)</h3>
+              <p>«في بداية كل عام دراسي، كيف سنضيف آلاف الطلاب الجدد ونوزعهم على الفصول في 40 مدرسة؟ هل سندخلهم واحداً تلو الآخر؟»</p>
+            </div>
+          </div>
+          <div class="qa-content">
+            <div class="intent-box">
+              <strong>🎯 الهدف الحقيقي للسائل:</strong>
+              <p>معرفة حجم العبء التشغيلي الذي سيقع على فريق الـ IT عند بداية كل فصل أو عام دراسي.</p>
+            </div>
+            <div class="solution-box">
+              <strong class="title">✅ الإجابة النموذجية المطمئنة:</strong>
+              <p>«لا يوجد أي إدخال يدوي فردي؛ لقد بنيتُ داخل النظام <strong>محرك ترحيل واستيراد دفعي شامل (<code>Migration.jsx</code> و <code>batchGradesParser.js</code>)</strong>:»</p>
+              <ul>
+                <li>يمكن لمدير المدرسة أو مسؤول الـ IT رفع ملف الكشوف المستخرج من نظام نور أو الإكسل مباشرة، ويقوم النظام آلياً بإنشاء سجلات الطلاب وتوزيعهم على الفصول وربطهم بمعرف المدرسة (<code>schoolId</code>).</li>
+                <li>يدعم النظام تسجيل الدخول برقم الهوية الوطنية أو البريد الرسمي عبر مايكروسوفت 365 (<code>@azure/msal-browser</code>)، مما يلغي 90% من تذاكر الدعم الفني المتعلقة بنسيان الحسابات.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="qa-card">
+          <div class="qa-top">
+            <div class="qa-icon">5</div>
+            <div class="qa-top-content">
+              <h3>النسخ الاحتياطي واستعادة البيانات عند الخطأ البشري (Backup & Disaster Recovery)</h3>
+              <p>«ماذا لو قام مدير مدرسة أو معلم بحذف بيانات أو درجات عن طريق الخطأ؟ كيف نسترجعها؟»</p>
+            </div>
+          </div>
+          <div class="qa-content">
+            <div class="intent-box">
+              <strong>🎯 الهدف الحقيقي للسائل:</strong>
+              <p>الاطمئنان على سلامة البيانات من الأخطاء البشرية أو الكوارث التقنية.</p>
+            </div>
+            <div class="solution-box">
+              <strong class="title">✅ الإجابة النموذجية المطمئنة:</strong>
+              <p>«نحن نطبق طبقتين من الحماية واستمرارية الأعمال على مستوى Google Cloud Firestore:»</p>
+              <ul>
+                <li><strong>الاستعادة الزمنية اللحظية (Point-in-Time Recovery - PITR):</strong> توفر قاعدة بيانات Firestore ميزة استعادة حالة قاعدة البيانات لأي دقيقة خلال الـ 7 أيام الماضية بنقرة واحدة دون توقف النظام.</li>
+                <li><strong>النسخ الاحتياطي المجدول (Automated Daily Exports):</strong> جدولة تصدير يومي تلقائي لكافة المجموعات إلى حزمة أرشفة سحابية معزولة (Cold Storage Bucket)، بالإضافة إلى إمكانية تصدير الكشوف محلياً من لوحة التحكم في أي وقت.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category 3: Constructive Developers & Technical Architects -->
+    <div class="section-wrapper">
+      <div class="section-header indigo">
+        <div class="section-title">
+          <span>🛠️ المحور الثالث: أسئلة المطورين المتعاونين ومهندسي التكامل (Constructive Devs)</span>
+        </div>
+        <span class="section-badge badge-indigo">التركيز: التعاون البرمجي، بيئات النشر، والتكامل المستقبلي</span>
+      </div>
+
+      <div class="qa-grid">
+        <div class="qa-card">
+          <div class="qa-top">
+            <div class="qa-icon">6</div>
+            <div class="qa-top-content">
+              <h3>آلية العمل الجماعي وبيئات التطوير والاختبار (Staging vs Production & CI/CD)</h3>
+              <p>«إذا انضم معك مطورون من الفريق لإضافة ميزات جديدة، كيف سنختبر التعديلات دون التأثير على الـ 40 مدرسة العاملة فعلياً؟»</p>
+            </div>
+          </div>
+          <div class="qa-content">
+            <div class="intent-box">
+              <strong>🎯 الهدف الحقيقي للسائل:</strong>
+              <p>معرفة كيف سيندمج فريق التطوير معك بشكل احترافي ومنظم دون حدوث تعارض في الكود أو تعطل للمدارس.</p>
+            </div>
+            <div class="solution-box">
+              <strong class="title">✅ الإجابة النموذجية المطمئنة:</strong>
+              <p>«البنية مهيأة تماماً للعمل الجماعي المؤسسي عبر 3 مسارات واضحة:»</p>
+              <ul>
+                <li><strong>عزل البيئات (Multi-Environment Setup):</strong> ربط فرع <code>staging/dev</code> في Git بمشروع Firebase تجريبي مستقل تماماً لاختبار الميزات الجديدة، بينما فرع <code>main</code> ينشر فقط على البيئة الإنتاجية (Production) بعد اجتياز فحص <code>oxlint</code> واختبارات البناء (<code>vite build</code>).</li>
+                <li><strong>قنوات المعاينة (Firebase Hosting Preview Channels):</strong> كل طلب دمج (Pull Request) في GitHub ينشئ رابط معاينة مؤقتاً خاصاً بالميزة الجديدة لتجربتها واعتمادها قبل دمجها.</li>
+                <li><strong>التقسيم المعياري للملفات:</strong> لأن كل وحدة وظيفية مفصولة في ملفات مستقلة (مثل <code>evaluationService.js</code>، <code>curriculumService.js</code>، <code>fileStorageService.js</code>)، يمكن لـ 4 مطورين العمل بالتوازي على ميزات مختلفة دون أي تعارض برمجي (Merge Conflicts).</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="qa-card">
+          <div class="qa-top">
+            <div class="qa-icon">7</div>
+            <div class="qa-top-content">
+              <h3>التكامل المستقبلي مع نظام الرسوم والمحاسبة (ERP) والموارد البشرية (HR) والـ SMS</h3>
+              <p>«كيف يمكننا مستقبلاً ربط البوابة بنظام المالية (لحجب النتائج مثلاً عند تأخر الرسوم أو إشعار ولي الأمر) أو ربطها ببوابة رسائل الواتساب والـ SMS؟»</p>
+            </div>
+          </div>
+          <div class="qa-content">
+            <div class="intent-box">
+              <strong>🎯 الهدف الحقيقي للسائل:</strong>
+              <p>استشراف قابلية توسع المنصة لتصبح القلب النابض لكافة أنظمة الشركة الإدارية والمالية.</p>
+            </div>
+            <div class="solution-box">
+              <strong class="title">✅ الإجابة النموذجية المطمئنة:</strong>
+              <p>«المعمارية الحالية تجعل هذا التكامل سلساً للغاية عبر طبقة الخدمات (<code>src/services/</code>) و <strong>Firebase Cloud Functions / Webhooks</strong>:»</p>
+              <ul>
+                <li><strong>الربط مع الـ ERP والـ HR:</strong> كل معلم وطالب في البوابة يملك معرفاً قياسياً موحداً هو <strong>رقم الهوية الوطنية (<code>nationalId</code>)</strong> ومعرف المدرسة (<code>schoolId</code>)، مما يجعل المزامنة عبر REST API أو Webhook مع أي نظام محاسبي أو موارد بشرية أمراً مباشراً.</li>
+                <li><strong>بوابات الإشعارات الخارجية (WhatsApp / SMS):</strong> بمجرد إضافة وثيقة رسالة أو غياب في Firestore، يمكن لـ Trigger سحابي خفيف إرسال إشعار فوري عبر مزود الرسائل المعتمد للشركة دون أي تعديل في واجهة المستخدم.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category 4: Executive Governance & Rollout Plan -->
+    <div class="section-wrapper">
+      <div class="section-header amber">
+        <div class="section-title">
+          <span>🏛️ المحور الرابع: خطة التدشين المرحلي الآمن (خريطة الطريق للتشغيل الفعلي)</span>
+        </div>
+        <span class="section-badge badge-amber">الإجابة الجاهزة لسؤال: «كيف نبدأ التطبيق العملي؟»</span>
+      </div>
+
+      <p style="margin-bottom: 20px; font-weight: 700; color: var(--text-secondary);">
+        عندما يسألك الحاضرون المحايدون: <strong>«ما هي خطتك المقترحة لتعميم النظام على مدارس الشركة؟»</strong>، اعرض عليهم هذه الخطة المرحلية الموزونة (من 4 مراحل) التي تثبت نضجك الإداري والتقني:
+      </p>
+
+      <div class="roadmap-grid">
+        <div class="roadmap-card">
+          <span class="roadmap-phase">المرحلة الأولى (أسبوعان)</span>
+          <h4>التشغيل النموذجي (Pilot Schools)</h4>
+          <p>إطلاق المنظومة في مجمعين أو 3 مجمعات نموذجية (تتضمن مساراً أهلياً ومساراً دولياً) لرصد تفاعل المعلمين والمدراء في البيئة الواقعية وضبط أي تفضيلات إضافية.</p>
+        </div>
+
+        <div class="roadmap-card">
+          <span class="roadmap-phase">المرحلة الثانية (أسبوع واحد)</span>
+          <h4>تفعيل بوابة القيادة العليا والمدراء الـ 40+</h4>
+          <p>تفعيل حسابات كافة مدراء المدارس الـ 40+ على بوابة القرارات الرئاسية (<code>MasterMessagingHub</code>) والخط الساخن ومصفوفة الامتثال لتوحيد التواصل القيادي فوراً.</p>
+        </div>
+
+        <div class="roadmap-card">
+          <span class="roadmap-phase">المرحلة الثالثة (أسبوعان)</span>
+          <h4>الاستيراد الجماعي وتعميم المدارس</h4>
+          <p>استيراد بيانات المعلمين والطلاب لبقية المدارس عبر محرك الترحيل الآلي (<code>Migration.jsx</code>)، وتنفيذ ورشة تدريبية سريعة (20 دقيقة) لمنسقي التحول الرقمي بكل مدرسة.</p>
+        </div>
+
+        <div class="roadmap-card">
+          <span class="roadmap-phase">المرحلة الرابعة (مستمرة)</span>
+          <h4>إطلاق تطبيق الجوال وأولياء الأمور</h4>
+          <p>تعميم تطبيق الهواتف الذكية (Android / iOS / PWA) لأولياء الأمور والطلاب لمتابعة الخطط الأسبوعية، نتائج الاختبارات، وتقارير «المربي المخلص» الشهرية.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-card">
+      <div>
+        <strong>🤝 بوابة المدارس المتقدمة للتعلم الذكي — خطة الحوار البنّاء والتشغيل المؤسسي</strong>
+        <br>
+        <span style="color: #cbd5e1; font-size: 0.95rem;">إعداد وتصميم وهندسة المنظومة: أ. محمد عبدالله جمعة • شركة المدارس المتقدمة التعليمية</span>
+      </div>
+      <div style="text-align: left; direction: ltr; color: #5eead4; font-weight: 800;">
+        Operations • Scalability • Governance • Rollout
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

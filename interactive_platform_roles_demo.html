@@ -1,0 +1,2961 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>دليل وحسابات تجربة المنصة لكافة المستخدمين - مدارس المتقدمة للتعلم الذكي</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-page: #0b1120;
+      --bg-surface: #111c35;
+      --bg-card: #182747;
+      --bg-card-hover: #1e325c;
+      --navy-950: #070d19;
+      --navy-900: #0f172a;
+      --navy-800: #1e293b;
+      --border-color: #273e6b;
+      --border-light: #334f88;
+      
+      --role-superadmin: #8b5cf6;
+      --role-superadmin-bg: rgba(139, 92, 246, 0.12);
+      --role-superadmin-border: rgba(139, 92, 246, 0.4);
+      
+      --role-admin: #0284c7;
+      --role-admin-bg: rgba(2, 132, 199, 0.12);
+      --role-admin-border: rgba(2, 132, 199, 0.4);
+      
+      --role-teacher: #10b981;
+      --role-teacher-bg: rgba(16, 185, 129, 0.12);
+      --role-teacher-border: rgba(16, 185, 129, 0.4);
+      
+      --role-staff: #f59e0b;
+      --role-staff-bg: rgba(245, 158, 11, 0.12);
+      --role-staff-border: rgba(245, 158, 11, 0.4);
+      
+      --role-student: #3b82f6;
+      --role-student-bg: rgba(59, 130, 246, 0.12);
+      --role-student-border: rgba(59, 130, 246, 0.4);
+      
+      --role-supervisor: #06b6d4;
+      --role-supervisor-bg: rgba(6, 182, 212, 0.12);
+      --role-supervisor-border: rgba(6, 182, 212, 0.4);
+      
+      --role-parent: #ec4899;
+      --role-parent-bg: rgba(236, 72, 153, 0.12);
+      --role-parent-border: rgba(236, 72, 153, 0.4);
+      
+      --text-white: #ffffff;
+      --text-light: #f1f5f9;
+      --text-body: #cbd5e1;
+      --text-muted: #94a3b8;
+      
+      --primary-teal: #0082a6;
+      --primary-teal-hover: #006b88;
+      --accent-gold: #f59e0b;
+      --accent-emerald: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Cairo', 'Tajawal', sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-body);
+      line-height: 1.8;
+      direction: rtl;
+      font-size: 16px;
+      overflow-x: hidden;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 24px 20px 80px 20px;
+    }
+
+    /* Sticky Navigation Header */
+    .header-bar {
+      position: sticky;
+      top: 12px;
+      z-index: 999;
+      background: rgba(17, 28, 53, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 14px 24px;
+      margin-bottom: 28px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0082a6, #2563eb);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 22px;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(0, 130, 166, 0.4);
+    }
+
+    .brand-text h1 {
+      font-size: 1.15rem;
+      font-weight: 900;
+      color: var(--text-white);
+      margin: 0;
+    }
+
+    .brand-text p {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 9px 18px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.22s ease;
+      text-decoration: none;
+    }
+
+    .btn-teal {
+      background: linear-gradient(135deg, var(--primary-teal), #0284c7);
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(0, 130, 166, 0.3);
+    }
+    .btn-teal:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 130, 166, 0.45);
+    }
+
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border-color);
+      color: var(--text-light);
+    }
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--border-light);
+      color: #fff;
+    }
+
+    /* Hero Section */
+    .hero-banner {
+      background: radial-gradient(circle at top right, rgba(0, 130, 166, 0.22) 0%, rgba(17, 28, 53, 0.85) 60%, rgba(11, 17, 32, 1) 100%), var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 36px 36px 32px 36px;
+      margin-bottom: 32px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fbbf24;
+      font-size: 0.84rem;
+      font-weight: 800;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+
+    .hero-title {
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: var(--text-white);
+      line-height: 1.35;
+      margin-bottom: 12px;
+    }
+
+    .hero-title span {
+      background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      font-size: 1.08rem;
+      color: var(--text-body);
+      max-width: 960px;
+      margin-bottom: 24px;
+    }
+
+    .hero-stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .hero-stat-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 16px 18px;
+    }
+
+    .hero-stat-num {
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--text-white);
+    }
+
+    .hero-stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Role Selector Tabs */
+    .role-tabs-wrap {
+      margin-bottom: 32px;
+    }
+
+    .section-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .section-label h2 {
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: var(--text-white);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-label span {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .role-tabs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+    }
+
+    .role-tab-btn {
+      background: var(--bg-surface);
+      border: 1.5px solid var(--border-color);
+      border-radius: 16px;
+      padding: 16px 14px;
+      text-align: right;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .role-tab-btn:hover {
+      background: var(--bg-card);
+      border-color: var(--border-light);
+      transform: translateY(-3px);
+    }
+
+    .role-tab-btn.active {
+      background: var(--bg-card);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+    }
+
+    .role-tab-btn.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 4px;
+    }
+
+    /* Specific active border & indicator colors */
+    .role-tab-btn[data-role="superadmin"].active { border-color: var(--role-superadmin); }
+    .role-tab-btn[data-role="superadmin"].active::before { background: var(--role-superadmin); }
+    
+    .role-tab-btn[data-role="admin"].active { border-color: var(--role-admin); }
+    .role-tab-btn[data-role="admin"].active::before { background: var(--role-admin); }
+
+    .role-tab-btn[data-role="teacher"].active { border-color: var(--role-teacher); }
+    .role-tab-btn[data-role="teacher"].active::before { background: var(--role-teacher); }
+
+    .role-tab-btn[data-role="staff"].active { border-color: var(--role-staff); }
+    .role-tab-btn[data-role="staff"].active::before { background: var(--role-staff); }
+
+    .role-tab-btn[data-role="student"].active { border-color: var(--role-student); }
+    .role-tab-btn[data-role="student"].active::before { background: var(--role-student); }
+
+    .role-tab-btn[data-role="supervisor"].active { border-color: var(--role-supervisor); }
+    .role-tab-btn[data-role="supervisor"].active::before { background: var(--role-supervisor); }
+
+    .role-tab-btn[data-role="parent"].active { border-color: var(--role-parent); }
+    .role-tab-btn[data-role="parent"].active::before { background: var(--role-parent); }
+
+    .role-icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .role-tab-name {
+      font-size: 1.02rem;
+      font-weight: 800;
+      color: var(--text-white);
+    }
+
+    .role-tab-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* Main Display Container */
+    .role-detail-view {
+      display: none;
+      animation: fadeIn 0.35s ease forwards;
+    }
+
+    .role-detail-view.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 2-Column Grid: Left is Credentials & Actions, Right is Mock UI & Live Walkthrough */
+    .role-content-layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+      margin-bottom: 36px;
+    }
+
+    @media (max-width: 1080px) {
+      .role-content-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Credentials Card */
+    .credentials-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .cred-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .cred-avatar {
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 900;
+    }
+
+    .cred-meta h3 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-white);
+      margin-bottom: 2px;
+    }
+
+    .cred-meta span {
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .cred-box {
+      background: rgba(11, 17, 32, 0.7);
+      border: 1.5px dashed var(--border-light);
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .cred-field {
+      margin-bottom: 14px;
+    }
+    .cred-field:last-child {
+      margin-bottom: 0;
+    }
+
+    .cred-field-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cred-value-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+
+    .cred-value-code {
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #38bdf8;
+      direction: ltr;
+    }
+
+    .copy-btn {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover {
+      background: #38bdf8;
+      color: #0b1120;
+    }
+
+    .login-tab-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .role-brief-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .role-brief-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.88rem;
+      color: var(--text-body);
+      line-height: 1.6;
+    }
+
+    .role-brief-bullet {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      margin-top: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Live Simulated Dashboard (Interactive Mock UI) */
+    .mock-dashboard-window {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mock-window-header {
+      background: #0f182c;
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mock-window-dots {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mock-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .mock-window-title {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      direction: ltr;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mock-window-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: #10b981;
+      font-weight: 700;
+    }
+    .status-pulse {
+      width: 7px;
+      height: 7px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    /* Mock Shell Layout */
+    .mock-shell {
+      display: grid;
+      grid-template-columns: 210px 1fr;
+      min-height: 480px;
+    }
+
+    @media (max-width: 768px) {
+      .mock-shell {
+        grid-template-columns: 1fr;
+      }
+      .mock-sidebar {
+        display: none;
+      }
+    }
+
+    /* Mock Sidebar */
+    .mock-sidebar {
+      background: #0c1424;
+      border-left: 1px solid var(--border-color);
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .mock-user-snippet {
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .mock-user-name {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--text-white);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mock-user-role-label {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .mock-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--text-body);
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+
+    .mock-nav-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-white);
+    }
+
+    .mock-nav-item.active {
+      background: rgba(0, 130, 166, 0.25);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    /* Mock Main Canvas */
+    .mock-main {
+      padding: 24px;
+      background: #0e172a;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .mock-welcome-banner {
+      background: linear-gradient(135deg, rgba(0, 130, 166, 0.25), rgba(15, 23, 42, 0.9));
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .mock-welcome-text h4 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-white);
+      margin-bottom: 4px;
+    }
+
+    .mock-welcome-text p {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+    }
+
+    .mock-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+    }
+
+    .mock-kpi-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 14px;
+      transition: all 0.2s;
+    }
+    .mock-kpi-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .mock-kpi-val {
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: var(--text-white);
+      margin-bottom: 2px;
+    }
+
+    .mock-kpi-title {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    /* Mock Data Table or Action Cards */
+    .mock-panel {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .mock-panel-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--text-white);
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mock-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .mock-table th {
+      text-align: right;
+      padding: 10px 12px;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .mock-table td {
+      padding: 12px;
+      color: var(--text-body);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .mock-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text-white);
+    }
+
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.74rem;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
+    .pill-green {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+    }
+
+    .pill-blue {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #38bdf8;
+    }
+
+    .pill-purple {
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      color: #c084fc;
+    }
+
+    .pill-amber {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+    }
+
+    .action-btn-sm {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-white);
+      font-family: inherit;
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .action-btn-sm:hover {
+      background: var(--primary-teal);
+      border-color: var(--primary-teal);
+    }
+
+    /* Test Drive Walkthrough Steps */
+    .walkthrough-box {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.8));
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+
+    .walkthrough-box h3 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-white);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .steps-flow {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .step-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 16px;
+      position: relative;
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--primary-teal);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+    }
+
+    .step-item h4 {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--text-white);
+      margin-bottom: 6px;
+    }
+
+    .step-item p {
+      font-size: 0.84rem;
+      color: var(--text-body);
+      line-height: 1.6;
+    }
+
+    /* Permissions Matrix Section */
+    .matrix-section {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 32px;
+      margin-bottom: 40px;
+    }
+
+    .matrix-header {
+      margin-bottom: 24px;
+    }
+
+    .matrix-header h3 {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: var(--text-white);
+      margin-bottom: 6px;
+    }
+
+    .matrix-header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .matrix-table-wrap {
+      overflow-x: auto;
+    }
+
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      min-width: 900px;
+    }
+
+    .matrix-table th {
+      padding: 14px 12px;
+      background: #0f172a;
+      color: var(--text-white);
+      font-weight: 800;
+      text-align: center;
+      border: 1px solid var(--border-color);
+    }
+
+    .matrix-table th.col-feature {
+      text-align: right;
+      width: 240px;
+    }
+
+    .matrix-table td {
+      padding: 12px 10px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--text-body);
+    }
+
+    .matrix-table tr:nth-child(even) td {
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .matrix-table tr:hover td {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .matrix-table td.col-feature {
+      text-align: right;
+      font-weight: 700;
+      color: var(--text-light);
+    }
+
+    .check-yes {
+      color: #10b981;
+      font-weight: 900;
+      font-size: 1.1rem;
+    }
+
+    .check-view {
+      color: #38bdf8;
+      font-weight: 800;
+      font-size: 0.8rem;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .check-no {
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+
+    /* Toast Notification */
+    .toast-popup {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      background: #0f172a;
+      border: 1.5px solid #10b981;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 9999;
+    }
+    .toast-popup.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Modal for Interactive Preview */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(7, 13, 25, 0.85);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 20px;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 650px;
+      padding: 28px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      animation: modalPop 0.25s ease-out;
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-head h3 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--text-white);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+    .modal-close:hover {
+      color: #fff;
+    }
+
+    .modal-body {
+      font-size: 0.92rem;
+      color: var(--text-body);
+      line-height: 1.7;
+    }
+
+    /* Footer */
+    .footer-section {
+      text-align: center;
+      padding: 30px 20px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.88rem;
+    }
+
+    /* Print Stylesheet */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+      }
+      .header-bar, .role-tabs-wrap, .copy-btn, .action-btn-sm, .toast-popup, .modal-overlay {
+        display: none !important;
+      }
+      .container {
+        max-width: 100% !important;
+        padding: 0 !important;
+      }
+      .hero-banner, .credentials-card, .mock-dashboard-window, .walkthrough-box, .matrix-section {
+        border: 1px solid #cccccc !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+        margin-bottom: 20px !important;
+      }
+      .role-detail-view {
+        display: block !important;
+        page-break-before: always;
+      }
+      .text-white, .cred-meta h3, .hero-title, .hero-stat-num, .mock-kpi-val {
+        color: #000000 !important;
+      }
+      .mock-shell {
+        display: block !important;
+      }
+      .mock-sidebar {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- Header Bar -->
+    <header class="header-bar">
+      <div class="brand-wrap">
+        <div class="brand-logo-badge">M</div>
+        <div class="brand-text">
+          <h1>منظومة المدارس المتقدمة للتعلم الذكي</h1>
+          <p>دليل تجربة المستخدمين الشامل لـ 7 أدوار قيادية وتعليمية</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="btn btn-outline" onclick="window.print()">
+          🖨️ طباعة الدليل / PDF
+        </button>
+        <a href="./index.html" class="btn btn-teal">
+          🚀 فتح صفحة الدخول المباشر
+        </a>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-banner">
+      <div class="hero-tag">✨ وثيقة استعراضية تفاعلية موجهة لأصحاب القرار والمختصين</div>
+      <h2 class="hero-title">
+        استكشف تجربة كل مستخدم في <span>المنظومة التعليمية الذكية</span>
+      </h2>
+      <p class="hero-desc">
+        صُممت هذه المنصة لتوحيد وتكامل المنظومة المدرسية بالكامل عبر عزل سيادي وتخصيص دقيق لصلاحيات كل دور: 
+        (الماستر العام، مدير المدرسة، المعلم، وكيل المدرسة، الطالب، المشرف التربوي، وولي الأمر).
+        يمكنك من خلال هذا الدليل تجربة كل حساب بنفسك، ونسخ بيانات الاعتماد التجريبية الجاهزة، والاطلاع على المهام والمخرجات الحية.
+      </p>
+
+      <div class="hero-stats-row">
+        <div class="hero-stat-card">
+          <div class="hero-stat-num">7 أدوار</div>
+          <div class="hero-stat-label">مستقلة الصلاحيات والشاشات</div>
+        </div>
+        <div class="hero-stat-card">
+          <div class="hero-stat-num">40+ مدرسة</div>
+          <div class="hero-stat-label">تُدار مركزياً في نفس البيئة</div>
+        </div>
+        <div class="hero-stat-card">
+          <div class="hero-stat-num">&lt; 80 ms</div>
+          <div class="hero-stat-label">زمن جلب لوحة التحكم اللحظية</div>
+        </div>
+        <div class="hero-stat-card">
+          <div class="hero-stat-num">100% سحابي</div>
+          <div class="hero-stat-label">تطبيق ويب تقدمي (PWA) متعدد الأجهزة</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Role Switcher Tabs -->
+    <section class="role-tabs-wrap">
+      <div class="section-label">
+        <h2>👥 اختر الدور لمعاينة لوحة التحكم وبيانات الدخول التجريبية</h2>
+        <span>انقر على أي دور للانتقال الفوري</span>
+      </div>
+
+      <div class="role-tabs-grid">
+        
+        <!-- 1. Super Admin -->
+        <button class="role-tab-btn active" data-role="superadmin" onclick="switchRole('superadmin')">
+          <div class="role-icon-box" style="background: var(--role-superadmin-bg); color: var(--role-superadmin);">👑</div>
+          <div class="role-tab-name">سوبر ادمن (ماستر)</div>
+          <div class="role-tab-sub">القيادة العليا والحوكمة</div>
+        </button>
+
+        <!-- 2. School Principal -->
+        <button class="role-tab-btn" data-role="admin" onclick="switchRole('admin')">
+          <div class="role-icon-box" style="background: var(--role-admin-bg); color: var(--role-admin);">🏫</div>
+          <div class="role-tab-name">مدير مدرسة</div>
+          <div class="role-tab-sub">القيادة التنفيذية للمجمع</div>
+        </button>
+
+        <!-- 3. Teacher -->
+        <button class="role-tab-btn" data-role="teacher" onclick="switchRole('teacher')">
+          <div class="role-icon-box" style="background: var(--role-teacher-bg); color: var(--role-teacher);">👨‍🏫</div>
+          <div class="role-tab-name">معلم</div>
+          <div class="role-tab-sub">التحضير والتدريس والتقييم</div>
+        </button>
+
+        <!-- 4. Vice Principal / Staff -->
+        <button class="role-tab-btn" data-role="staff" onclick="switchRole('staff')">
+          <div class="role-icon-box" style="background: var(--role-staff-bg); color: var(--role-staff);">📋</div>
+          <div class="role-tab-name">وكيل / كادر إداري</div>
+          <div class="role-tab-sub">الانضباط والجداول وشؤون الطلاب</div>
+        </button>
+
+        <!-- 5. Educational Supervisor -->
+        <button class="role-tab-btn" data-role="supervisor" onclick="switchRole('supervisor')">
+          <div class="role-icon-box" style="background: var(--role-supervisor-bg); color: var(--role-supervisor);">🔍</div>
+          <div class="role-tab-name">مشرف تربوي</div>
+          <div class="role-tab-sub">الجودة ونواتج التعلم والزيارات</div>
+        </button>
+
+        <!-- 6. Student -->
+        <button class="role-tab-btn" data-role="student" onclick="switchRole('student')">
+          <div class="role-icon-box" style="background: var(--role-student-bg); color: var(--role-student);">🎓</div>
+          <div class="role-tab-name">طالب</div>
+          <div class="role-tab-sub">التعلم الذاتي والواجبات والشارات</div>
+        </button>
+
+        <!-- 7. Parent -->
+        <button class="role-tab-btn" data-role="parent" onclick="switchRole('parent')">
+          <div class="role-icon-box" style="background: var(--role-parent-bg); color: var(--role-parent);">👨‍👧‍👦</div>
+          <div class="role-tab-name">ولي أمر</div>
+          <div class="role-tab-sub">متابعة الأبناء والتقارير الشهرية</div>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- ROLE 1: SUPER ADMIN (ماستر عام) -->
+    <!-- ========================================================================= -->
+    <div id="view-superadmin" class="role-detail-view active">
+      
+      <div class="role-content-layout">
+        
+        <!-- Left: Credentials & Profile -->
+        <div class="credentials-card" style="border-top: 4px solid var(--role-superadmin);">
+          <div class="cred-header">
+            <div class="cred-avatar" style="background: var(--role-superadmin-bg); color: var(--role-superadmin);">👑</div>
+            <div class="cred-meta">
+              <h3>أ.د. عبد الرحمن السبيعي</h3>
+              <span style="background: var(--role-superadmin-bg); color: var(--role-superadmin);">الماستر العام (SuperAdmin)</span>
+            </div>
+          </div>
+
+          <div class="login-tab-badge">
+            🔑 التبويب بصفحة الدخول: <strong>[ماستر]</strong>
+          </div>
+
+          <!-- Credentials Box -->
+          <div class="cred-box">
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>البريد الإلكتروني / اسم المستخدم</span>
+                <button class="copy-btn" onclick="copyText('super@admin.com')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">super@admin.com</span>
+              </div>
+            </div>
+
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>كلمة المرور المشفرة</span>
+                <button class="copy-btn" onclick="copyText('super@admin')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">super@admin</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin-bottom: 10px;">🎯 نطاق المسؤولية الاستراتيجية:</h4>
+            <ul class="role-brief-list">
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-superadmin);"></div>
+                <div><strong>إدارة شبكة المدارس:</strong> إنشاء واعتماد فروع الشركة (أهلي، عالمي، دبلومة أمريكية) وتعيين قادة المجمعات.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-superadmin);"></div>
+                <div><strong>موازنة الكوادر والمناقلات:</strong> رصد الفائض والعجز في التخصصات وسد الاحتياج بين المدارس فورياً.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-superadmin);"></div>
+                <div><strong>التوجيهات والقرارات السيادية:</strong> إصدار التعاميم الموحدة لكافة المدارس بضغطة زر واحدة.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-superadmin);"></div>
+                <div><strong>حوكمة البيانات والامتثال:</strong> ضمان سيادة البيانات وحمايتها وفقاً لمعايير (PDPL).</div>
+              </li>
+            </ul>
+          </div>
+
+          <button class="btn btn-teal" style="width: 100%; justify-content: center;" onclick="quickLoginDemo('superadmin')">
+            🚀 تجربة دخول الماستر العام الآن
+          </button>
+        </div>
+
+        <!-- Right: Live Mock Dashboard -->
+        <div class="mock-dashboard-window">
+          <div class="mock-window-header">
+            <div class="mock-window-dots">
+              <div class="mock-dot dot-red"></div>
+              <div class="mock-dot dot-yellow"></div>
+              <div class="mock-dot dot-green"></div>
+            </div>
+            <div class="mock-window-title">https://msc-portal.local/#/superadmin (Live Simulation)</div>
+            <div class="mock-window-status">
+              <div class="status-pulse"></div>
+              <span>متصل بالنظام السحابي</span>
+            </div>
+          </div>
+
+          <div class="mock-shell">
+            <!-- Sidebar -->
+            <div class="mock-sidebar">
+              <div class="mock-user-snippet">
+                <div class="mock-user-name">الماستر العام</div>
+                <div class="mock-user-role-label">إدارة التحول والحوكمة</div>
+              </div>
+              <div class="mock-nav-item active">🏢 المدارس والمجمعات</div>
+              <div class="mock-nav-item">👥 قادة المدارس (Admins)</div>
+              <div class="mock-nav-item">⚖️ المناقلات وسد العجز</div>
+              <div class="mock-nav-item">📢 مركز التوجيهات العامة</div>
+              <div class="mock-nav-item">📊 التميز المؤسسي الشامل</div>
+              <div class="mock-nav-item">🛡️ صلاحيات وأمن النظام</div>
+            </div>
+
+            <!-- Main Canvas -->
+            <div class="mock-main">
+              <div class="mock-welcome-banner">
+                <div class="mock-welcome-text">
+                  <h4>لوحة القيادة الاستراتيجية العامة - شركة المدارس المتقدمة</h4>
+                  <p>رؤية متكاملة لـ 42 مجمعاً تعليمياً تغطي قطاعات الرياض، جدة، والمدينة المنورة</p>
+                </div>
+                <button class="action-btn-sm" onclick="showModal('إصدار تعميم وزاري فوري', 'تم فتح محرك البث المركزي لإرسال توجيه سيادي لكافة مديري المدارس والكوادر.')">
+                  + إصدار توجيه مركزي
+                </button>
+              </div>
+
+              <div class="mock-stats-grid">
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #c084fc;">42</div>
+                  <div class="mock-kpi-title">مجمع مدرسي نشط</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #38bdf8;">34,850</div>
+                  <div class="mock-kpi-title">إجمالي الطلاب</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #34d399;">1,840</div>
+                  <div class="mock-kpi-title">معلم ومعلمة</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #fbbf24;">98.4%</div>
+                  <div class="mock-kpi-title">مؤشر الجاهزية التشغيلية</div>
+                </div>
+              </div>
+
+              <!-- Interactive Panel -->
+              <div class="mock-panel">
+                <div class="mock-panel-title">
+                  <span>طلب مناقلات الكوادر وسد العجز الواردة من المجمعات</span>
+                  <span class="pill-badge pill-purple">3 طلبات جديدة</span>
+                </div>
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>المجمع المدرسي</th>
+                      <th>التخصص المطلوب</th>
+                      <th>نوع الاحتياج</th>
+                      <th>الحالة</th>
+                      <th>الإجراء المركزي</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>مجمع القيروان الذكي</strong></td>
+                      <td>رياضيات ثانوية (AP Calculus)</td>
+                      <td>عجز (حصص إضافية)</td>
+                      <td><span class="pill-badge pill-amber">قيد المراجعة</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('اعتماد مناقلة معلم', 'تم توجيه معلم من مجمع حي الشاطئ بجدة لسد الاحتياج رقم #482.')">معالجة وإسناد</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>مجمع أمجاد قرطبة</strong></td>
+                      <td>معلم فيزياء ولغات</td>
+                      <td>فائض (إمكانية ندب)</td>
+                      <td><span class="pill-badge pill-blue">متاح للندب</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('طلب ندب معلم', 'تم تحديث قائمة المعلمين المتاحين للندب المركزي.')">توجيه لمجمع آخر</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>مجمع العقيق بالمدينة</strong></td>
+                      <td>معلم روبوت وذكاء اصطناعي</td>
+                      <td>اعتماد تشغيل معمل</td>
+                      <td><span class="pill-badge pill-green">معتمد</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('سجل المجمع', 'فتح سجل المجمع لعرض التجهيزات المكتملة.')">عرض السجل</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Test Drive Walkthrough -->
+      <div class="walkthrough-box">
+        <h3>🚗 سيناريو التجربة المقترح لمتخذ القرار (Test Drive) بحساب السوبر ادمن:</h3>
+        <div class="steps-flow">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <h4>تسجيل الدخول كـ ماستر</h4>
+            <p>اختر تبويب <strong>[ماستر]</strong> في صفحة الدخول، واستخدم البريد <code>super@admin.com</code> وكلمة المرور <code>super@admin</code>.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <h4>استكشاف إدارة المدارس</h4>
+            <p>ادخل قسم "المدارس والمجمعات" وتفحص مجمعات الرياض وجدة والمدينة والمسارات الأهلية والدولية.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <h4>تجربة المناقلات وسد العجز</h4>
+            <p>افتح شاشة مناقلات الكوادر واطلع على كيفية رصد النصاب التدريسي للمعلمين ومعالجة الفائض والعجز بين المدارس.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <h4>إرسال تعميم مركزي</h4>
+            <p>انقر على "مركز التوجيهات" وجرب إرسال قرار رسمي ليظهر فوراً في لوحات تحكم جميع مديري المدارس.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ROLE 2: SCHOOL PRINCIPAL (مدير مدرسة) -->
+    <!-- ========================================================================= -->
+    <div id="view-admin" class="role-detail-view">
+      
+      <div class="role-content-layout">
+        
+        <!-- Left: Credentials & Profile -->
+        <div class="credentials-card" style="border-top: 4px solid var(--role-admin);">
+          <div class="cred-header">
+            <div class="cred-avatar" style="background: var(--role-admin-bg); color: var(--role-admin);">🏫</div>
+            <div class="cred-meta">
+              <h3>أ. محمد بن خالد الشمري</h3>
+              <span style="background: var(--role-admin-bg); color: var(--role-admin);">مدير مجمع مدارس القيروان الذكية</span>
+            </div>
+          </div>
+
+          <div class="login-tab-badge">
+            🔑 التبويب بصفحة الدخول: <strong>[مدير مدرسة]</strong>
+          </div>
+
+          <!-- Credentials Box -->
+          <div class="cred-box">
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>البريد الإلكتروني / الحساب</span>
+                <button class="copy-btn" onclick="copyText('admin.qairawan@msc.edu.sa')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">admin.qairawan@msc.edu.sa</span>
+              </div>
+            </div>
+
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>كلمة المرور الافتراضية</span>
+                <button class="copy-btn" onclick="copyText('admin12345')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">admin12345</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin-bottom: 10px;">🎯 مهام وصلاحيات مدير المجمع:</h4>
+            <ul class="role-brief-list">
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-admin);"></div>
+                <div><strong>إدارة الكوادر والفصول:</strong> إسناد الحصص، تسجيل المعلمين والطلاب وتوزيعهم على الشعب.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-admin);"></div>
+                <div><strong>الاعتماد الرقمي للتحضير:</strong> اعتماد تحاضير المعلمين اليومية والخطط الأسبوعية دون أوراق.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-admin);"></div>
+                <div><strong>سجل متابعة الطالب الشامل:</strong> فحص درجات وحضور وسلوك أي طالب بملف تراكمي موحد.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-admin);"></div>
+                <div><strong>تكامل نور الفوري:</strong> تصدير كشوف الدرجات والغياب بنقرة واحدة مطابقة لمحددات وزارة التعليم.</div>
+              </li>
+            </ul>
+          </div>
+
+          <button class="btn btn-teal" style="width: 100%; justify-content: center;" onclick="quickLoginDemo('admin')">
+            🚀 تجربة دخول مدير المدرسة الآن
+          </button>
+        </div>
+
+        <!-- Right: Live Mock Dashboard -->
+        <div class="mock-dashboard-window">
+          <div class="mock-window-header">
+            <div class="mock-window-dots">
+              <div class="mock-dot dot-red"></div>
+              <div class="mock-dot dot-yellow"></div>
+              <div class="mock-dot dot-green"></div>
+            </div>
+            <div class="mock-window-title">https://msc-portal.local/#/admin (Live Simulation)</div>
+            <div class="mock-window-status">
+              <div class="status-pulse"></div>
+              <span>مجمع القيروان الذكي - متصل</span>
+            </div>
+          </div>
+
+          <div class="mock-shell">
+            <div class="mock-sidebar">
+              <div class="mock-user-snippet">
+                <div class="mock-user-name">أ. محمد الشمري</div>
+                <div class="mock-user-role-label">قائد المجمع التعليمي</div>
+              </div>
+              <div class="mock-nav-item active">📊 الرئيسة والمؤشرات</div>
+              <div class="mock-nav-item">👨‍🏫 الكادر التعليمي</div>
+              <div class="mock-nav-item">🎓 شؤون الطلاب والشعب</div>
+              <div class="mock-nav-item">📝 اعتماد التحاضير</div>
+              <div class="mock-nav-item">📁 السجل الشامل للطلاب</div>
+              <div class="mock-nav-item">🏆 التميز المدرسي (قياس)</div>
+              <div class="mock-nav-item">🔄 مزامنة نظام نور</div>
+            </div>
+
+            <div class="mock-main">
+              <div class="mock-welcome-banner">
+                <div class="mock-welcome-text">
+                  <h4>مرحباً أ. محمد الشمري - لوحة إدارة المجمع</h4>
+                  <p>الفصل الدراسي الحالي: الأول • نسبة الانضباط المدرسي اليوم: 98.6%</p>
+                </div>
+                <button class="action-btn-sm" onclick="showModal('تصدير كشف نظام نور', 'تم توليد وتجهيز ملف Excel المتوافق 100% مع قوالب نور الرسمية.')">
+                  📥 تصدير لنظام نور
+                </button>
+              </div>
+
+              <div class="mock-stats-grid">
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #38bdf8;">1,250</div>
+                  <div class="mock-kpi-title">طالب مسجل</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #34d399;">68</div>
+                  <div class="mock-kpi-title">معلم وكادر إداري</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #c084fc;">42</div>
+                  <div class="mock-kpi-title">فصلاً وشعبة دراسية</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #fbbf24;">96.8%</div>
+                  <div class="mock-kpi-title">تحاضير معتمدة أسبوعياً</div>
+                </div>
+              </div>
+
+              <div class="mock-panel">
+                <div class="mock-panel-title">
+                  <span>التحاضير اليومية بانتظار الاعتماد الإداري</span>
+                  <span class="pill-badge pill-blue">5 تحاضير جديدة</span>
+                </div>
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>اسم المعلم</th>
+                      <th>المادة / الصف</th>
+                      <th>عنوان الدرس</th>
+                      <th>التاريخ</th>
+                      <th>الإجراء السريع</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>أ. فهد المنصور</strong></td>
+                      <td>الرياضيات - 2ث/STEM</td>
+                      <td>تطبيقات التفاضل والتكامل</td>
+                      <td>اليوم</td>
+                      <td><button class="action-btn-sm" style="background: #10b981; border: none;" onclick="showModal('اعتماد تحضير المعلم', 'تم اعتماد تحضير الأستاذ فهد المنصور وإشعاره فورياً بنجاح الاعتماد.')">✓ اعتماد فوري</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>أ. سلطان الدوسري</strong></td>
+                      <td>الفيزياء المتقدمة - 1ث</td>
+                      <td>قوانين نيوتن للحركة</td>
+                      <td>اليوم</td>
+                      <td><button class="action-btn-sm" style="background: #10b981; border: none;" onclick="showModal('اعتماد تحضير المعلم', 'تم اعتماد تحضير الأستاذ سلطان الدوسري وإشعار المعلم.')">✓ اعتماد فوري</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>أ. خالد البقمي</strong></td>
+                      <td>اللغة الإنجليزية - 3م</td>
+                      <td>Unit 4: Future Tech</td>
+                      <td>أمس</td>
+                      <td><button class="action-btn-sm" style="background: #10b981; border: none;" onclick="showModal('اعتماد تحضير المعلم', 'تم اعتماد تحضير مادة اللغة الإنجليزية.')">✓ اعتماد فوري</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Test Drive Walkthrough -->
+      <div class="walkthrough-box">
+        <h3>🚗 سيناريو التجربة المقترح لمدير المدرسة:</h3>
+        <div class="steps-flow">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <h4>تسجيل الدخول كمدير</h4>
+            <p>اختر تبويب <strong>[مدير مدرسة]</strong> وقم بتسجيل الدخول لمعاينة لوحة تحكم المجمع بالكامل.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <h4>اعتماد تحضير معلم</h4>
+            <p>افتح قائمة "اعتماد التحضير" ولاحظ كيف يستعرض المدير الخطة والأهداف وأوراق العمل بنقرة واحدة ودون طباعة.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <h4>معاينة سجل الطالب الشامل</h4>
+            <p>توجه إلى "سجل متابعة الطالب الشامل" وابحث عن أي طالب للاطلاع على سجل الحضور، السلوك، والدرجات التراكمية.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <h4>تصدير تقرير جاهز لنظام نور</h4>
+            <p>جرب أداة التكامل مع نظام نور وتصدير كشف الدرجات أو ملخص الحضور اليومي بملف Excel نظيف.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ROLE 3: TEACHER (معلم) -->
+    <!-- ========================================================================= -->
+    <div id="view-teacher" class="role-detail-view">
+      
+      <div class="role-content-layout">
+        
+        <!-- Left: Credentials & Profile -->
+        <div class="credentials-card" style="border-top: 4px solid var(--role-teacher);">
+          <div class="cred-header">
+            <div class="cred-avatar" style="background: var(--role-teacher-bg); color: var(--role-teacher);">👨‍🏫</div>
+            <div class="cred-meta">
+              <h3>أ. فهد بن إبراهيم المنصور</h3>
+              <span style="background: var(--role-teacher-bg); color: var(--role-teacher);">معلم الرياضيات والفيزياء (ثانوي)</span>
+            </div>
+          </div>
+
+          <div class="login-tab-badge">
+            🔑 التبويب بصفحة الدخول: <strong>[معلم]</strong>
+          </div>
+
+          <!-- Credentials Box -->
+          <div class="cred-box">
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>رقم الهوية الوطنية للمعلم</span>
+                <button class="copy-btn" onclick="copyText('1078451234')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">1078451234</span>
+              </div>
+            </div>
+
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>كلمة المرور (الهوية افتراضياً)</span>
+                <button class="copy-btn" onclick="copyText('1078451234')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">1078451234</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin-bottom: 10px;">🎯 المزايا الحصرية للمعلم بالمنظومة:</h4>
+            <ul class="role-brief-list">
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-teacher);"></div>
+                <div><strong>التحضير الذكي للدروس (AI Planner):</strong> توليد الأهداف والمفردات وأوراق العمل في 30 ثانية.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-teacher);"></div>
+                <div><strong>محرك الرياضيات العلمي (KaTeX):</strong> كتابة المعادلات والكسور والتكاملات بنص خفيف وواضح دون صور.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-teacher);"></div>
+                <div><strong>رصد الدرجات وسجل الحصة:</strong> رصد المشاركة والواجبات والاختبارات القصيرة بنقرة واحدة.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-teacher);"></div>
+                <div><strong>تواصل مباشر مع ولي الأمر:</strong> إرسال الملاحظات الفردية وبطاقات التكريم دون وسيط ورقي.</div>
+              </li>
+            </ul>
+          </div>
+
+          <button class="btn btn-teal" style="width: 100%; justify-content: center;" onclick="quickLoginDemo('teacher')">
+            🚀 تجربة دخول المعلم الآن
+          </button>
+        </div>
+
+        <!-- Right: Live Mock Dashboard -->
+        <div class="mock-dashboard-window">
+          <div class="mock-window-header">
+            <div class="mock-window-dots">
+              <div class="mock-dot dot-red"></div>
+              <div class="mock-dot dot-yellow"></div>
+              <div class="mock-dot dot-green"></div>
+            </div>
+            <div class="mock-window-title">https://msc-portal.local/#/teacher (Live Simulation)</div>
+            <div class="mock-window-status">
+              <div class="status-pulse"></div>
+              <span>بوابة المعلم التفاعلية</span>
+            </div>
+          </div>
+
+          <div class="mock-shell">
+            <div class="mock-sidebar">
+              <div class="mock-user-snippet">
+                <div class="mock-user-name">أ. فهد المنصور</div>
+                <div class="mock-user-role-label">معلم الرياضيات (ثانوي)</div>
+              </div>
+              <div class="mock-nav-item active">📅 جدولي وحصص اليوم</div>
+              <div class="mock-nav-item">💡 التحضير الذكي للدروس</div>
+              <div class="mock-nav-item">📝 بنك الاختبارات والواجبات</div>
+              <div class="mock-nav-item">📈 رصد الدرجات اليومي</div>
+              <div class="mock-nav-item">📁 الخطة الأسبوعية والمواد</div>
+              <div class="mock-nav-item">⭐ شارات التميز والتلعيب</div>
+              <div class="mock-nav-item">💬 رسائل أولياء الأمور</div>
+            </div>
+
+            <div class="mock-main">
+              <div class="mock-welcome-banner">
+                <div class="mock-welcome-text">
+                  <h4>أهلاً أ. فهد المنصور - لديك 4 حصص مجدولة اليوم</h4>
+                  <p>الحصة القادمة: الحصة الثالثة (10:15 ص) • الصف: 2 ثانوي (شعبة 1 - STEM)</p>
+                </div>
+                <button class="action-btn-sm" style="background: #10b981; border: none;" onclick="showModal('التحضير الذكي للدروس', 'تم تفعيل المولد الذكي: تم اقتراح أهداف التعلم، استراتيجيات التدريس، ورقة عمل تفاعلية، وسؤال التحدي التكويني للدرس.')">
+                  ✨ تحضير درس بالذكاء الاصطناعي
+                </button>
+              </div>
+
+              <div class="mock-stats-grid">
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #34d399;">148</div>
+                  <div class="mock-kpi-title">إجمالي طلاب فصولي</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #38bdf8;">18</div>
+                  <div class="mock-kpi-title">حصة أسبوعياً</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #fbbf24;">100%</div>
+                  <div class="mock-kpi-title">اكتمال التحضير الأسبوعي</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #c084fc;">14</div>
+                  <div class="mock-kpi-title">ورقة عمل نشطة</div>
+                </div>
+              </div>
+
+              <div class="mock-panel">
+                <div class="mock-panel-title">
+                  <span>جدول حصص اليوم ورصد المشاركة الفوري</span>
+                  <span class="pill-badge pill-green">الحصة الحالية: 2ث/1</span>
+                </div>
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>الحصة</th>
+                      <th>الفصل</th>
+                      <th>الموضوع الدراسي</th>
+                      <th>المعادلات والمرفقات</th>
+                      <th>الإجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>الأولى (07:30)</strong></td>
+                      <td>2 ثانوي (شعبة 2)</td>
+                      <td>مشتقات الدوال المثلثية</td>
+                      <td><span class="pill-badge pill-blue">f'(x) = cos(x)</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('كشف درجات الحصة', 'تم رصد درجات المشاركة والتفاعل لـ 28 طالباً.')">تم الرصد ✓</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>الثالثة (10:15)</strong></td>
+                      <td>2 ثانوي (شعبة 1 - STEM)</td>
+                      <td>تطبيقات القيم العظمى والصغرى</td>
+                      <td><span class="pill-badge pill-purple">KaTeX ورقة عمل</span></td>
+                      <td><button class="action-btn-sm" style="background: #0284c7; border: none;" onclick="showModal('بدء الحصة والتفاعل', 'تم فتح شاشة تحضير الطلاب ورصد درجات الحصة الحية.')">بدء ورصد الحصة</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>الخامسة (12:00)</strong></td>
+                      <td>1 ثانوي (شعبة 3)</td>
+                      <td>المتجهات في المستوى الإحداثي</td>
+                      <td><span class="pill-badge pill-blue">v = &lt;x, y&gt;</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('معاينة الخطة', 'التحضير معتمد مسبقاً من مدير المجمع.')">معاينة الخطة</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Test Drive Walkthrough -->
+      <div class="walkthrough-box">
+        <h3>🚗 خطوات تجربة حساب المعلم بنفسك:</h3>
+        <div class="steps-flow">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <h4>تسجيل الدخول كمعلم</h4>
+            <p>اختر تبويب <strong>[معلم]</strong> وأدخل الهوية <code>1078451234</code> وكلمة المرور <code>1078451234</code>.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <h4>تجربة التحضير الذكي (AI)</h4>
+            <p>افتح "التحضير الذكي"، واختر المادة والدرس، واضغط "توليد ذكي" لتشاهد كيف تُصاغ الأهداف والأنشطة بلحظات.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <h4>معاينة محرك المعادلات (KaTeX)</h4>
+            <p>ادخل قسم "بنك الاختبارات" واطلع على كتابة الرموز الرياضية والجذور والكسور بصيغة مطبعية نقية.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <h4>رصد درجات وسجل طالب</h4>
+            <p>توجه إلى "رصد الدرجات" واطلع على سرعة إدخال التقييم التكويني والمشاركة مع التحديث اللحظي الفوري.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ROLE 4: VICE PRINCIPAL / STAFF (وكيل / كادر إداري) -->
+    <!-- ========================================================================= -->
+    <div id="view-staff" class="role-detail-view">
+      
+      <div class="role-content-layout">
+        
+        <!-- Left: Credentials & Profile -->
+        <div class="credentials-card" style="border-top: 4px solid var(--role-staff);">
+          <div class="cred-header">
+            <div class="cred-avatar" style="background: var(--role-staff-bg); color: var(--role-staff);">📋</div>
+            <div class="cred-meta">
+              <h3>أ. طارق بن عبد العزيز الغامدي</h3>
+              <span style="background: var(--role-staff-bg); color: var(--role-staff);">وكيل الشؤون التعليمية والمدرسية</span>
+            </div>
+          </div>
+
+          <div class="login-tab-badge">
+            🔑 التبويب بصفحة الدخول: <strong>[وكيل / كادر]</strong>
+          </div>
+
+          <!-- Credentials Box -->
+          <div class="cred-box">
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>رقم هوية الوكيل / الكادر</span>
+                <button class="copy-btn" onclick="copyText('1089234567')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">1089234567</span>
+              </div>
+            </div>
+
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>كلمة المرور (الهوية افتراضياً)</span>
+                <button class="copy-btn" onclick="copyText('1089234567')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">1089234567</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin-bottom: 10px;">🎯 مهام وصلاحيات وكيل المدرسة:</h4>
+            <ul class="role-brief-list">
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-staff);"></div>
+                <div><strong>الانضباط المدرسي والغياب:</strong> رصد التأخر الصباحي وتوثيق غياب الحصص وإشعار البيت لحظياً.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-staff);"></div>
+                <div><strong>الجداول وحصص الانتظار:</strong> توزيع حصص الاحتياط لتغطية غياب المعلمين دون أي فراغ صفي.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-staff);"></div>
+                <div><strong>متابعة الخطط الأسبوعية:</strong> تدقيق جاهزية المعلمين ومطابقة توزيع المناهج المعتمدة.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-staff);"></div>
+                <div><strong>طباعة المشاهد والشهادات:</strong> إصدار خطابات تعريف الطالب وقيد الدراسة الرسمية بضغطة زر.</div>
+              </li>
+            </ul>
+          </div>
+
+          <button class="btn btn-teal" style="width: 100%; justify-content: center;" onclick="quickLoginDemo('staff')">
+            🚀 تجربة دخول وكيل المدرسة الآن
+          </button>
+        </div>
+
+        <!-- Right: Live Mock Dashboard -->
+        <div class="mock-dashboard-window">
+          <div class="mock-window-header">
+            <div class="mock-window-dots">
+              <div class="mock-dot dot-red"></div>
+              <div class="mock-dot dot-yellow"></div>
+              <div class="mock-dot dot-green"></div>
+            </div>
+            <div class="mock-window-title">https://msc-portal.local/#/staff (Live Simulation)</div>
+            <div class="mock-window-status">
+              <div class="status-pulse"></div>
+              <span>بوابة الشؤون التعليمية والمدرسية</span>
+            </div>
+          </div>
+
+          <div class="mock-shell">
+            <div class="mock-sidebar">
+              <div class="mock-user-snippet">
+                <div class="mock-user-name">أ. طارق الغامدي</div>
+                <div class="mock-user-role-label">وكيل الشؤون المدرسية</div>
+              </div>
+              <div class="mock-nav-item active">📋 الانضباط والغياب اليومي</div>
+              <div class="mock-nav-item">⏱️ جدول الانتظار والاحتياط</div>
+              <div class="mock-nav-item">📁 سجل متابعة الطالب الشامل</div>
+              <div class="mock-nav-item">📅 تدقيق الخطط الأسبوعية</div>
+              <div class="mock-nav-item">🖨️ طباعة المشاهد والشهادات</div>
+              <div class="mock-nav-item">📢 المراسلات والإشعارات</div>
+            </div>
+
+            <div class="mock-main">
+              <div class="mock-welcome-banner">
+                <div class="mock-welcome-text">
+                  <h4>مرحباً أ. طارق - لوحة متابعة الانضباط وشؤون الطلاب</h4>
+                  <p>تغطية حصص الانتظار اليوم: 100% مكتملة • الغياب المرصود اليوم: 8 طلاب فقط</p>
+                </div>
+                <button class="action-btn-sm" onclick="showModal('إسناد حصة انتظار فورية', 'تم إسناد حصة انتظار للأستاذ أحمد الغامدي في الفصل 1م/2 وتم إرسال تنبيه مباشر له على هاتفه.')">
+                  + إسناد حصة انتظار
+                </button>
+              </div>
+
+              <div class="mock-stats-grid">
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #fbbf24;">8</div>
+                  <div class="mock-kpi-title">غياب اليوم (تم إشعارهم)</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #34d399;">3</div>
+                  <div class="mock-kpi-title">حصص انتظار مغطاة</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #38bdf8;">100%</div>
+                  <div class="mock-kpi-title">خطط أسبوعية مدققة</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #c084fc;">19</div>
+                  <div class="mock-kpi-title">مشهد قيد وطباعة تم إصداره</div>
+                </div>
+              </div>
+
+              <div class="mock-panel">
+                <div class="mock-panel-title">
+                  <span>كشف متابعة الانضباط وتأخر الحصة الصباحية</span>
+                  <span class="pill-badge pill-amber">تحديث لحظي</span>
+                </div>
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>اسم الطالب</th>
+                      <th>الصف / الشعبة</th>
+                      <th>نوع الحالة</th>
+                      <th>إشعار ولي الأمر</th>
+                      <th>الإجراء المتخذ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>ريان بن خالد العتيبي</strong></td>
+                      <td>2 متوسط (شعبة 1)</td>
+                      <td><span class="pill-badge pill-blue">تأخر صباحي (15 دقيقة)</span></td>
+                      <td><span class="pill-badge pill-green">تم الإشعار SMS/تطبيق</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('توثيق عذر الطالب', 'تم قبول العذر الطبي واعتماده في السجل الشامل.')">توثيق عذر</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>عبد الله بن سعد الشمراني</strong></td>
+                      <td>3 ثانوي (شعبة 2)</td>
+                      <td><span class="pill-badge pill-amber">غياب بدون عذر مسبق</span></td>
+                      <td><span class="pill-badge pill-green">تم الإشعار تلقائياً</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('اتصال بولي الأمر', 'تم تسجيل محضر الاتصال بولي الأمر عبر الهاتف.')">تسجيل محضر</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>ياسر بن ناصر القحطاني</strong></td>
+                      <td>1 ثانوي (شعبة 1)</td>
+                      <td><span class="pill-badge pill-purple">إذن خروج رسمي (عيادة)</span></td>
+                      <td><span class="pill-badge pill-green">معتمد من الوكيل</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('طباعة تصريح خروج', 'تمت طباعة بطاقة الخروج الرسمية.')">طباعة تصريح</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Test Drive Walkthrough -->
+      <div class="walkthrough-box">
+        <h3>🚗 سيناريو التجربة المقترح لوكيل المدرسة:</h3>
+        <div class="steps-flow">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <h4>تسجيل الدخول كوكيل</h4>
+            <p>اختر تبويب <strong>[وكيل / كادر]</strong> واستخدم رقم الهوية <code>1089234567</code>.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <h4>رصد ومتابعة الانضباط</h4>
+            <p>استعرض كشوف الغياب اليومي وشاهد كيف ترتبط بتنبيهات فورية تذهب لحساب ولي أمر الطالب.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <h4>إسناد حصص الانتظار</h4>
+            <p>جرب نافذة توزيع حصص الانتظار والاحتياط للتعرف على سرعة تغطية الحصص وإشعار المعلم البديل.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <h4>الطباعة الفورية للشهادات والمشاهد</h4>
+            <p>افتح أداة طباعة المشاهد المدرسية واستخرج نموذج مشهد قيد طالب معتمد بشعار المدرسة والباركود.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ROLE 5: EDUCATIONAL SUPERVISOR (مشرف تربوي) -->
+    <!-- ========================================================================= -->
+    <div id="view-supervisor" class="role-detail-view">
+      
+      <div class="role-content-layout">
+        
+        <!-- Left: Credentials & Profile -->
+        <div class="credentials-card" style="border-top: 4px solid var(--role-supervisor);">
+          <div class="cred-header">
+            <div class="cred-avatar" style="background: var(--role-supervisor-bg); color: var(--role-supervisor);">🔍</div>
+            <div class="cred-meta">
+              <h3>د. عبد الله بن صالح القحطاني</h3>
+              <span style="background: var(--role-supervisor-bg); color: var(--role-supervisor);">المشرف التربوي التخصصي (العلوم والرياضيات)</span>
+            </div>
+          </div>
+
+          <div class="login-tab-badge">
+            🔑 التبويب بصفحة الدخول: <strong>[وكيل / كادر]</strong> (أو المشرف)
+          </div>
+
+          <!-- Credentials Box -->
+          <div class="cred-box">
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>رقم هوية المشرف التربوي</span>
+                <button class="copy-btn" onclick="copyText('1056789123')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">1056789123</span>
+              </div>
+            </div>
+
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>كلمة المرور (الهوية افتراضياً)</span>
+                <button class="copy-btn" onclick="copyText('1056789123')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">1056789123</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin-bottom: 10px;">🎯 مهام المشرف التربوي في المنصة:</h4>
+            <ul class="role-brief-list">
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-supervisor);"></div>
+                <div><strong>المتابعة التخصصية للتحضير:</strong> فحص عمق الأهداف التدريسية والملحوظات الفنية لكل مادة.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-supervisor);"></div>
+                <div><strong>بطاقات الزيارة الصفية الرقمية:</strong> تقييم أداء المعلم الميداني وإصدار تقرير الزيارة فورياً.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-supervisor);"></div>
+                <div><strong>تحليل نواتج التعلم:</strong> قياس مستوى تحصيل الطلاب في الاختبارات المعيارية والقصيرة.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-supervisor);"></div>
+                <div><strong>ملفات الإنجاز المهني (E-Portfolio):</strong> استعراض مبادرات المعلمين وتكريم المتميزين.</div>
+              </li>
+            </ul>
+          </div>
+
+          <button class="btn btn-teal" style="width: 100%; justify-content: center;" onclick="quickLoginDemo('supervisor')">
+            🚀 تجربة دخول المشرف التربوي الآن
+          </button>
+        </div>
+
+        <!-- Right: Live Mock Dashboard -->
+        <div class="mock-dashboard-window">
+          <div class="mock-window-header">
+            <div class="mock-window-dots">
+              <div class="mock-dot dot-red"></div>
+              <div class="mock-dot dot-yellow"></div>
+              <div class="mock-dot dot-green"></div>
+            </div>
+            <div class="mock-window-title">https://msc-portal.local/#/supervisor (Live Simulation)</div>
+            <div class="mock-window-status">
+              <div class="status-pulse"></div>
+              <span>بوابة الإشراف التربوي والجودة</span>
+            </div>
+          </div>
+
+          <div class="mock-shell">
+            <div class="mock-sidebar">
+              <div class="mock-user-snippet">
+                <div class="mock-user-name">د. عبد الله القحطاني</div>
+                <div class="mock-user-role-label">مشرف العلوم والرياضيات</div>
+              </div>
+              <div class="mock-nav-item active">📚 متابعة التحاضير التخصصية</div>
+              <div class="mock-nav-item">📝 بطاقات الزيارات الصفية</div>
+              <div class="mock-nav-item">📈 تحليل نواتج التعلم</div>
+              <div class="mock-nav-item">🌟 ملفات إنجاز المعلمين</div>
+              <div class="mock-nav-item">📁 الخطط الأسبوعية</div>
+              <div class="mock-nav-item">📢 التوجيهات الإشرافية</div>
+            </div>
+
+            <div class="mock-main">
+              <div class="mock-welcome-banner">
+                <div class="mock-welcome-text">
+                  <h4>لوحة المشرف التربوي - تخصص الرياضيات والعلوم</h4>
+                  <p>عدد المعلمين تحت الإشراف: 34 معلماً في 4 مجمعات • نسبة انتظام التحضير: 99.2%</p>
+                </div>
+                <button class="action-btn-sm" style="background: #06b6d4; border: none;" onclick="showModal('توثيق زيارة صفية جديدة', 'تم فتح استمارة تقويم الأداء المهني للمعلم (استراتيجيات التدريس، التفاعل الصفي، التقويم التكويني).')">
+                  + توثيق زيارة صفية
+                </button>
+              </div>
+
+              <div class="mock-stats-grid">
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #38bdf8;">34</div>
+                  <div class="mock-kpi-title">معلماً تحت الإشراف</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #34d399;">16</div>
+                  <div class="mock-kpi-title">زيارة صفية منجزة</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #fbbf24;">94.8%</div>
+                  <div class="mock-kpi-title">متوسط كفاءة التدريس</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #c084fc;">98</div>
+                  <div class="mock-kpi-title">تحضيراً تم اعتماده تخصصياً</div>
+                </div>
+              </div>
+
+              <div class="mock-panel">
+                <div class="mock-panel-title">
+                  <span>سجل مراجعة تحاضير المعلمين وإبداء التوجيهات</span>
+                  <span class="pill-badge pill-blue">تحديث فوري</span>
+                </div>
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>المعلم</th>
+                      <th>المادة</th>
+                      <th>موضوع الدرس</th>
+                      <th>التقييم التربوي</th>
+                      <th>الإجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>أ. فهد المنصور</strong></td>
+                      <td>الرياضيات (STEM)</td>
+                      <td>تطبيقات التفاضل والتكامل</td>
+                      <td><span class="pill-badge pill-green">ممتاز (نموذجي)</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('إبداء ملحوظة إشرافية', 'تمت إضافة إشادة تربوية للمعلم في سجله المهني.')">إشادة تربوية</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>أ. هاني السالم</strong></td>
+                      <td>الفيزياء 2ث</td>
+                      <td>الدوائر الكهربائية وقانون أوم</td>
+                      <td><span class="pill-badge pill-purple">جيد جداً مرتفع</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('إرسال توجيه فني', 'تم إرسال توصية لتعزيز استراتيجيات التعلم النشط.')">إرسال توجيه</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>أ. عمر الشريف</strong></td>
+                      <td>الكيمياء 1ث</td>
+                      <td>الروابط الأيونية والتساهمية</td>
+                      <td><span class="pill-badge pill-blue">بانتظار المراجعة</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('اعتماد تربوي', 'تم اعتماد التحضير وإشعار المعلم وقائد المجمع.')">اعتماد تخصصي</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Test Drive Walkthrough -->
+      <div class="walkthrough-box">
+        <h3>🚗 سيناريو التجربة المقترح للمشرف التربوي:</h3>
+        <div class="steps-flow">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <h4>تسجيل الدخول كمشرف</h4>
+            <p>اختر تبويب <strong>[وكيل / كادر]</strong> أو الحساب التلقائي برقم الهوية <code>1056789123</code>.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <h4>مراجعة تحضير المعلمين التخصصي</h4>
+            <p>افتح قائمة التحاضير وفلتر بحسب مادة الرياضيات أو العلوم ولاحظ سهولة مراجعة الأنشطة وإضافة التوصيات.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <h4>تعبئة استمارة الزيارة الصفية</h4>
+            <p>جرب أداة "تقويم أداء المعلم" واستعرض معايير بطاقة الزيارة الصفية الرسمية وإصدار نتيجتها بلحظات.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <h4>استعراض ملف الإنجاز المهني (Portfolio)</h4>
+            <p>شاهد كيف يوثق النظام مبادرات المعلم والشهادات والدورات التدريبية في ملف إلكتروني متكامل.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ROLE 6: STUDENT (طالب) -->
+    <!-- ========================================================================= -->
+    <div id="view-student" class="role-detail-view">
+      
+      <div class="role-content-layout">
+        
+        <!-- Left: Credentials & Profile -->
+        <div class="credentials-card" style="border-top: 4px solid var(--role-student);">
+          <div class="cred-header">
+            <div class="cred-avatar" style="background: var(--role-student-bg); color: var(--role-student);">🎓</div>
+            <div class="cred-meta">
+              <h3>عمر بن فهد المنصور</h3>
+              <span style="background: var(--role-student-bg); color: var(--role-student);">طالب - الصف 2 ثانوي (STEM ذكي)</span>
+            </div>
+          </div>
+
+          <div class="login-tab-badge">
+            🔑 التبويب بصفحة الدخول: <strong>[طالب]</strong>
+          </div>
+
+          <!-- Credentials Box -->
+          <div class="cred-box">
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>رقم هوية الطالب</span>
+                <button class="copy-btn" onclick="copyText('1122334455')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">1122334455</span>
+              </div>
+            </div>
+
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>كلمة المرور (الهوية افتراضياً)</span>
+                <button class="copy-btn" onclick="copyText('1122334455')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">1122334455</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin-bottom: 10px;">🎯 تجربة الطالب الذكية في المنظومة:</h4>
+            <ul class="role-brief-list">
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-student);"></div>
+                <div><strong>الخطة الأسبوعية التفاعلية:</strong> معرفة حصص الأسبوع والواجبات والمواد الإثرائية مسبقاً.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-student);"></div>
+                <div><strong>أوراق العمل مع التصحيح الذاتي:</strong> حل الأنشطة وتلقي التغذية الراجعة والشرح التوضيحي فوراً.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-student);"></div>
+                <div><strong>نظام التلعيب والأوسمة (Gamification):</strong> جمع النقاط وشارات التميز للمنافسة في لوحة الشرف.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-student);"></div>
+                <div><strong>سجل الدرجات البياني:</strong> متابعة التحصيل في كل مادة ومعرفة نقاط القوة والتحسين.</div>
+              </li>
+            </ul>
+          </div>
+
+          <button class="btn btn-teal" style="width: 100%; justify-content: center;" onclick="quickLoginDemo('student')">
+            🚀 تجربة دخول الطالب الآن
+          </button>
+        </div>
+
+        <!-- Right: Live Mock Dashboard -->
+        <div class="mock-dashboard-window">
+          <div class="mock-window-header">
+            <div class="mock-window-dots">
+              <div class="mock-dot dot-red"></div>
+              <div class="mock-dot dot-yellow"></div>
+              <div class="mock-dot dot-green"></div>
+            </div>
+            <div class="mock-window-title">https://msc-portal.local/#/student (Live Simulation)</div>
+            <div class="mock-window-status">
+              <div class="status-pulse"></div>
+              <span>بوابة الطالب للتعلم الذكي</span>
+            </div>
+          </div>
+
+          <div class="mock-shell">
+            <div class="mock-sidebar">
+              <div class="mock-user-snippet">
+                <div class="mock-user-name">عمر المنصور</div>
+                <div class="mock-user-role-label">الصف 2ث/1 (STEM)</div>
+              </div>
+              <div class="mock-nav-item active">📚 جدولي وخطة الأسبوع</div>
+              <div class="mock-nav-item">📝 الواجبات وأوراق العمل</div>
+              <div class="mock-nav-item">⏱️ الاختبارات الإلكترونية</div>
+              <div class="mock-nav-item">📊 سجل درجاتي والتحصيل</div>
+              <div class="mock-nav-item">🏆 أوسمتي وشارات التميز</div>
+              <div class="mock-nav-item">💬 رسائل معلمي المواد</div>
+            </div>
+
+            <div class="mock-main">
+              <div class="mock-welcome-banner">
+                <div class="mock-welcome-text">
+                  <h4>أهلاً عمر! رائع، لقد أكملت جميع واجبات اليوم 🎉</h4>
+                  <p>رصيد نقاط التميز: 1,450 نقطة • الرتبة الحالية: فارس الإبداع العلمي ⭐</p>
+                </div>
+                <button class="action-btn-sm" style="background: #3b82f6; border: none;" onclick="showModal('حل ورقة عمل الرياضيات', 'ورقة عمل: تطبيقات القيم العظمى - النتيجة: 10/10 ممتاز! تم إضافة 50 نقطة لرصيدك.')">
+                  📝 حل ورقة عمل تفاعلية
+                </button>
+              </div>
+
+              <div class="mock-stats-grid">
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #38bdf8;">98.7%</div>
+                  <div class="mock-kpi-title">المعدل التراكمي</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #34d399;">28 / 28</div>
+                  <div class="mock-kpi-title">الواجبات المنجزة</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #fbbf24;">99.1%</div>
+                  <div class="mock-kpi-title">نسبة الحضور والانضباط</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #c084fc;">12</div>
+                  <div class="mock-kpi-title">وسام تميز أكاديمي</div>
+                </div>
+              </div>
+
+              <div class="mock-panel">
+                <div class="mock-panel-title">
+                  <span>الأنشطة والاختبارات الأسبوعية المتاحة</span>
+                  <span class="pill-badge pill-purple">نشطة الآن</span>
+                </div>
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>المادة</th>
+                      <th>اسم النشاط / الاختبار</th>
+                      <th>الموعد النهائي</th>
+                      <th>الحالة</th>
+                      <th>الإجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>الرياضيات (STEM)</strong></td>
+                      <td>ورقة عمل: القيم القصوى وميل المماس</td>
+                      <td>اليوم (11:59 م)</td>
+                      <td><span class="pill-badge pill-green">مكتمل (10/10)</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('مراجعة الحل والتغذية الراجعة', 'تمت مراجعة الإجابة النموذجية مع توضيح خطوات حل المسألة عبر محرك KaTeX.')">عرض الحل</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>الفيزياء المتقدمة</strong></td>
+                      <td>اختبار تجريبي: الحركة الدائرية</td>
+                      <td>غداً (05:00 م)</td>
+                      <td><span class="pill-badge pill-amber">جاهز للبدء</span></td>
+                      <td><button class="action-btn-sm" style="background: #2563eb; border: none;" onclick="showModal('بدء الاختبار الإلكتروني', 'مرحباً عمر، يتكون الاختبار من 10 أسئلة بزمن 20 دقيقة. اضغط بدء لبدء المؤقت.')">بدء الاختبار</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>الحاسب والذكاء الاصطناعي</strong></td>
+                      <td>مشروع تدريب نموذج تعلم الآلة</td>
+                      <td>الخميس</td>
+                      <td><span class="pill-badge pill-blue">قيد الإنجاز</span></td>
+                      <td><button class="action-btn-sm" onclick="showModal('رفع ملف المشروع', 'يمكنك رفع ملف البرمجة (Python / Jupyter) أو رابط المستودع.')">تسليم العمل</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Test Drive Walkthrough -->
+      <div class="walkthrough-box">
+        <h3>🚗 سيناريو التجربة المقترح للطالب:</h3>
+        <div class="steps-flow">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <h4>تسجيل الدخول كطالب</h4>
+            <p>اختر تبويب <strong>[طالب]</strong> وأدخل رقم هوية الطالب <code>1122334455</code>.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <h4>استعراض الخطة الأسبوعية</h4>
+            <p>تفحص الخطة الأسبوعية واطلع على كيفية وضوح متطلبات كل يوم دراسي وروابط مصادر التعلم.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <h4>حل ورقة عمل تفاعلية</h4>
+            <p>جرب أداء ورقة عمل ومشاهدة التصحيح التلقائي والشرح الفوري دون الحاجة لانتظار التصحيح اليدوي.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <h4>الاطلاع على شارات التميز</h4>
+            <p>ادخل قسم "أوسمتي" وشاهد نظام التحفيز الرقمي الذي يشجع الطالب على التميز والتفاعل المستمر.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ROLE 7: PARENT (ولي أمر) -->
+    <!-- ========================================================================= -->
+    <div id="view-parent" class="role-detail-view">
+      
+      <div class="role-content-layout">
+        
+        <!-- Left: Credentials & Profile -->
+        <div class="credentials-card" style="border-top: 4px solid var(--role-parent);">
+          <div class="cred-header">
+            <div class="cred-avatar" style="background: var(--role-parent-bg); color: var(--role-parent);">👨‍👧‍👦</div>
+            <div class="cred-meta">
+              <h3>م. خالد بن عبد الرحمن العتيبي</h3>
+              <span style="background: var(--role-parent-bg); color: var(--role-parent);">ولي أمر الطالبين (عمر وريان)</span>
+            </div>
+          </div>
+
+          <div class="login-tab-badge">
+            🔑 التبويب بصفحة الدخول: <strong>[ولي أمر]</strong>
+          </div>
+
+          <!-- Credentials Box -->
+          <div class="cred-box">
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>رقم هوية ولي الأمر</span>
+                <button class="copy-btn" onclick="copyText('1023456789')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">1023456789</span>
+              </div>
+            </div>
+
+            <div class="cred-field">
+              <div class="cred-field-label">
+                <span>كلمة المرور (الهوية افتراضياً)</span>
+                <button class="copy-btn" onclick="copyText('1023456789')">نسخ</button>
+              </div>
+              <div class="cred-value-wrap">
+                <span class="cred-value-code">1023456789</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin-bottom: 10px;">🎯 تجربة ولي الأمر وشفافية المتابعة:</h4>
+            <ul class="role-brief-list">
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-parent);"></div>
+                <div><strong>الربط التلقائي لكافة الأبناء:</strong> التنقل الفوري بين الأبناء دون الحاجة لحسابات متعددة.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-parent);"></div>
+                <div><strong>التقرير الشهري المعتمد (Monthly Mentor):</strong> استعراض وطباعة تقرير التوجيه والإرشاد الشامل.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-parent);"></div>
+                <div><strong>إشعارات الحضور والغياب اللحظية:</strong> معرفة انضباط الطالب لحظة رصد الحصة المدرسية.</div>
+              </li>
+              <li class="role-brief-item">
+                <div class="role-brief-bullet" style="background: var(--role-parent);"></div>
+                <div><strong>قنوات اتصال مباشرة وموثقة:</strong> مراسلة إدارة المدرسة والمعلمين بسرية وأمان كاملين.</div>
+              </li>
+            </ul>
+          </div>
+
+          <button class="btn btn-teal" style="width: 100%; justify-content: center;" onclick="quickLoginDemo('parent')">
+            🚀 تجربة دخول ولي الأمر الآن
+          </button>
+        </div>
+
+        <!-- Right: Live Mock Dashboard -->
+        <div class="mock-dashboard-window">
+          <div class="mock-window-header">
+            <div class="mock-window-dots">
+              <div class="mock-dot dot-red"></div>
+              <div class="mock-dot dot-yellow"></div>
+              <div class="mock-dot dot-green"></div>
+            </div>
+            <div class="mock-window-title">https://msc-portal.local/#/parent (Live Simulation)</div>
+            <div class="mock-window-status">
+              <div class="status-pulse"></div>
+              <span>بوابة أولياء الأمور الموحدة</span>
+            </div>
+          </div>
+
+          <div class="mock-shell">
+            <div class="mock-sidebar">
+              <div class="mock-user-snippet">
+                <div class="mock-user-name">م. خالد العتيبي</div>
+                <div class="mock-user-role-label">ولي أمر (ابنان مسجلان)</div>
+              </div>
+              <div class="mock-nav-item active">👦 ملف: عمر (2ث/STEM)</div>
+              <div class="mock-nav-item">🧒 ملف: ريان (2 متوسط)</div>
+              <div class="mock-nav-item">📑 سجل متابعة الطالب الشامل</div>
+              <div class="mock-nav-item">📈 التقرير الشهري لموجه الطلاب</div>
+              <div class="mock-nav-item">📊 تقارير الاختبارات الدورية</div>
+              <div class="mock-nav-item">💬 التواصل مع إدارة المدرسة</div>
+            </div>
+
+            <div class="mock-main">
+              <div class="mock-welcome-banner">
+                <div class="mock-welcome-text">
+                  <h4>مرحباً م. خالد العتيبي - أنت تستعرض حالياً ملف: عمر (الصف 2 ثانوي)</h4>
+                  <p>المدرسة: مجمع مدارس القيروان الذكية • حالة الطالب: متفوق دراسياً ومنتظم 🌟</p>
+                </div>
+                <button class="action-btn-sm" style="background: #ec4899; border: none;" onclick="showModal('التقرير الشهري الشامل للمرشد الطلابي', 'تم فتح التقرير الشهري الشامل للطالب (عمر بن فهد المنصور). التقرير معتمد رسمياً ويتضمن ملخص الحضور، التحصيل، والملاحظات التربوية والإرشادية، مع إمكانية المشاركة عبر WhatsApp.')">
+                  📄 عرض التقرير الشهري للابن
+                </button>
+              </div>
+
+              <div class="mock-stats-grid">
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #ec4899;">98.7%</div>
+                  <div class="mock-kpi-title">معدل تحصيل الطالب</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #34d399;">99.1%</div>
+                  <div class="mock-kpi-title">نسبة الانضباط والحضور</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #38bdf8;">0</div>
+                  <div class="mock-kpi-title">ملاحظات سلوكية</div>
+                </div>
+                <div class="mock-kpi-card">
+                  <div class="mock-kpi-val" style="color: #fbbf24;">100%</div>
+                  <div class="mock-kpi-title">إنجاز الواجبات المنزلية</div>
+                </div>
+              </div>
+
+              <div class="mock-panel">
+                <div class="mock-panel-title">
+                  <span>سجل المواد الدراسية ونتائج التقييم المستمر</span>
+                  <span class="pill-badge pill-green">تقييم ممتاز</span>
+                </div>
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>المادة</th>
+                      <th>معلم المادة</th>
+                      <th>درجة التقييم المستمر</th>
+                      <th>مستوى الحضور</th>
+                      <th>الإجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>الرياضيات (STEM)</strong></td>
+                      <td>أ. فهد المنصور</td>
+                      <td><span class="pill-badge pill-green">99 / 100</span></td>
+                      <td>100% منتظم</td>
+                      <td><button class="action-btn-sm" onclick="showModal('مراسلة المعلم', 'تم فتح محادثة مباشرة وسريعة مع معلم الرياضيات أ. فهد المنصور.')">رسالة للمعلم</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>الفيزياء المتقدمة</strong></td>
+                      <td>أ. سلطان الدوسري</td>
+                      <td><span class="pill-badge pill-green">98 / 100</span></td>
+                      <td>100% منتظم</td>
+                      <td><button class="action-btn-sm" onclick="showModal('مراسلة المعلم', 'تم فتح محادثة مباشرة مع معلم الفيزياء.')">رسالة للمعلم</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>اللغة الإنجليزية</strong></td>
+                      <td>أ. ديفيد ويليامز</td>
+                      <td><span class="pill-badge pill-green">99 / 100</span></td>
+                      <td>98% منتظم</td>
+                      <td><button class="action-btn-sm" onclick="showModal('مراسلة المعلم', 'تم فتح محادثة مع معلم اللغة الإنجليزية.')">رسالة للمعلم</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Test Drive Walkthrough -->
+      <div class="walkthrough-box">
+        <h3>🚗 سيناريو التجربة المقترح لولي الأمر:</h3>
+        <div class="steps-flow">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <h4>تسجيل الدخول كولي أمر</h4>
+            <p>اختر تبويب <strong>[ولي أمر]</strong> وأدخل رقم الهوية <code>1023456789</code>.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <h4>التنقل بين الأبناء</h4>
+            <p>لاحظ كيف ينتقل ولي الأمر بين ملفات أبنائه المسجلين في مجمعات مختلفة بنقرة واحدة ودون تسجيل خروج.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <h4>معاينة التقرير الشهري الشامل</h4>
+            <p>اضغط على "التقرير الشهري" وشاهد التقرير المعتمد من المرشد الطلابي وقائد المجمع مع خيار المشاركة الفورية.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <h4>التواصل المباشر مع المدرسة</h4>
+            <p>جرب إرسال رسالة لمعلم المادة أو الإدارة لملاحظة سرعة التفاعل وتوثيق كافة المراسلات.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MASTER PERMISSION MATRIX TABLE -->
+    <!-- ========================================================================= -->
+    <section class="matrix-section">
+      <div class="matrix-header">
+        <h3>📊 مصفوفة الصلاحيات والحوكمة الشاملة للأدوار الـ 7 (RBAC Matrix)</h3>
+        <p>توضح هذه المصفوفة الهندسية حدود وصلاحيات كل دور لحماية خصوصية البيانات ومنع أي تداخل إداري</p>
+      </div>
+
+      <div class="matrix-table-wrap">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th class="col-feature">الوظيفة / الصلاحية في النظام</th>
+              <th>سوبر ادمن (ماستر)</th>
+              <th>مدير مدرسة</th>
+              <th>معلم</th>
+              <th>وكيل مدرسة</th>
+              <th>مشرف تربوي</th>
+              <th>طالب</th>
+              <th>ولي أمر</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="col-feature">إضافة المدارس وتعيين قادة المجمعات</td>
+              <td><span class="check-yes">✅ كاملة</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">إدارة الكوادر وتوزيع الشعب والفصول</td>
+              <td><span class="check-yes">✅ كاملة</span></td>
+              <td><span class="check-yes">✅ كاملة (مدرسته)</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-view">👁️ إسناد جزئي</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">التحضير الذكي للدروس وإعداد الخطط</td>
+              <td><span class="check-view">👁️ استعراض</span></td>
+              <td><span class="check-view">👁️ اعتماد</span></td>
+              <td><span class="check-yes">✅ إنشاء وتعديل</span></td>
+              <td><span class="check-view">👁️ تدقيق</span></td>
+              <td><span class="check-view">👁️ اعتماد تخصصي</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">إنشاء بنوك الأسئلة والاختبارات ومعادلات KaTeX</td>
+              <td><span class="check-view">👁️ استعراض</span></td>
+              <td><span class="check-view">👁️ اعتماد</span></td>
+              <td><span class="check-yes">✅ إنشاء وتعديل</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-view">👁️ مراجعة واعتماد</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">رصد الدرجات والتقييم المستمر للطلاب</td>
+              <td><span class="check-view">👁️ تقارير عليا</span></td>
+              <td><span class="check-view">👁️ اعتماد وتصدير</span></td>
+              <td><span class="check-yes">✅ رصد وتعديل</span></td>
+              <td><span class="check-view">👁️ كشوفات</span></td>
+              <td><span class="check-view">👁️ تحليل نواتج</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">رصد الحضور والغياب اليومي والانضباط</td>
+              <td><span class="check-view">👁️ مؤشر الشركة</span></td>
+              <td><span class="check-yes">✅ اعتماد وتصدير</span></td>
+              <td><span class="check-yes">✅ رصد الحصة</span></td>
+              <td><span class="check-yes">✅ رصد مدرسي شامل</span></td>
+              <td><span class="check-view">👁️ استعراض</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">سجل متابعة الطالب الشامل التراكمي</td>
+              <td><span class="check-yes">✅ كافة المدارس</span></td>
+              <td><span class="check-yes">✅ مدرسته</span></td>
+              <td><span class="check-view">👁️ طلاب فصوله</span></td>
+              <td><span class="check-yes">✅ مدرسته</span></td>
+              <td><span class="check-view">👁️ عينات إشرافية</span></td>
+              <td><span class="check-view">👁️ ملفه الشخصي</span></td>
+              <td><span class="check-view">👁️ ملفات أبنائه</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">التقرير الشهري المعتمد لموجه الطلاب</td>
+              <td><span class="check-view">👁️ رقابة عليا</span></td>
+              <td><span class="check-yes">✅ اعتماد رسمي</span></td>
+              <td><span class="check-view">👁️ إدخال الملاحظات</span></td>
+              <td><span class="check-yes">✅ اعتماد وتصدير</span></td>
+              <td><span class="check-view">👁️ مراجعة</span></td>
+              <td><span class="check-view">👁️ عرض وطباعة</span></td>
+              <td><span class="check-view">👁️ عرض ومشاركة</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">توزيع حصص الانتظار وإدارة الجداول</td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-yes">✅ اعتماد</span></td>
+              <td><span class="check-view">👁️ جدوله فقط</span></td>
+              <td><span class="check-yes">✅ إدارة وإسناد</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">إدارة المناقلات وسد العجز المركزي</td>
+              <td><span class="check-yes">✅ قرار سيادي</span></td>
+              <td><span class="check-view">👁️ رفع طلب عجز/فائض</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-view">👁️ إبداء رأي فني</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">بطاقات الزيارة الصفية وتقويم أداء المعلم</td>
+              <td><span class="check-view">👁️ مؤشرات الأداء</span></td>
+              <td><span class="check-yes">✅ تقييم إداري</span></td>
+              <td><span class="check-view">👁️ استعراض نتائجه</span></td>
+              <td><span class="check-view">👁️ استعراض</span></td>
+              <td><span class="check-yes">✅ تقييم فني تخصصي</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">حل الواجبات وخوض الاختبارات الإلكترونية</td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-yes">✅ حل وتقديم</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">نظام التلعيب والأوسمة والشارات التنافسية</td>
+              <td><span class="check-view">👁️ إحصائيات</span></td>
+              <td><span class="check-view">👁️ لوحة الشرف</span></td>
+              <td><span class="check-yes">✅ منح أوسمة وتشجيع</span></td>
+              <td><span class="check-view">👁️ لوحة الشرف</span></td>
+              <td><span class="check-view">👁️ استعراض</span></td>
+              <td><span class="check-yes">✅ جمع نقاط وأوسمة</span></td>
+              <td><span class="check-view">👁️ متابعة إنجاز ابنه</span></td>
+            </tr>
+            <tr>
+              <td class="col-feature">تصدير واستيراد بيانات نظام نور المعتمدة</td>
+              <td><span class="check-yes">✅ للشركة كاملة</span></td>
+              <td><span class="check-yes">✅ لمدرسته</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-yes">✅ لمدرسته</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+              <td><span class="check-no">❌</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer-section">
+      <p style="font-weight: 700; color: var(--text-light); margin-bottom: 6px;">
+        شركة المدارس المتقدمة للتعلم الذكي • الإدارة العامة للتحول الرقمي والتقنية
+      </p>
+      <p style="font-size: 0.8rem;">
+        منظومة سحابية متطورة مصممة خصيصاً للمدارس الذكية ومجمعات التعليم الأهلي والدولي بالمملكة العربية السعودية • 2026
+      </p>
+    </footer>
+
+  </div>
+
+  <!-- Toast Notification Popup -->
+  <div id="toastPopup" class="toast-popup">
+    <span>✅</span>
+    <span id="toastMsg">تم نسخ البيانات بنجاح!</span>
+  </div>
+
+  <!-- Interactive Modal for Live Simulated Actions -->
+  <div id="actionModal" class="modal-overlay" onclick="closeModalOnOverlay(event)">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="modalTitle">عنوان الإجراء</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        محتوى الإجراء
+      </div>
+      <div style="margin-top: 24px; text-align: left;">
+        <button class="btn btn-teal" onclick="closeModal()">إغلاق ومتابعة الاستعراض</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tab Switching Logic
+    function switchRole(roleId) {
+      // 1. Update Buttons
+      document.querySelectorAll('.role-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-role') === roleId);
+      });
+
+      // 2. Update Detail Views
+      document.querySelectorAll('.role-detail-view').forEach(view => {
+        view.classList.remove('active');
+      });
+
+      const activeView = document.getElementById('view-' + roleId);
+      if (activeView) {
+        activeView.classList.add('active');
+      }
+
+      // Smooth scroll to view on mobile
+      if (window.innerWidth < 768) {
+        activeView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // Copy to Clipboard
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('تم نسخ: ' + text);
+      }).catch(err => {
+        showToast('تم النسخ');
+      });
+    }
+
+    // Toast Popup
+    function showToast(msg) {
+      const toast = document.getElementById('toastPopup');
+      const toastMsg = document.getElementById('toastMsg');
+      toastMsg.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2600);
+    }
+
+    // Modal Display
+    function showModal(title, message) {
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalBody').innerHTML = message;
+      document.getElementById('actionModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('actionModal').classList.remove('active');
+    }
+
+    function closeModalOnOverlay(e) {
+      if (e.target.id === 'actionModal') {
+        closeModal();
+      }
+    }
+
+    // Quick Login Demo Redirection with pre-fill advice
+    function quickLoginDemo(role) {
+      showModal(
+        'التوجيه لصفحة تسجيل الدخول',
+        `لقد تم تحديد دور <strong>(${role})</strong>. عند فتح صفحة تسجيل الدخول الرئيسية، اختر التبويب المطابق واستخدم بيانات الاعتماد المنسوخة لتسجيل الدخول الفوري.<br><br><a href="./index.html" class="btn btn-teal" style="display:inline-flex;">الانتقال إلى صفحة الدخول الآن 🚀</a>`
+      );
+    }
+
+    // Keyboard navigation between roles (Arrow keys)
+    const roleList = ['superadmin', 'admin', 'teacher', 'staff', 'supervisor', 'student', 'parent'];
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+  </script>
+</body>
+</html>
