@@ -828,7 +828,7 @@ export default function MasterMessagingHub() {
       if (cloudSuccess) {
         alert('✓ تم بنجاح فحص وإصلاح قاعدة البيانات محلياً وسحابياً في Firestore بنجاح:\n1. فصل مجمع التعلم الذكي بجدة إلى 4 مدارس مستقلة (بنين أهلي، بنين دبلومة، بنات أهلي، بنات دبلومة).\n2. تسجيل حسابات المدراء الرسمية المستقلة لكل مسار في Firestore.\n3. مزامنة بيانات الماستر والتعاميم الرئاسية.');
       } else {
-        alert('✓ تم بنجاح فحص وإصلاح وتفعيل حسابات المدراء والمدارس محلياً في النظام بنجاح 100%!\n\n⚠️ تنبيه السحابة (Firestore Rules): تعذرت الكتابة السحابية بسبب صلاحيات Firebase (' + (cloudErrMsg.includes('permission') ? 'Missing or insufficient permissions' : cloudErrMsg) + ').\n\n📌 لحل المزامنة السحابية نهائياً:\nيرجى فتح لوحة Firebase Console لمشروع (advanced-smart-learning-3dfbf) وتحديث قواعد Firestore Rules بالسماح بالقراءة والكتابة والضغط على Publish.');
+        alert('✓ تم بنجاح فحص وإصلاح وتفعيل حسابات المدراء والمدارس محلياً في النظام بنجاح 100%!\n\n⚠️ تنبيه السحابة (Firestore Rules): تعذرت الكتابة السحابية بسبب صلاحيات Firebase (' + (cloudErrMsg.includes('permission') ? 'Missing or insufficient permissions' : cloudErrMsg) + ').\n\n📌 لحل المزامنة السحابية نهائياً:\nيرجى فتح لوحة Firebase Console لمشروع (school-system-dammam) وتحديث قواعد Firestore Rules بالسماح بالقراءة والكتابة والضغط على Publish.');
       }
     } catch (err) {
       console.error('Error repairing DB:', err);

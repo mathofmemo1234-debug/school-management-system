@@ -3,23 +3,22 @@ import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence, c
 import { getFirestore, doc, setDoc } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Firebase configuration for Advanced Smart Learning (MSC Schools)
+// Firebase configuration for Advanced Smart Learning (MSC Schools - Dammam Region me-central2)
 const firebaseConfig = {
-  apiKey: "AIzaSyA-BaaAqrzeFzHiZpmNEwAeEB6Igd6QWKc",
-  authDomain: "advanced-smart-learning-3dfbf.firebaseapp.com",
-  databaseURL: "https://advanced-smart-learning-3dfbf-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "advanced-smart-learning-3dfbf",
-  storageBucket: "advanced-smart-learning-3dfbf.firebasestorage.app",
-  messagingSenderId: "210401728875",
-  appId: "1:210401728875:web:e7bf2d6626ac6d4d85542e"
+  apiKey: "AIzaSyBQHK4ozDDYoNXodi-k6ivhW4c5-rV0qJA",
+  authDomain: "school-system-dammam.firebaseapp.com",
+  projectId: "school-system-dammam",
+  storageBucket: "school-system-dammam.firebasestorage.app",
+  messagingSenderId: "432965293500",
+  appId: "1:432965293500:web:751d6f07265eb31ded47b9"
 };
 
 const app = initializeApp(firebaseConfig);
 
 // HARD DATABASE ISOLATION ASSERTION:
-// Ensures this application instance is strictly locked to Advanced Smart Learning database
-if (firebaseConfig.projectId !== "advanced-smart-learning-3dfbf") {
-  throw new Error("FATAL_SECURITY_ERROR: Advanced Smart Learning must connect exclusively to advanced-smart-learning-3dfbf project.");
+// Ensures this application instance is strictly locked to school-system-dammam database
+if (firebaseConfig.projectId !== "school-system-dammam") {
+  throw new Error("FATAL_SECURITY_ERROR: Advanced Smart Learning must connect exclusively to school-system-dammam project.");
 }
 
 export const auth = getAuth(app);
