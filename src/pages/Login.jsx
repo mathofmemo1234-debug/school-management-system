@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, AlertCircle, AlertTriangle, Building2, Sparkles, UserCheck } from 'lucide-react';
+import { LogIn, AlertCircle, AlertTriangle, UserCheck } from 'lucide-react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import AboutSchoolModal from '../components/AboutSchoolModal';
-import QiyasPlatformModal from '../components/QiyasPlatformModal';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import './Login.css';
 
@@ -25,7 +23,6 @@ export default function Login() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { currentUser, userRole, loading: authLoading, setLoginRole, loginAsSuperAdmin, loginWithUserData } = useAuth();
-  const [showAboutModal, setShowAboutModal] = useState(false);
   
   // Auto-redirect already authenticated users
   React.useEffect(() => {
@@ -558,32 +555,6 @@ export default function Login() {
     <main role="main">
       <div className="login-container relative min-h-screen flex items-center justify-center overflow-hidden">
         <div className="login-card glass-panel" style={{ maxWidth: '480px', width: '100%', position: 'relative', zIndex: 10 }}>
-          
-          {/* About Us Button in Login Card (من نحن - فلاش يومض) */}
-          <button
-            type="button"
-            onClick={() => setShowAboutModal(true)}
-            className="btn btn-flash-about"
-            style={{
-              position: 'absolute',
-              top: '16px',
-              left: '16px',
-              borderRadius: '20px',
-              padding: '6px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '12px',
-              zIndex: 20
-            }}
-            title="عن شركة المدارس المتقدمة (MSC) - من نحن"
-          >
-            <span className="flash-dot-indicator" />
-            <Building2 size={15} className="flash-icon" />
-            <span>من نحن</span>
-            <Sparkles size={13} color="#38bdf8" />
-          </button>
-
           {/* Multi-Language Switcher (AR / EN / ZH) */}
           <div style={{
             position: 'absolute',
@@ -894,15 +865,6 @@ export default function Login() {
             )}
         </div>
       </div>
-
-      {/* About School Modal */}
-      <AboutSchoolModal 
-        isOpen={showAboutModal} 
-        onClose={() => setShowAboutModal(false)} 
-      />
-
-      {/* Qiyas Platform Floating Button & Modal */}
-      <QiyasPlatformModal isLoginPage={true} />
     </main>
   );
 }
