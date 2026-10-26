@@ -194,6 +194,16 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       hour12: true 
     });
   });
+  const [principalName, setPrincipalName] = useState(() => {
+    return currentSelectedSchool?.principalName || (userData?.role === 'admin' ? userData?.name : userData?.principalName) || 'أ. أنس الجهني';
+  });
+
+  useEffect(() => {
+    if (currentSelectedSchool?.principalName) {
+      setPrincipalName(currentSelectedSchool.principalName);
+    }
+  }, [currentSelectedSchool]);
+
   const [isEditingReportMeta, setIsEditingReportMeta] = useState(false);
 
   // Additional Reports State (ميزة إضافة تقارير إضافية)
@@ -466,6 +476,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           if (rep.academicMonth) setAcademicMonth(rep.academicMonth);
           if (rep.reportTitle) setReportTitle(rep.reportTitle);
           if (rep.reportDateTime) setReportDateTime(rep.reportDateTime);
+          if (rep.principalName) setPrincipalName(rep.principalName);
           if (rep.subjectScores) setSubjectScores(rep.subjectScores);
           if (rep.smartReportSummary) setSmartReportSummary(rep.smartReportSummary);
           if (rep.mentorNotes) setMentorNotes(rep.mentorNotes);
@@ -521,6 +532,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       setEvidenceList(existing.evidenceList || []);
       if (existing.reportTitle) setReportTitle(existing.reportTitle);
       if (existing.reportDateTime) setReportDateTime(existing.reportDateTime);
+      if (existing.principalName) setPrincipalName(existing.principalName);
       if (existing.behavioralNotes !== undefined) setBehavioralNotes(existing.behavioralNotes || DEFAULT_BEHAVIORAL_NOTES);
       if (existing.supportPlan) setSupportPlan(existing.supportPlan);
     } else {
@@ -835,6 +847,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
         reportId: activeReportId,
         reportTitle: reportTitle || 'التقرير الدوري الشامل للمربي المخلص',
         reportDateTime: reportDateTime,
+        principalName: principalName || currentSelectedSchool?.principalName || 'أ. أنس الجهني',
         studentId: selectedStudent.id,
         studentName: selectedStudent.name,
         studentNationalId: selectedStudent.nationalId,
@@ -1062,7 +1075,19 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       ta.parentNode.replaceChild(p, ta);
     });
 
-    // Remove buttons, inputs, labels, and all no-print elements
+    // Replace text inputs with text spans so their values are preserved in print
+    cloned.querySelectorAll('input').forEach(inp => {
+      if (inp.type === 'text' || !inp.type) {
+        const span = document.createElement('span');
+        span.textContent = inp.value || inp.placeholder || '';
+        span.style.fontWeight = '800';
+        span.style.fontSize = '15px';
+        span.style.color = '#0f172a';
+        inp.parentNode.replaceChild(span, inp);
+      }
+    });
+
+    // Remove buttons, inputs, selects, labels, and all no-print elements
     cloned.querySelectorAll('button, input, select, .no-print, label').forEach(el => el.remove());
 
     // Ensure all images use absolute URLs so isolated iframe loads them reliably
@@ -1209,6 +1234,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             reportTitle: cleanTitle,
             reportType: newReportType,
             reportDateTime: formattedDateTime,
+            principalName: principalName || currentSelectedSchool?.principalName || 'أ. أنس الجهني',
             studentId: st.id,
             studentName: st.name,
             studentNationalId: st.nationalId || '',
@@ -1253,6 +1279,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           reportTitle: cleanTitle,
           reportType: newReportType,
           reportDateTime: formattedDateTime,
+          principalName: principalName || currentSelectedSchool?.principalName || 'أ. أنس الجهني',
           studentId: selectedStudent.id,
           studentName: selectedStudent.name,
           studentNationalId: selectedStudent.nationalId || '',
@@ -1295,6 +1322,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           reportTitle: cleanTitle,
           reportType: newReportType,
           reportDateTime: formattedDateTime,
+          principalName: principalName || currentSelectedSchool?.principalName || 'أ. أنس الجهني',
           studentId: selectedStudent.id,
           studentName: selectedStudent.name,
           subjectScores: { ...subjectScores },
@@ -1513,8 +1541,8 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
             display: grid !important;
-            grid-template-columns: repeat(4, 1fr) !important;
-            gap: 10px !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 20px !important;
             margin-top: 16px !important;
             padding-top: 10px !important;
           }
@@ -3556,38 +3584,45 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 )}
               </div>
 
-              {/* Signatures in Report (Official Educational Signatures - Clean and Professional) */}
-              <div className="report-signatures" style={{ marginTop: '36px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', textAlign: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>المربي المخلص</div>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
-                    {selectedMentor?.name || 'محمد عبدالله جمعة'}
+              {/* Signatures in Report (Official Educational Signatures - Teacher & Principal) */}
+              <div className="report-signatures" style={{ 
+                marginTop: '36px', 
+                paddingTop: '20px', 
+                borderTop: '1px solid #e2e8f0', 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(2, 1fr)', 
+                gap: '24px', 
+                textAlign: 'center',
+                maxWidth: '680px',
+                margin: '36px auto 0'
+              }}>
+                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#0369a1' }}>معلم الصف (المربي المخلص)</div>
+                  <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
+                    {selectedMentor?.name || userData?.name || 'محمد عبدالله جمعة'}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>التوقيع والاعتماد</div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>التوقيع والاعتماد</div>
                 </div>
 
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>متابعة و دعم</div>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
-                    أ / جمال علي محمد
+                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    <span>مدير المدرسة</span>
+                    {!isPublicViewer && (
+                      <button 
+                        type="button" 
+                        className="no-print" 
+                        onClick={() => setIsEditingReportMeta(true)}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', color: '#64748b' }}
+                        title="تعديل اسم مدير المدرسة"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+                    )}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>المتابعة والإشراف التربوي</div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>إدارة المدرسة</div>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
-                    {schoolDisplayName}
+                  <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
+                    {principalName || currentSelectedSchool?.principalName || 'أ. أنس الجهني'}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>الختم الرسمي والاعتماد</div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>ولي الأمر المكرم</div>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
-                    تم الاطلاع والمتابعة
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>توقيع ولي الأمر</div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>الختم الرسمي والاعتماد</div>
                 </div>
               </div>
 
@@ -3606,7 +3641,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <ShieldCheck size={14} color="#059669" />
-                  <span>متابعة و دعم: <strong style={{ color: '#0f172a' }}>أ / جمال علي محمد</strong></span>
+                  <span>معتمد رسمياً • المعلم: <strong style={{ color: '#0f172a' }}>{selectedMentor?.name || 'معلم الصف'}</strong> • مدير المدرسة: <strong style={{ color: '#0f172a' }}>{principalName || currentSelectedSchool?.principalName || 'أ. أنس الجهني'}</strong></span>
                 </div>
                 <div>
                   <span>منظومة المربي المخلص للرصد التربوي • {schoolDisplayName}</span>
@@ -5001,6 +5036,32 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                   value={reportDateTime}
                   onChange={(e) => setReportDateTime(e.target.value)}
                   placeholder="مثال: الجمعة، 2 أكتوبر 2026 - 02:40 ص"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  اسم مدير المدرسة
+                </label>
+                <input 
+                  type="text"
+                  value={principalName}
+                  onChange={(e) => setPrincipalName(e.target.value)}
+                  placeholder="مثال: أ. أنس الجهني"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  اسم معلم الصف (المربي المخلص)
+                </label>
+                <input 
+                  type="text"
+                  value={selectedMentor?.name || ''}
+                  onChange={(e) => setSelectedMentor(prev => prev ? ({ ...prev, name: e.target.value }) : ({ id: 'mentor_custom', name: e.target.value }))}
+                  placeholder="اسم المعلم"
                   style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                 />
               </div>
