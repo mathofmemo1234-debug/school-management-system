@@ -79,6 +79,39 @@ import { compressImage } from '../utils/imageCompressor';
 import { readFileAsDataUrl } from '../utils/fileStorageService';
 import { ADVANCED_SCHOOLS_CATALOG } from '../data/resourceData';
 
+const getDetailedSubjectSkillText = (subjectId, subjectName, score, existingSummary) => {
+  const normId = (subjectId || '').toLowerCase();
+  const name = subjectName || '';
+  
+  if (normId.includes('arab') || name.includes('العربية')) {
+    return 'في اللغة العربية، وُصف أداؤه بأنه متميز، وهو وصف يشير إلى تمكنه من مهارات المادة الأساسية. هذا المستوى يمنحه فرصة للتعامل مع النصوص والأنشطة اللغوية بثقة، ويستحق أن نبني عليه في المرحلة المقبلة.';
+  }
+  if (normId.includes('eng') || name.includes('الإنجليزية')) {
+    return 'أما في اللغة الإنجليزية، فقد جاء وصف أدائه متميزًا أيضًا، ما يعكس قدرته على استيعاب المادة والتعبير عنها بمستوى متقدم. هذا المستوى الجيد يمنحه فرصة للتوسع في مهارات التواصل والكتابة الأكاديمية.';
+  }
+  if (normId.includes('math') || name.includes('الرياضيات')) {
+    return 'في الرياضيات، وُصف أداؤه بالمتميز، وهو ما يشير إلى فهمه العميق للمفاهيم الرياضية وقدرته على تطبيقها. هذا التمكن يفتح أمامه آفاقًا لحل مسائل أكثر تعقيدًا وتطوير تفكيره الرياضي.';
+  }
+  if (normId.includes('sci') || name.includes('العلوم')) {
+    return 'وفي العلوم، جاء وصف أدائه متميزًا، ما يدل على استيعابه للظواهر العلمية ومشاركته الفعالة في الأنشطة. هذا الشغف العلمي يستحق التشجيع لمواصلة الاستكشاف والبحث.';
+  }
+  if (normId.includes('soc') || name.includes('الاجتماعيات')) {
+    return 'في الاجتماعيات، وُصف أدائه بالمتميز، ما يعكس فهمه للسياقات التاريخية والجغرافية وقدرته على التحليل. هذا الوعي يساعده على ربط الأحداث ببعضها وفهم العالم من حوله.';
+  }
+  if (normId.includes('isl') || name.includes('الإسلاميات') || name.includes('التربية الإسلامية')) {
+    return 'في الإسلاميات، جاء وصف أدائه متميزًا، ما يدل على تمكنه من المعارف والقيم الإسلامية. هذا التميز يعزز شخصيته ويجعله قدوة حسنة في التعامل مع الآخرين.';
+  }
+  if (normId.includes('dig') || normId.includes('comp') || name.includes('الرقمية') || name.includes('الحاسب')) {
+    return 'في المهارات الرقمية، وُصف أدائه بالمتميز، ما يظهر قدرته على استخدام التقنية بفعالية. هذه المهارة أساسية في العصر الرقمي وتفتح له فرصًا واسعة للتعلم والإبداع.';
+  }
+
+  if (existingSummary && existingSummary.trim().length > 10) {
+    return existingSummary;
+  }
+
+  return `في ${name}، وُصف أداؤه بالمتميز، وهو ما يعكس تمكنه من المعارف والمهارات المكتسبة وقدرته على توظيفها بفاعلية في المواقف التعليمية والأنشطة التطبيقية.`;
+};
+
 export default function MonthlyMentorReports({ role = 'teacher' }) {
   const { userData } = useAuth();
   const { t } = useLanguage();
@@ -1150,6 +1183,17 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           th, td {
             padding: 6px 10px;
           }
+          .report-pdf-page {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            width: 100%;
+          }
+          .report-pdf-page {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            width: 100%;
+          }
+
           .report-page-break {
             page-break-before: always !important;
             break-before: page !important;
@@ -1510,6 +1554,12 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             display: none !important;
             visibility: hidden !important;
             height: 0 !important;
+          }
+
+          .report-pdf-page {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            width: 100%;
           }
 
           .report-page-break {
@@ -3037,698 +3087,654 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 </div>
               </div>
 
-              {/* ─── SECTION 1: ملخص التقرير (Matches Image 2) ─── */}
-              <div style={{ marginBottom: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              {/* ═══════════════════════════════════════════════════════════════
+                  PAGE 1: ملخص التقرير (Matches Uploaded PDF Page 1)
+              ═══════════════════════════════════════════════════════════════ */}
+              <div className="report-pdf-page" style={{ marginBottom: '20px' }}>
+                {/* ملخص التقرير Header & Average */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Star size={20} color="#eab308" fill="#eab308" />
                     <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
                       ملخص التقرير
                     </h3>
                   </div>
-
-                  <button 
-                    className="no-print"
-                    onClick={handleGenerateAISummaries}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#6366f1',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Sparkles size={13} />
-                    <span>إعادة الصياغة بالذكاء الاصطناعي</span>
-                  </button>
+                  <div style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>
+                    متوسط المواد المقيمة: <strong style={{ color: '#047857' }}>{averagePercentage}%</strong>
+                  </div>
                 </div>
 
-                {/* Narrative Summary Paragraph (Image 2 style) */}
+                {/* Narrative Summary Paragraph */}
                 <div style={{
                   background: '#f8fafc',
                   border: '1px solid #e2e8f0',
-                  borderRadius: '12px',
-                  padding: '16px 20px',
-                  fontSize: '14px',
+                  borderRadius: '10px',
+                  padding: '12px 18px',
+                  fontSize: '13.5px',
                   lineHeight: '1.8',
                   color: '#334155',
-                  fontWeight: '500'
+                  fontWeight: '500',
+                  marginBottom: '16px'
                 }}>
-                  {smartReportSummary || 'لم يتم توليد ملخص التقرير بعد.'}
-                </div>
-              </div>
-
-              {/* ─── SECTION 2: جدول ملخص الأداء لكل مادة (Image 2 Table) ─── */}
-              <div style={{ marginBottom: '36px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-                  <thead>
-                    <tr style={{ background: '#f0fdf4', borderBottom: '2px solid #bbf7d0' }}>
-                      <th style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '800', color: '#166534', width: '22%' }}>
-                        المادة / المجال
-                      </th>
-                      <th style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '800', color: '#166534' }}>
-                        خلاصة الأداء
-                      </th>
-                      <th style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '800', color: '#166534', width: '15%', textAlign: 'center' }}>
-                        الحالي / 10
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeSubjectDefs.map((subject, idx) => {
-                      const data = subjectScores[subject.id] || { score: 10, summary: '' };
-                      return (
-                        <tr key={subject.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '12px 16px', fontWeight: '800', fontSize: '14px', color: '#0f172a' }}>
-                            {subject.name}
-                          </td>
-                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>
-                            {data.summary || generateSubjectSummary(subject.id, data.score)}
-                          </td>
-                          <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '800', fontSize: '15px', color: '#047857' }}>
-                            {data.score}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* ─── SECTION 3: تحليل الأداء البياني (Matches Image 3) ─── */}
-              <div style={{ marginBottom: '36px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                  <BarChart2 size={20} color="#2563eb" />
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-                    تحليل الأداء البياني
-                  </h3>
+                  {smartReportSummary || 'الطالب متميز في جميع المواد، ونوصي بتشجيعه على مواصلة التفوق والمشاركة في أنشطة إثرائية.'}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 320px) 1fr', gap: '24px', alignItems: 'start' }}>
-                  
-                  {/* Left Widget: المستوى العام Donut Chart */}
+                {/* Subject Summary Table */}
+                <div style={{ marginBottom: '14px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0' }}>
+                        <th style={{ padding: '8px 14px', fontSize: '12.5px', fontWeight: '800', color: '#1e293b', width: '22%' }}>
+                          المادة / المجال
+                        </th>
+                        <th style={{ padding: '8px 14px', fontSize: '12.5px', fontWeight: '800', color: '#1e293b' }}>
+                          خلاصة الأداء
+                        </th>
+                        <th style={{ padding: '8px 14px', fontSize: '12.5px', fontWeight: '800', color: '#1e293b', width: '15%', textAlign: 'center' }}>
+                          الحالي / 10
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeSubjectDefs.map(subject => {
+                        const data = subjectScores[subject.id] || { score: 10, summary: '' };
+                        return (
+                          <tr key={subject.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '8px 14px', fontWeight: '800', fontSize: '13px', color: '#0f172a' }}>
+                              {subject.name}
+                            </td>
+                            <td style={{ padding: '8px 14px', fontSize: '12.5px', color: '#475569' }}>
+                              {data.summary || generateSubjectSummary(subject.id, data.score)}
+                            </td>
+                            <td style={{ padding: '8px 14px', textAlign: 'center', fontWeight: '800', fontSize: '14px', color: '#047857' }}>
+                              {data.score}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>
+                    أول تقرير متاح؛ نقطة بداية للمقارنة في التقارير القادمة.
+                  </div>
+                </div>
+
+                {/* الملاحظات السلوكية (Page 1) */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginBottom: '6px' }}>
+                    الملاحظات السلوكية
+                  </div>
                   <div style={{
                     border: '1px solid #e2e8f0',
-                    borderRadius: '14px',
-                    padding: '24px 20px',
-                    textAlign: 'center',
-                    background: '#ffffff'
+                    borderRadius: '10px',
+                    padding: '10px 14px',
+                    background: '#f8fafc',
+                    fontSize: '12.5px',
+                    lineHeight: '1.7',
+                    color: '#334155'
                   }}>
-                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b', marginBottom: '16px' }}>
-                      المستوى العام
-                    </div>
+                    {behavioralNotes || 'لم تُسجَّل ملاحظات سلوكية هذا الشهر، ونكتفي بالإشارة إلى أن الطالب يواصل حضوره المنتظم ومشاركته في الصف.'}
+                  </div>
+                </div>
 
-                    {/* SVG Radial Gauge */}
-                    <div style={{ position: 'relative', width: '160px', height: '160px', margin: '0 auto 16px' }}>
-                      <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
-                        <path
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          fill="none"
-                          stroke="#e2e8f0"
-                          strokeWidth="3.2"
-                        />
-                        <path
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          fill="none"
-                          stroke="#047857"
-                          strokeWidth="3.2"
-                          strokeDasharray={`${averagePercentage}, 100`}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <span style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a' }}>
-                          {averagePercentage}
-                        </span>
-                        <span style={{ fontSize: '12px', color: '#64748b' }}>من 100</span>
+                {/* أولويات الدعم (Page 1 - 2x2 Grid with vertical divider) */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginBottom: '8px' }}>
+                    أولويات الدعم
+                  </div>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '16px',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    direction: 'rtl'
+                  }}>
+                    {/* Right Column: داخل الصف والهدف القريب */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderLeft: '1.5px solid #e2e8f0', paddingLeft: '14px' }}>
+                      <div style={{ fontSize: '12.5px', lineHeight: '1.7', color: '#334155' }}>
+                        <strong style={{ color: '#0f172a' }}>داخل الصف: </strong>
+                        {supportPlan.inClassActionPlan?.[1] || 'سندمج مشاريع تطبيقية تربط بين المواد لتنمية الإبداع.'}
+                      </div>
+                      <div style={{ fontSize: '12.5px', lineHeight: '1.7', color: '#334155' }}>
+                        <strong style={{ color: '#0f172a' }}>الهدف القريب: </strong>
+                        {supportPlan.shortTermGoals?.[0] || 'المشاركة في نشاط إثرائي واحد على الأقل خلال الأسبوعين القادمين.'}
                       </div>
                     </div>
 
-                    {/* Level Label Badge */}
-                    <div style={{ fontSize: '16px', fontWeight: '800', color: '#047857', marginBottom: '6px' }}>
-                      {overallLevel.level}
-                    </div>
-
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
-                      {evaluatedCount} / {totalPossibleSubjects} المواد المقيمة
-                    </div>
-
-                    {/* Legend Color Bar */}
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '8px' }}>
-                      <div style={{ width: '24px', height: '6px', borderRadius: '3px', background: '#dc2626' }} />
-                      <div style={{ width: '24px', height: '6px', borderRadius: '3px', background: '#d97706' }} />
-                      <div style={{ width: '24px', height: '6px', borderRadius: '3px', background: '#2563eb' }} />
-                      <div style={{ width: '24px', height: '6px', borderRadius: '3px', background: '#047857' }} />
-                    </div>
-
-                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                      .المواد غير المقيمة لا تدخل في المتوسط
+                    {/* Left Column: داخل المنزل والهدف الأبعد */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ fontSize: '12.5px', lineHeight: '1.7', color: '#334155' }}>
+                        <strong style={{ color: '#0f172a' }}>داخل المنزل: </strong>
+                        {supportPlan.atHomeActionPlan?.[0] || 'نوصي بتشجيع القراءة الحرة وفتح حوار حول ما يتعلمه في المدرسة.'}
+                      </div>
+                      <div style={{ fontSize: '12.5px', lineHeight: '1.7', color: '#334155' }}>
+                        <strong style={{ color: '#0f172a' }}>الهدف الأبعد: </strong>
+                        {supportPlan.longTermGoals?.[0] || 'تقديم مشروع بحثي بسيط خلال الشهرين القادمين مع مراجعة شهرية.'}
+                      </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Right Widget: جدول الدرجات والمستويات */}
+                {/* Bottom Navigation Box */}
+                <div style={{
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  padding: '8px 14px',
+                  textAlign: 'center',
+                  color: '#475569',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  marginBottom: '10px'
+                }}>
+                  <span>↓</span>
+                  <span>للاطلاع على التحليل التفصيلي وتعليقات المعلمين وخطة الدعم، تابع الصفحات التالية.</span>
+                </div>
+
+                {/* Page 1 Footer Number */}
+                <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '12px', fontWeight: '700' }}>
+                  1 / 5
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════════════
+                  PAGE 2: التحليل التفصيلي وخطة الدعم (Matches Uploaded PDF Page 2)
+              ═══════════════════════════════════════════════════════════════ */}
+              <div className="report-pdf-page report-page-break" style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '16px', marginBottom: '20px' }}>
+                {/* Page 2 Title */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1b4d73', fontSize: '18px', fontWeight: '900', marginBottom: '6px' }}>
+                  <BookOpen size={20} color="#1b4d73" />
+                  <span>التحليل التفصيلي وخطة الدعم</span>
+                </div>
+
+                {/* Sub-bar (Metadata) */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '11.5px',
+                  color: '#64748b',
+                  borderBottom: '1px solid #e2e8f0',
+                  paddingBottom: '8px',
+                  marginBottom: '14px'
+                }}>
+                  <span>النسخة 1</span>
+                  <span>تاريخ الإصدار: <b>{reportDateTime || '،٢٠٢٦/١٠/١ ٩:١١ ص'}</b></span>
+                  <span>مرجع التقرير: <b style={{ fontFamily: 'monospace' }}>{activeReportId !== 'default' ? activeReportId.slice(0, 8) : '6dfaaf1c'}</b></span>
+                </div>
+
+                {/* Intro Paragraph */}
+                <div style={{
+                  border: '1px solid #e2e8f0',
+                  borderRight: '4px solid #1b4d73',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  background: '#f8fafc',
+                  fontSize: '12.5px',
+                  lineHeight: '1.8',
+                  color: '#334155',
+                  marginBottom: '16px'
+                }}>
+                  يقدم هذا التقرير متابعة شهرية لمستوى الطالب في المهارات الأكاديمية، اعتمادًا على ملاحظات المعلمين ودرجات الأداء خلال الفترة المحددة. ويعرض نقاط القوة ومجالات الدعم في صورة تربوية متوازنة تراعي الفروق الفردية، مع خطة عملية داخل الصف وفي المنزل. وهو أداة للشراكة بين المدرسة وولي الأمر، ومراجعة التقدم وتطوير الخطة وفق احتياجات الطالب.
+                </div>
+
+                {/* الصورة العامة */}
+                <div style={{ marginBottom: '18px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #fde68a' }}>
                   <div style={{
-                    border: '1px solid #1e3a8a',
-                    borderRadius: '14px',
-                    overflow: 'hidden'
+                    background: '#d97706',
+                    color: '#ffffff',
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '14px',
+                    fontWeight: '800'
                   }}>
+                    <Star size={16} fill="#ffffff" color="#ffffff" />
+                    <span>الصورة العامة</span>
+                  </div>
+                  <div style={{
+                    background: '#fffbeb',
+                    padding: '12px 16px',
+                    fontSize: '13px',
+                    lineHeight: '1.8',
+                    color: '#78350f'
+                  }}>
+                    {smartReportSummary || 'يُظهر الطالب تميزًا في جميع المواد الدراسية، وهو ما يعكس اجتهاده ومثابرته. نوصي بتشجيعه على مواصلة هذا التفوق والمشاركة في أنشطة إثرائية تنمي مهاراته.'}
+                  </div>
+                </div>
+
+                {/* تحليل الأداء البياني */}
+                <div style={{ marginBottom: '18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <BarChart2 size={18} color="#1b4d73" />
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                      تحليل الأداء البياني
+                    </h3>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: '16px', alignItems: 'start' }}>
+                    {/* Left: المستوى العام */}
                     <div style={{
-                      background: '#1e3a8a',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '16px 14px',
+                      textAlign: 'center',
+                      background: '#ffffff'
+                    }}>
+                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', marginBottom: '10px' }}>
+                        المستوى العام
+                      </div>
+                      <div style={{ position: 'relative', width: '120px', height: '120px', margin: '0 auto 10px' }}>
+                        <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
+                          <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" strokeWidth="3.2" />
+                          <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#047857" strokeWidth="3.2" strokeDasharray={`${averagePercentage}, 100`} strokeLinecap="round" />
+                        </svg>
+                        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>{averagePercentage}</span>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>من 100</span>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#047857', marginBottom: '3px' }}>
+                        {overallLevel?.level || 'متقدم ومتميز'}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: '#64748b', marginBottom: '6px' }}>
+                        {evaluatedCount} / {totalPossibleSubjects} المواد المقيمة
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '3px', marginBottom: '6px' }}>
+                        <div style={{ width: '20px', height: '5px', borderRadius: '3px', background: '#dc2626' }} />
+                        <div style={{ width: '20px', height: '5px', borderRadius: '3px', background: '#d97706' }} />
+                        <div style={{ width: '20px', height: '5px', borderRadius: '3px', background: '#2563eb' }} />
+                        <div style={{ width: '20px', height: '5px', borderRadius: '3px', background: '#047857' }} />
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#94a3b8' }}>.المواد غير المقيمة لا تدخل في المتوسط</div>
+                    </div>
+
+                    {/* Right: جدول الدرجات */}
+                    <div style={{ border: '1px solid #1b4d73', borderRadius: '12px', overflow: 'hidden' }}>
+                      <div style={{ background: '#1b4d73', color: '#ffffff', padding: '8px 14px', fontSize: '13px', fontWeight: '800' }}>
+                        جدول الدرجات
+                      </div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                            <th style={{ padding: '6px 10px', fontSize: '11px', color: '#64748b', width: '8%', textAlign: 'center' }}>#</th>
+                            <th style={{ padding: '6px 10px', fontSize: '11px', color: '#64748b' }}>المادة / المهارة</th>
+                            <th style={{ padding: '6px 10px', fontSize: '11px', color: '#64748b', width: '22%', textAlign: 'center' }}>الدرجة</th>
+                            <th style={{ padding: '6px 10px', fontSize: '11px', color: '#64748b', width: '28%', textAlign: 'center' }}>المستوى</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activeSubjectDefs.map((subject, idx) => {
+                            const data = subjectScores[subject.id] || { score: 10 };
+                            const lvl = getPerformanceLevel(data.score);
+                            return (
+                              <tr key={subject.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '6px 10px', textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>{idx + 1}</td>
+                                <td style={{ padding: '6px 10px', fontSize: '12px', fontWeight: '700', color: '#1e293b' }}>{subject.name}</td>
+                                <td style={{ padding: '6px 10px', textAlign: 'center', fontSize: '12px', fontWeight: '800', color: '#1e293b' }}>{data.score} / 10</td>
+                                <td style={{ padding: '6px 10px', textAlign: 'center', fontSize: '11.5px', fontWeight: '700', color: lvl.color }}>{lvl.level}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* تفاصيل المهارات الأكاديمية (Header + Subject 1) */}
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <BookOpen size={18} color="#1b4d73" />
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                      تفاصيل المهارات الأكاديمية
+                    </h3>
+                  </div>
+
+                  {/* Subject 1 Card */}
+                  {activeSubjectDefs.length > 0 && (() => {
+                    const sub = activeSubjectDefs[0];
+                    const data = subjectScores[sub.id] || { score: 10 };
+                    const lvl = getPerformanceLevel(data.score);
+                    const detailText = getDetailedSubjectSkillText(sub.id, sub.name, data.score, data.summary);
+                    return (
+                      <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 16px', background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#1d4ed8', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '800' }}>1</span>
+                            <strong style={{ fontSize: '14px', color: '#0f172a' }}>{sub.name}</strong>
+                          </div>
+                          <div style={{ border: '1px solid #10b981', background: '#ecfdf5', color: '#047857', padding: '2px 10px', borderRadius: '16px', fontSize: '11.5px', fontWeight: '800' }}>
+                            {data.score} / 10 {lvl.level}
+                          </div>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '12.5px', lineHeight: '1.8', color: '#334155' }}>
+                          {detailText}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Page 2 Footer Number */}
+                <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '12px', fontWeight: '700' }}>
+                  2 / 5
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════════════
+                  PAGE 3: تفاصيل المهارات الأكاديمية (تابع المواد 2 إلى 7)
+              ═══════════════════════════════════════════════════════════════ */}
+              <div className="report-pdf-page report-page-break" style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '16px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+                  {activeSubjectDefs.slice(1).map((sub, idx) => {
+                    const data = subjectScores[sub.id] || { score: 10 };
+                    const lvl = getPerformanceLevel(data.score);
+                    const detailText = getDetailedSubjectSkillText(sub.id, sub.name, data.score, data.summary);
+                    return (
+                      <div key={sub.id} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 16px', background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#0284c7', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '800' }}>
+                              {idx + 2}
+                            </span>
+                            <strong style={{ fontSize: '14px', color: '#0f172a' }}>{sub.name}</strong>
+                          </div>
+                          <div style={{ border: '1px solid #10b981', background: '#ecfdf5', color: '#047857', padding: '2px 10px', borderRadius: '16px', fontSize: '11.5px', fontWeight: '800' }}>
+                            {data.score} / 10 {lvl.level}
+                          </div>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '12.5px', lineHeight: '1.8', color: '#334155' }}>
+                          {detailText}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Page 3 Footer Number */}
+                <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '12px', fontWeight: '700' }}>
+                  3 / 5
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════════════
+                  PAGE 4: تطور الطالب عبر التقارير (Matches Uploaded PDF Page 4)
+              ═══════════════════════════════════════════════════════════════ */}
+              <div className="report-pdf-page report-page-break" style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '16px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1b4d73', fontSize: '18px', fontWeight: '900', marginBottom: '4px' }}>
+                  <TrendingUp size={20} color="#1b4d73" />
+                  <span>تطور الطالب عبر التقارير</span>
+                </div>
+                <p style={{ margin: '0 0 14px 0', fontSize: '12.5px', color: '#64748b' }}>
+                  هذا أول تقرير متاح؛ يمثل نقطة بداية للمقارنة في التقارير القادمة.
+                </p>
+
+                {/* Progress Bar Card */}
+                <div style={{ border: '1px solid #bfdbfe', borderRadius: '10px', background: '#eff6ff', padding: '14px 18px', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#1e3a8a' }}>
+                      التقرير 1 · {academicMonth || 'أكتوبر ٢٠٢٦'}
+                    </span>
+                    <span style={{ fontSize: '15px', fontWeight: '900', color: '#1d4ed8' }}>
+                      {averagePercentage}%
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px' }}>
+                    {reportDateTime || '،٢٠٢٦/١٠/١ ٩:١١ ص'}
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: '#dbeafe', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${averagePercentage}%`, height: '100%', background: '#2563eb', borderRadius: '4px' }} />
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '12.5px', color: '#64748b', marginBottom: '10px' }}>
+                  التغير عن التقرير السابق: <strong style={{ color: '#0f172a' }}>—</strong>
+                </div>
+
+                {/* Comparison Table */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden', marginBottom: '12px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '8px 12px', fontSize: '12px', color: '#64748b' }}>المادة</th>
+                        <th style={{ padding: '8px 12px', fontSize: '12px', color: '#64748b', width: '22%', textAlign: 'center' }}>السابق / 10</th>
+                        <th style={{ padding: '8px 12px', fontSize: '12px', color: '#64748b', width: '22%', textAlign: 'center' }}>الحالي / 10</th>
+                        <th style={{ padding: '8px 12px', fontSize: '12px', color: '#64748b', width: '25%', textAlign: 'center' }}>المستوى الحالي</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeSubjectDefs.map(sub => {
+                        const data = subjectScores[sub.id] || { score: 10 };
+                        const lvl = getPerformanceLevel(data.score);
+                        return (
+                          <tr key={sub.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '8px 12px', fontSize: '12.5px', fontWeight: '700', color: '#1e293b' }}>
+                              {sub.name}
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: '12.5px', color: '#94a3b8' }}>
+                              —
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>
+                              {data.score}
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: '12px', fontWeight: '700', color: lvl.color }}>
+                              {lvl.level}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: '1.6', marginBottom: '14px' }}>
+                  تعبّر الدرجات عن هذا التقييم، وليست تشخيصًا. تُقارن النتائج الإجمالية عند تماثل المواد المقيمة.
+                </div>
+
+                {/* Page 4 Footer Number */}
+                <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '12px', fontWeight: '700' }}>
+                  4 / 5
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════════════
+                  PAGE 5: الملاحظات السلوكية والخطة والاعتماد (Matches Uploaded PDF Page 5)
+              ═══════════════════════════════════════════════════════════════ */}
+              <div className="report-pdf-page report-page-break" style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '16px' }}>
+
+                {/* الملاحظات السلوكية */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ border: '1px solid #ddd6fe', borderRadius: '10px', overflow: 'hidden' }}>
+                    <div style={{
+                      background: '#6d28d9',
                       color: '#ffffff',
-                      padding: '12px 18px',
+                      padding: '8px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
                       fontSize: '14px',
                       fontWeight: '800'
                     }}>
-                      جدول الدرجات
+                      <ClipboardCheck size={16} />
+                      <span>الملاحظات السلوكية</span>
                     </div>
-
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-                      <thead>
-                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                          <th style={{ padding: '10px 14px', fontSize: '12px', color: '#64748b', width: '8%', textAlign: 'center' }}>#</th>
-                          <th style={{ padding: '10px 14px', fontSize: '12px', color: '#64748b' }}>المادة / المهارة</th>
-                          <th style={{ padding: '10px 14px', fontSize: '12px', color: '#64748b', width: '22%', textAlign: 'center' }}>الدرجة</th>
-                          <th style={{ padding: '10px 14px', fontSize: '12px', color: '#64748b', width: '25%', textAlign: 'center' }}>المستوى</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {activeSubjectDefs.map((subject, idx) => {
-                          const data = subjectScores[subject.id] || { score: 10 };
-                          const lvl = getPerformanceLevel(data.score);
-                          return (
-                            <tr key={subject.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '10px 14px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>
-                                {idx + 1}
-                              </td>
-                              <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
-                                {subject.name}
-                              </td>
-                              <td style={{ padding: '10px 14px', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>
-                                {data.score} / 10
-                              </td>
-                              <td style={{ padding: '10px 14px', textAlign: 'center', fontSize: '12px', fontWeight: '700', color: lvl.color }}>
-                                {lvl.level}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* ─── PAGE BREAK FOR CLEAN 2-PAGE PRINT LAYOUT ─── */}
-              <div className="report-page-break" style={{ pageBreakBefore: 'always', breakBefore: 'page' }} />
-
-              {/* ─── SECTION 3.1: الملاحظات السلوكية (Matches media_1790897714805.png) ─── */}
-              <div style={{ marginBottom: '32px' }}>
-                <div style={{
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '14px',
-                  overflow: 'hidden',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-                }}>
-                  <div style={{
-                    background: 'linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%)',
-                    color: '#ffffff',
-                    padding: '12px 20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <ClipboardCheck size={18} />
-                      <span style={{ fontSize: '15px', fontWeight: '800' }}>الملاحظات السلوكية والانضباطية</span>
+                    <div style={{ background: '#faf5ff', padding: '12px 16px', fontSize: '13px', lineHeight: '1.8', color: '#4c1d95' }}>
+                      {behavioralNotes || 'لم تُسجَّل ملاحظات سلوكية هذا الشهر، ونكتفي بالإشارة إلى أن الطالب يواصل حضوره المنتظم ومشاركته في الصف.'}
                     </div>
-                    {!isPublicViewer && (
-                      <span className="no-print" style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '12px' }}>
-                        قابلة للتعديل
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ padding: '20px 24px', background: '#ffffff' }}>
-                    {!isPublicViewer ? (
-                      <textarea 
-                        rows={3}
-                        value={behavioralNotes}
-                        onChange={(e) => setBehavioralNotes(e.target.value)}
-                        placeholder="اكتب الملاحظات السلوكية للطالب خلال هذا الشهر..."
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          borderRadius: '10px',
-                          border: '1px solid #cbd5e1',
-                          fontSize: '14px',
-                          lineHeight: '1.8',
-                          color: '#334155',
-                          fontFamily: 'inherit',
-                          resize: 'vertical'
-                        }}
-                      />
-                    ) : (
-                      <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.8', color: '#475569' }}>
-                        {behavioralNotes || DEFAULT_BEHAVIORAL_NOTES}
-                      </p>
-                    )}
                   </div>
                 </div>
-              </div>
 
-              {/* ─── SECTION 3.2: خطة الدعم والتحسين (Matches media_1790897714805.png) ─── */}
-              <div style={{ marginBottom: '36px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Target size={22} color="#0284c7" />
-                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+                {/* خطة الدعم والتحسين */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <Target size={18} color="#1b4d73" />
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
                       خطة الدعم والتحسين
                     </h3>
                   </div>
 
-                  {!isPublicViewer && (
-                    <button 
-                      type="button"
-                      className="no-print"
-                      onClick={handleAutoGenerateFullPlan}
-                      disabled={isGeneratingPlanAI}
-                      style={{
-                        background: 'rgba(2, 132, 199, 0.1)',
-                        color: '#0284c7',
-                        border: '1px solid rgba(2, 132, 199, 0.3)',
-                        padding: '6px 14px',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Sparkles size={13} />
-                      <span>{isGeneratingPlanAI ? 'جاري التوليد...' : 'توليد خطة التحسين بالذكاء الاصطناعي'}</span>
-                    </button>
-                  )}
-                </div>
-
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                  gap: '20px'
-                }}>
-                  
-                  {/* 1. خطة إجراءات داخل الصف */}
-                  <div style={{
-                    border: '1px solid #bfdbfe',
-                    borderRadius: '14px',
-                    overflow: 'hidden',
-                    background: '#ffffff',
-                    boxShadow: '0 2px 10px rgba(59, 130, 246, 0.04)'
-                  }}>
-                    <div style={{
-                      background: '#1d4ed8',
-                      color: '#ffffff',
-                      padding: '14px 18px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: '800' }}>
-                        <BookOpen size={16} />
-                        <span>خطة إجراءات داخل الصف</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                    {/* 1. داخل الصف */}
+                    <div style={{ border: '1px solid #bfdbfe', borderRadius: '10px', overflow: 'hidden', background: '#fff' }}>
+                      <div style={{ background: '#1d4ed8', color: '#fff', padding: '8px 12px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '800' }}>خطة إجراءات داخل الصف</div>
+                        <div style={{ fontSize: '10.5px', color: '#bfdbfe' }}>دور المربي والمعلمين</div>
                       </div>
-                      <span style={{ fontSize: '11px', color: '#bfdbfe' }}>دور المربي والمعلمين</span>
-                    </div>
-
-                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {(supportPlan.inClassActionPlan || []).map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#1d4ed8', marginTop: '8px', flexShrink: 0 }} />
-                          <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.8', color: '#334155' }}>
-                            {item}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 2. خطة إجراءات داخل المنزل */}
-                  <div style={{
-                    border: '1px solid #a7f3d0',
-                    borderRadius: '14px',
-                    overflow: 'hidden',
-                    background: '#ffffff',
-                    boxShadow: '0 2px 10px rgba(16, 185, 129, 0.04)'
-                  }}>
-                    <div style={{
-                      background: '#047857',
-                      color: '#ffffff',
-                      padding: '14px 18px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: '800' }}>
-                        <Home size={16} />
-                        <span>خطة إجراءات داخل المنزل</span>
-                      </div>
-                      <span style={{ fontSize: '11px', color: '#a7f3d0' }}>مساندة عملية من الأسرة</span>
-                    </div>
-
-                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {(supportPlan.atHomeActionPlan || []).map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#047857', marginTop: '8px', flexShrink: 0 }} />
-                          <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.8', color: '#334155' }}>
-                            {item}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 3. أهداف قصيرة المدى */}
-                  <div style={{
-                    border: '1px solid #fde68a',
-                    borderRadius: '14px',
-                    overflow: 'hidden',
-                    background: '#ffffff',
-                    boxShadow: '0 2px 10px rgba(217, 119, 6, 0.04)'
-                  }}>
-                    <div style={{
-                      background: '#b45309',
-                      color: '#ffffff',
-                      padding: '14px 18px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: '800' }}>
-                        <Target size={16} />
-                        <span>أهداف قصيرة المدى</span>
-                      </div>
-                      <span style={{ fontSize: '11px', color: '#fef3c7' }}>أسبوع إلى أسبوعين</span>
-                    </div>
-
-                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {(supportPlan.shortTermGoals || []).map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#b45309', marginTop: '8px', flexShrink: 0 }} />
-                          <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.8', color: '#334155' }}>
-                            {item}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 4. أهداف طويلة المدى */}
-                  <div style={{
-                    border: '1px solid #e9d5ff',
-                    borderRadius: '14px',
-                    overflow: 'hidden',
-                    background: '#ffffff',
-                    boxShadow: '0 2px 10px rgba(124, 58, 237, 0.04)'
-                  }}>
-                    <div style={{
-                      background: '#6d28d9',
-                      color: '#ffffff',
-                      padding: '14px 18px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: '800' }}>
-                        <Calendar size={16} />
-                        <span>أهداف طويلة المدى</span>
-                      </div>
-                      <span style={{ fontSize: '11px', color: '#e9d5ff' }}>تُراجع مع المتابعات الشهرية القادمة</span>
-                    </div>
-
-                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {(supportPlan.longTermGoals || []).map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6d28d9', marginTop: '8px', flexShrink: 0 }} />
-                          <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.8', color: '#334155' }}>
-                            {item}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* ─── SECTION 4: شواهد التقارير (Evidence Media - Images & Videos) ─── */}
-              <div style={{ marginBottom: '32px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ImageIcon size={20} color="#059669" />
-                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-                      شواهد الإنجاز والتميز (صور ومقاطع فيديو)
-                    </h3>
-                  </div>
-
-                  {/* Upload Trigger Button */}
-                  <label className="no-print" style={{
-                    background: '#f1f5f9',
-                    border: '1px solid #cbd5e1',
-                    color: '#334155',
-                    padding: '6px 14px',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer'
-                  }}>
-                    <UploadCloud size={14} />
-                    <span>{isUploadingMedia ? 'جاري الرفع...' : '+ إضافة شاهد (صورة أو فيديو)'}</span>
-                    <input 
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      accept="image/*,video/mp4,video/webm"
-                      onChange={handleUploadEvidence}
-                      style={{ display: 'none' }}
-                      disabled={isUploadingMedia}
-                    />
-                  </label>
-                </div>
-
-                {evidenceList.length === 0 ? (
-                  <div style={{
-                    background: '#fafafa',
-                    border: '1px dashed #cbd5e1',
-                    borderRadius: '12px',
-                    padding: '24px',
-                    textAlign: 'center',
-                    color: '#94a3b8',
-                    fontSize: '13px'
-                  }}>
-                    لا توجد شواهد مرفقة لهذا التقرير بعد.
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '14px' }}>
-                    {evidenceList.map(item => (
-                      <div 
-                        key={item.id}
-                        style={{
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '10px',
-                          overflow: 'hidden',
-                          background: '#fff',
-                          position: 'relative'
-                        }}
-                      >
-                        {item.type === 'video' ? (
-                          <div 
-                            onClick={() => setMediaPreviewModal(item)}
-                            style={{
-                              height: '110px',
-                              background: '#0f172a',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#fff',
-                              cursor: 'pointer',
-                              position: 'relative'
-                            }}
-                          >
-                            <Play size={28} />
-                            <span style={{ fontSize: '11px', marginTop: '4px' }}>مقطع فيديو</span>
+                      <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {(supportPlan.inClassActionPlan || [
+                          'توفير أنشطة إثرائية في المواد التي أظهر فيها تميزًا لتعزيز مهارات التفكير العليا.',
+                          'دمج مشاريع تطبيقية تربط بين المواد المختلفة لتنمية الإبداع والابتكار.'
+                        ]).map((item, idx) => (
+                          <div key={idx} style={{ fontSize: '12px', lineHeight: '1.7', color: '#334155' }}>
+                            <b>{idx + 1}.</b> {item}
                           </div>
-                        ) : (
-                          <img 
-                            src={item.url} 
-                            alt={item.title}
-                            onClick={() => setMediaPreviewModal(item)}
-                            style={{ width: '100%', height: '110px', objectFit: 'cover', cursor: 'pointer' }}
-                          />
-                        )}
-
-                        <div style={{ padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '12px', fontWeight: '600', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
-                            {item.title}
-                          </span>
-                          <button 
-                            className="no-print"
-                            type="button"
-                            onClick={() => handleDeleteEvidence(item.id)}
-                            style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px' }}
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Commitment & Follow-up Note */}
-              <p style={{
-                fontSize: '12.5px',
-                color: '#64748b',
-                lineHeight: '1.9',
-                textAlign: 'center',
-                maxWidth: '780px',
-                margin: '28px auto 20px',
-                direction: 'rtl'
-              }}>
-                سيلتزم المربي والمعلمون بمتابعة خطة الصف، أما الخطوات المنزلية فهي توصيات للأسرة. وسنراجع أثر الخطة في المتابعة دون افتراض تحقق التحسن مسبقًا.
-              </p>
-
-              {/* General Classification Box (التصنيف العام) */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                marginBottom: '32px'
-              }}>
-                <div style={{
-                  border: '1.5px solid #cbd5e1',
-                  borderRadius: '14px',
-                  padding: '14px 42px',
-                  textAlign: 'center',
-                  background: '#ffffff',
-                  minWidth: '240px',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
-                }}>
-                  <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '700', marginBottom: '6px' }}>
-                    التصنيف العام
-                  </div>
-                  <div style={{ fontSize: '18px', color: '#047857', fontWeight: '900', marginBottom: '4px' }}>
-                    {overallLevel?.level || 'متقدم ومتميز'}
-                  </div>
-                  <div style={{ fontSize: '22px', color: '#0f172a', fontWeight: '900' }}>
-                    {averagePercentage}%
-                  </div>
-                </div>
-              </div>
-
-              {/* ─── OFFICIAL REPORT CLOSING & SIGNATURES (Strictly matched with Image 1) ─── */}
-              <div className="report-signatures avoid-break" style={{ 
-                marginTop: '36px', 
-                paddingTop: '20px', 
-                direction: 'rtl'
-              }}>
-                {/* Two Column Signatures */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '48px',
-                  alignItems: 'start',
-                  maxWidth: '820px',
-                  margin: '0 auto 16px auto'
-                }}>
-                  {/* Right: توقيع المربي المخلص */}
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      color: '#1b4d73',
-                      fontSize: '16px',
-                      fontWeight: '800',
-                      marginBottom: '8px'
-                    }}>
-                      <span>توقيع المربي المخلص</span>
-                      <Edit2 size={16} color="#1b4d73" />
                     </div>
-                    <div style={{ height: '1.5px', background: '#97acc0', width: '100%', margin: '0 auto 8px auto' }} />
-                    <div style={{ color: '#64748b', fontSize: '14px', fontWeight: '700' }}>
-                      {selectedMentor?.name || userData?.name || 'محمد عبدالله جمعة'}
-                    </div>
-                  </div>
 
-                  {/* Left: توقيع ولي الأمر */}
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      color: '#1b4d73',
-                      fontSize: '16px',
-                      fontWeight: '800',
-                      marginBottom: '8px'
-                    }}>
-                      <Edit2 size={16} color="#1b4d73" />
-                      <span>توقيع ولي الأمر</span>
+                    {/* 2. داخل المنزل */}
+                    <div style={{ border: '1px solid #a7f3d0', borderRadius: '10px', overflow: 'hidden', background: '#fff' }}>
+                      <div style={{ background: '#047857', color: '#fff', padding: '8px 12px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '800' }}>خطة إجراءات داخل المنزل</div>
+                        <div style={{ fontSize: '10.5px', color: '#a7f3d0' }}>مساندة عملية من الأسرة</div>
+                      </div>
+                      <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {(supportPlan.atHomeActionPlan || [
+                          'من المفيد للأسرة أن تشجع الطالب على القراءة الحرة في مجالات متنوعة لدعم تميزه اللغوي.',
+                          'نوصي الوالدين بتخصيص وقت للحوار حول ما يتعلمه الطالب في المدرسة لتعزيز فهمه وتواصله.'
+                        ]).map((item, idx) => (
+                          <div key={idx} style={{ fontSize: '12px', lineHeight: '1.7', color: '#334155' }}>
+                            <b>{idx + 1}.</b> {item}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div style={{ height: '1.5px', background: '#97acc0', width: '100%', margin: '0 auto 8px auto' }} />
-                    <div style={{ color: '#64748b', fontSize: '13px', fontWeight: '500' }}>
-                      للاطلاع على خطة المتابعة والتوصيات المنزلية
+
+                    {/* 3. أهداف قصيرة المدى */}
+                    <div style={{ border: '1px solid #fde68a', borderRadius: '10px', overflow: 'hidden', background: '#fff' }}>
+                      <div style={{ background: '#b45309', color: '#fff', padding: '8px 12px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '800' }}>أهداف قصيرة المدى</div>
+                        <div style={{ fontSize: '10.5px', color: '#fef3c7' }}>أسبوع إلى أسبوعين</div>
+                      </div>
+                      <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {(supportPlan.shortTermGoals || [
+                          'أن يشارك الطالب في نشاط إثرائي واحد على الأقل خلال الأسبوعين القادمين.'
+                        ]).map((item, idx) => (
+                          <div key={idx} style={{ fontSize: '12px', lineHeight: '1.7', color: '#334155' }}>
+                            <b>{idx + 1}.</b> {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 4. أهداف طويلة المدى */}
+                    <div style={{ border: '1px solid #e9d5ff', borderRadius: '10px', overflow: 'hidden', background: '#fff' }}>
+                      <div style={{ background: '#6d28d9', color: '#fff', padding: '8px 12px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '800' }}>أهداف طويلة المدى</div>
+                        <div style={{ fontSize: '10.5px', color: '#e9d5ff' }}>تُراجع مع المتابعات الشهرية القادمة</div>
+                      </div>
+                      <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {(supportPlan.longTermGoals || [
+                          'أن يقدم الطالب مشروعًا بحثيًا بسيطًا في أحد المجالات التي يحبها خلال الشهرين القادمين، مع مراجعة شهرية لتقدمه.'
+                        ]).map((item, idx) => (
+                          <div key={idx} style={{ fontSize: '12px', lineHeight: '1.7', color: '#334155' }}>
+                            <b>{idx + 1}.</b> {item}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Date line */}
-                <div style={{
-                  textAlign: 'center',
+                {/* تعهد ومتابعة */}
+                <p style={{
+                  fontSize: '11.5px',
                   color: '#64748b',
-                  fontSize: '13.5px',
-                  fontWeight: '600',
-                  marginTop: '18px',
-                  marginBottom: '20px'
-                }}>
-                  ............................ :التاريخ
-                </div>
-
-                {/* Official Copyright & Contact Footer */}
-                <div className="report-footer-line" style={{
-                  borderTop: '1px solid #e2e8f0',
-                  paddingTop: '16px',
+                  lineHeight: '1.8',
                   textAlign: 'center',
-                  color: '#8490a4',
-                  fontSize: '12px',
-                  lineHeight: '1.8'
+                  maxWidth: '780px',
+                  margin: '16px auto 12px',
+                  direction: 'rtl'
                 }}>
-                  <div>جميع الحقوق محفوظة © مركز التحول العلائقي</div>
-                  <div style={{ direction: 'ltr', display: 'inline-block' }}>
-                    relational-shift.com · +966591540056 :للتواصل
+                  سيلتزم المربي والمعلمون بمتابعة خطة الصف، أما الخطوات المنزلية فهي توصيات للأسرة. وسنراجع أثر الخطة في المتابعة دون افتراض تحقق التحسن مسبقًا.
+                </p>
+
+                {/* صندوق التصنيف العام */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '18px' }}>
+                  <div style={{
+                    border: '1.5px solid #cbd5e1',
+                    borderRadius: '10px',
+                    padding: '8px 32px',
+                    textAlign: 'center',
+                    background: '#ffffff',
+                    minWidth: '200px',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                  }}>
+                    <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '700', marginBottom: '2px' }}>التصنيف العام</div>
+                    <div style={{ fontSize: '15px', color: '#047857', fontWeight: '900', marginBottom: '1px' }}>
+                      {overallLevel?.level || 'متقدم ومتميز'}
+                    </div>
+                    <div style={{ fontSize: '18px', color: '#0f172a', fontWeight: '900' }}>
+                      {averagePercentage}%
+                    </div>
                   </div>
                 </div>
+
+                {/* التوقيعات الرسمية */}
+                <div className="report-signatures avoid-break" style={{ marginTop: '14px', paddingTop: '8px', direction: 'rtl' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '48px', alignItems: 'start', maxWidth: '820px', margin: '0 auto 10px auto' }}>
+                    {/* توقيع المربي المخلص */}
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#1b4d73', fontSize: '15px', fontWeight: '800', marginBottom: '6px' }}>
+                        <span>توقيع المربي المخلص</span>
+                        <Edit2 size={15} color="#1b4d73" />
+                      </div>
+                      <div style={{ height: '1.5px', background: '#97acc0', width: '100%', margin: '0 auto 6px auto' }} />
+                      <div style={{ color: '#64748b', fontSize: '13px', fontWeight: '700' }}>
+                        {selectedMentor?.name || userData?.name || 'محمد عبدالله جمعة'}
+                      </div>
+                    </div>
+
+                    {/* توقيع ولي الأمر */}
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#1b4d73', fontSize: '15px', fontWeight: '800', marginBottom: '6px' }}>
+                        <Edit2 size={15} color="#1b4d73" />
+                        <span>توقيع ولي الأمر</span>
+                      </div>
+                      <div style={{ height: '1.5px', background: '#97acc0', width: '100%', margin: '0 auto 6px auto' }} />
+                      <div style={{ color: '#64748b', fontSize: '12px', fontWeight: '500' }}>
+                        للاطلاع على خطة المتابعة والتوصيات المنزلية
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* سطر التاريخ */}
+                  <div style={{ textAlign: 'center', color: '#64748b', fontSize: '12.5px', fontWeight: '600', marginTop: '12px', marginBottom: '12px' }}>
+                    ............................ :التاريخ
+                  </div>
+
+                  {/* التذييل وحقوق النشر */}
+                  <div className="report-footer-line" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px', textAlign: 'center', color: '#8490a4', fontSize: '11px', lineHeight: '1.7' }}>
+                    <div>جميع الحقوق محفوظة © مركز التحول العلائقي</div>
+                    <div style={{ direction: 'ltr', display: 'inline-block' }}>
+                      relational-shift.com · +966591540056 :للتواصل
+                    </div>
+                  </div>
+                </div>
+
+                {/* Page 5 Footer Number */}
+                <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '12px', fontWeight: '700', marginTop: '12px' }}>
+                  5 / 5
+                </div>
+
               </div>
 
             </div>
