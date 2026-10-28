@@ -59,6 +59,7 @@ import {
   ClipboardCheck,
   ShieldCheck,
   Edit3,
+  Edit2,
   FolderPlus,
   Copy,
   Building2,
@@ -144,7 +145,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
   }, [schoolsList, schoolId]);
 
   const schoolDisplayName = useMemo(() => {
-    return currentSelectedSchool?.name || userData?.schoolName || 'مجمع مدارس المتقدمة للتعلم الذكي للبنين - جدة (المسار الأهلي)';
+    return currentSelectedSchool?.name || userData?.schoolName || 'مدارس المتقدمة للتعلم الذكي جدة';
   }, [currentSelectedSchool, userData]);
 
   const schoolLogoUrl = useMemo(() => {
@@ -182,7 +183,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
   const [academicMonth, setAcademicMonth] = useState(queryMonth || 'أكتوبر 2026');
 
   // Report Title, Time and Identification
-  const [reportTitle, setReportTitle] = useState('التقرير الدوري الشامل للمربي المخلص');
+  const [reportTitle, setReportTitle] = useState('التقرير الدوري الشهري');
   const [reportDateTime, setReportDateTime] = useState(() => {
     const now = new Date();
     return now.toLocaleString('ar-SA', { 
@@ -325,7 +326,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
         setClassesList(uniqueCls);
         setSelectedClass(prev => prev || uniqueCls[0]);
       } else {
-        const fallbackClasses = ['الرابع / 1', 'الرابع / 2', 'الخامس / 1', 'السادس / 1'];
+        const fallbackClasses = ['الصف الثالث المتوسط', 'الرابع / 1', 'الرابع / 2', 'الخامس / 1', 'السادس / 1'];
         setClassesList(fallbackClasses);
         setSelectedClass(prev => prev || fallbackClasses[0]);
       }
@@ -354,13 +355,13 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
       // Rich sample fallback if no students in database
       if (list.length === 0) {
         list = [
-          { id: 'st_101', name: 'عبدالله محمد السالم', nationalId: '1122334455', className: selectedClass },
-          { id: 'st_102', name: 'ريان فهد العبدالعزيز', nationalId: '1122334456', className: selectedClass },
-          { id: 'st_103', name: 'سلطان خالد المنصور', nationalId: '1122334457', className: selectedClass },
-          { id: 'st_104', name: 'عمر ياسر القرشي', nationalId: '1122334458', className: selectedClass },
-          { id: 'st_105', name: 'يوسف بدر الشمري', nationalId: '1122334459', className: selectedClass },
-          { id: 'st_106', name: 'تركي ناصر الحربي', nationalId: '1122334460', className: selectedClass },
-          { id: 'st_107', name: 'سعود عبدالعزيز الغامدي', nationalId: '1122334461', className: selectedClass }
+          { id: 'st_101', name: 'الاسر ياسر بن سعيد بن عبدالله الغامدي', nationalId: '1122334455', className: selectedClass, gender: 'male' },
+          { id: 'st_102', name: 'عبدالله محمد السالم', nationalId: '1122334456', className: selectedClass },
+          { id: 'st_103', name: 'ريان فهد العبدالعزيز', nationalId: '1122334457', className: selectedClass },
+          { id: 'st_104', name: 'سلطان خالد المنصور', nationalId: '1122334458', className: selectedClass },
+          { id: 'st_105', name: 'عمر ياسر القرشي', nationalId: '1122334459', className: selectedClass },
+          { id: 'st_106', name: 'يوسف بدر الشمري', nationalId: '1122334460', className: selectedClass },
+          { id: 'st_107', name: 'تركي ناصر الحربي', nationalId: '1122334461', className: selectedClass }
         ];
       }
       setStudents(list);
@@ -509,7 +510,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
         reps = [{
           id: 'default',
           reportId: 'default',
-          reportTitle: reportTitle || 'التقرير الدوري الشامل للمربي المخلص',
+          reportTitle: reportTitle || 'التقرير الدوري الشهري',
           reportType: 'دوري شهري',
           reportDateTime: reportDateTime
         }];
@@ -845,7 +846,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
         className: selectedClass,
         academicMonth,
         reportId: activeReportId,
-        reportTitle: reportTitle || 'التقرير الدوري الشامل للمربي المخلص',
+        reportTitle: reportTitle || 'التقرير الدوري الشهري',
         reportDateTime: reportDateTime,
         principalName: principalName || currentSelectedSchool?.principalName || 'أ. أنس الجهني',
         studentId: selectedStudent.id,
@@ -1052,7 +1053,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
     }
 
     const studentName = (selectedStudent?.name || 'الطالب').trim();
-    const reportName = (reportTitle || 'التقرير الدوري الشامل للمربي المخلص').trim();
+    const reportName = (reportTitle || 'التقرير الدوري الشهري').trim();
     
     // Explicit requested format: حفظ التقرير باسم الطالب والتقرير
     const docTitle = `${studentName} - ${reportName}`;
@@ -1192,7 +1193,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
   // ─── Select / Switch Student Report ───────────────────────
   const handleSelectReport = (rep) => {
     setActiveReportId(rep.reportId || rep.id);
-    setReportTitle(rep.reportTitle || 'التقرير الدوري الشامل للمربي المخلص');
+    setReportTitle(rep.reportTitle || 'التقرير الدوري الشهري');
     setReportDateTime(rep.reportDateTime || rep.createdAtStr || reportDateTime);
     if (rep.subjectScores) setSubjectScores(rep.subjectScores);
     if (rep.smartReportSummary) setSmartReportSummary(rep.smartReportSummary);
@@ -2052,7 +2053,7 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             animation: 'fadeIn 0.3s ease'
           }}>
             <CheckCircle size={18} />
-            <span>تم حفظ ورفع التقرير بنجاح باسم: <b>{selectedStudent?.name || 'الطالب'} - {reportTitle || 'التقرير الدوري الشامل للمربي المخلص'}</b></span>
+            <span>تم حفظ ورفع التقرير بنجاح باسم: <b>{selectedStudent?.name || 'الطالب'} - {reportTitle || 'التقرير الدوري الشهري'}</b></span>
           </div>
         )}
 
@@ -2898,120 +2899,140 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               boxShadow: '0 4px 25px rgba(0,0,0,0.04)'
             }}>
               
-              {/* Header in Report (Branded with Official School Name, Ministry/School Logos, Report Title, and Date/Time) */}
-              <div style={{ borderBottom: '2px solid #0f172a', paddingBottom: '20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <img 
-                      src={`${import.meta.env.BASE_URL}minst.svg`} 
-                      alt="وزارة التعليم" 
-                      style={{ height: '64px', width: 'auto', maxWidth: '100px', objectFit: 'contain' }}
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                    <div style={{ width: '1.5px', height: '44px', background: '#cbd5e1' }} />
+              {/* ─── OFFICIAL HEADER (Strictly matched with Image 2 / Al-Asr Yasser) ─── */}
+              <div style={{
+                borderRadius: '16px',
+                overflow: 'hidden',
+                marginBottom: '28px',
+                border: '1px solid #cbdceb',
+                boxShadow: '0 4px 18px rgba(27, 77, 115, 0.08)'
+              }}>
+                {/* Top Dark Blue Bar */}
+                <div style={{
+                  background: '#1b4d73',
+                  padding: '20px 28px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  direction: 'rtl'
+                }}>
+                  {/* Right Side: Title & Subtitle */}
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <h1 style={{
+                        margin: 0,
+                        fontSize: '28px',
+                        fontWeight: '900',
+                        color: '#ffffff',
+                        letterSpacing: '-0.3px',
+                        lineHeight: 1.2
+                      }}>
+                        {reportTitle || 'التقرير الدوري الشهري'}
+                      </h1>
+                      {!isPublicViewer && (
+                        <button 
+                          className="no-print"
+                          onClick={() => setIsEditingReportMeta(true)}
+                          style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#ffffff', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', fontSize: '11px' }}
+                          title="تعديل ترويسة التقرير"
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <div style={{
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      color: 'rgba(255, 255, 255, 0.92)',
+                      marginTop: '4px'
+                    }}>
+                      {schoolDisplayName || 'مدارس المتقدمة للتعلم الذكي جدة'}
+                    </div>
+                  </div>
+
+                  {/* Left Side: School Logo in White Rounded Box */}
+                  <div style={{
+                    background: '#ffffff',
+                    borderRadius: '14px',
+                    padding: '8px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                    minWidth: '85px',
+                    height: '68px'
+                  }}>
                     <img 
                       src={schoolLogoUrl} 
-                      alt={schoolDisplayName} 
-                      style={{ height: '68px', width: 'auto', maxWidth: '120px', objectFit: 'contain' }}
+                      alt={schoolDisplayName || 'شعار المدارس'} 
+                      style={{ height: '52px', width: 'auto', maxWidth: '100px', objectFit: 'contain' }}
                       onError={(e) => { 
                         e.target.onerror = null;
                         e.target.src = `${import.meta.env.BASE_URL}motaqadimah_logo.png`; 
                       }}
                     />
                   </div>
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>
-                      المملكة العربية السعودية • وزارة التعليم • شركة المدارس المتقدمة
-                    </div>
-                    <h2 style={{ margin: '3px 0 0 0', fontSize: '19px', fontWeight: '900', color: '#1e3a8a', lineHeight: 1.3 }}>
-                      {schoolDisplayName}
-                    </h2>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                      <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
-                        {reportTitle}
-                      </span>
-                      {!isPublicViewer && (
-                        <button 
-                          className="no-print"
-                          onClick={() => setIsEditingReportMeta(true)}
-                          style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '2px' }}
-                          title="تعديل عنوان ووقت التقرير"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
                 </div>
 
-                <div style={{ textAlign: 'left', fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
-                  <div>المدرسة: <b style={{ color: '#1e3a8a' }}>{schoolDisplayName}</b></div>
-                  <div>الفصل الدراسي: <b>{selectedClass}</b></div>
-                  <div>الشهر / الفترة: <b>{academicMonth}</b></div>
-                  <div>المربي المخلص: <b>{selectedMentor?.name || 'محمد عبدالله جمعة'}</b></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontSize: '12px', marginTop: '4px', justifyContent: 'flex-end' }}>
-                    <Clock size={13} />
-                    <span>تاريخ ووقت التقرير: <b>{reportDateTime}</b></span>
-                  </div>
-                </div>
-              </div>
+                {/* 3.5px Teal Accent Line */}
+                <div style={{ height: '3.5px', background: '#4bb5b0' }} />
 
-              {/* Student Metadata Card (Branded with student name, national ID, report status) */}
-              <div style={{
-                background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
-                border: '1px solid #bfdbfe',
-                borderRadius: '14px',
-                padding: '18px 24px',
-                marginBottom: '28px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '16px',
-                boxShadow: '0 2px 10px rgba(59, 130, 246, 0.05)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                {/* Bottom Metadata Info Area */}
+                <div style={{
+                  background: '#f2f6fb',
+                  padding: '16px 28px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  direction: 'rtl'
+                }}>
+                  {/* Row 1: Student Name & Class */}
                   <div style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    background: '#1e40af',
-                    color: '#fff',
                     display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold',
-                    fontSize: '20px'
+                    flexWrap: 'wrap',
+                    gap: '12px'
                   }}>
-                    {selectedStudent?.name ? selectedStudent.name.charAt(0) : 'ط'}
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '12px', color: '#64748b' }}>اسم الطالب:</span>
-                    <div style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>
-                      {selectedStudent?.name}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                      <span style={{ color: '#64748b', fontWeight: '600' }}>الطالب / الطالبة</span>
+                      <strong style={{ color: '#0f172a', fontSize: '16px', fontWeight: '900' }}>
+                        {selectedStudent?.name || 'الاسر ياسر بن سعيد بن عبدالله الغامدي'}
+                      </strong>
+                      <span style={{ color: '#64748b', fontSize: '13px', marginRight: '4px' }}>
+                        {selectedStudent?.gender === 'female' ? 'بنات' : 'بنين'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                      <span style={{ color: '#64748b', fontWeight: '600' }}>الصف / الفصل</span>
+                      <strong style={{ color: '#0f172a', fontSize: '15px', fontWeight: '800' }}>
+                        {selectedClass || 'الصف الثالث المتوسط'}
+                      </strong>
                     </div>
                   </div>
-                </div>
 
-                <div>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>رقم الهوية الوطنية / الأكاديمي:</span>
-                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#334155' }}>
-                    {selectedStudent?.nationalId || '05grd112'}
-                  </div>
-                </div>
+                  {/* Row 2: Mentor & Academic Period */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                      <span style={{ color: '#64748b', fontWeight: '600' }}>المربي المخلص</span>
+                      <strong style={{ color: '#0f172a', fontSize: '15px', fontWeight: '800' }}>
+                        {selectedMentor?.name || userData?.name || 'محمد عبدالله جمعة'}
+                      </strong>
+                    </div>
 
-                <div>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>الصف الدراسي:</span>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#1d4ed8' }}>
-                    {selectedClass}
-                  </div>
-                </div>
-
-                <div>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>حالة التقرير:</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px', fontWeight: '800', color: '#047857' }}>
-                    <CheckCircle size={16} />
-                    <span>تم الرفع والاعتماد رسمياً</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                      <span style={{ color: '#64748b', fontWeight: '600' }}>الفترة</span>
+                      <strong style={{ color: '#0f172a', fontSize: '15px', fontWeight: '800' }}>
+                        {academicMonth || 'أكتوبر ٢٠٢٦'}
+                      </strong>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3584,70 +3605,129 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 )}
               </div>
 
-              {/* Signatures in Report (Official Educational Signatures - Teacher & Principal) */}
-              <div className="report-signatures" style={{ 
-                marginTop: '36px', 
-                paddingTop: '20px', 
-                borderTop: '1px solid #e2e8f0', 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(2, 1fr)', 
-                gap: '24px', 
+              {/* Commitment & Follow-up Note */}
+              <p style={{
+                fontSize: '12.5px',
+                color: '#64748b',
+                lineHeight: '1.9',
                 textAlign: 'center',
-                maxWidth: '680px',
-                margin: '36px auto 0'
+                maxWidth: '780px',
+                margin: '28px auto 20px',
+                direction: 'rtl'
               }}>
-                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#0369a1' }}>معلم الصف (المربي المخلص)</div>
-                  <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
-                    {selectedMentor?.name || userData?.name || 'محمد عبدالله جمعة'}
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>التوقيع والاعتماد</div>
-                </div>
+                سيلتزم المربي والمعلمون بمتابعة خطة الصف، أما الخطوات المنزلية فهي توصيات للأسرة. وسنراجع أثر الخطة في المتابعة دون افتراض تحقق التحسن مسبقًا.
+              </p>
 
-                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    <span>مدير المدرسة</span>
-                    {!isPublicViewer && (
-                      <button 
-                        type="button" 
-                        className="no-print" 
-                        onClick={() => setIsEditingReportMeta(true)}
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', color: '#64748b' }}
-                        title="تعديل اسم مدير المدرسة"
-                      >
-                        <Edit3 size={13} />
-                      </button>
-                    )}
+              {/* General Classification Box (التصنيف العام) */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                marginBottom: '32px'
+              }}>
+                <div style={{
+                  border: '1.5px solid #cbd5e1',
+                  borderRadius: '14px',
+                  padding: '14px 42px',
+                  textAlign: 'center',
+                  background: '#ffffff',
+                  minWidth: '240px',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
+                }}>
+                  <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '700', marginBottom: '6px' }}>
+                    التصنيف العام
                   </div>
-                  <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>
-                    {principalName || currentSelectedSchool?.principalName || 'أ. أنس الجهني'}
+                  <div style={{ fontSize: '18px', color: '#047857', fontWeight: '900', marginBottom: '4px' }}>
+                    {overallLevel?.level || 'متقدم ومتميز'}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>الختم الرسمي والاعتماد</div>
+                  <div style={{ fontSize: '22px', color: '#0f172a', fontWeight: '900' }}>
+                    {averagePercentage}%
+                  </div>
                 </div>
               </div>
 
-              {/* Official Document Footer Line */}
-              <div className="report-footer-line" style={{
-                marginTop: '22px',
-                paddingTop: '12px',
-                borderTop: '1px dashed #cbd5e1',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '8px',
-                fontSize: '11.5px',
-                color: '#64748b'
+              {/* ─── OFFICIAL REPORT CLOSING & SIGNATURES (Strictly matched with Image 1) ─── */}
+              <div className="report-signatures avoid-break" style={{ 
+                marginTop: '36px', 
+                paddingTop: '20px', 
+                direction: 'rtl'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShieldCheck size={14} color="#059669" />
-                  <span>معتمد رسمياً • المعلم: <strong style={{ color: '#0f172a' }}>{selectedMentor?.name || 'معلم الصف'}</strong> • مدير المدرسة: <strong style={{ color: '#0f172a' }}>{principalName || currentSelectedSchool?.principalName || 'أ. أنس الجهني'}</strong></span>
+                {/* Two Column Signatures */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '48px',
+                  alignItems: 'start',
+                  maxWidth: '820px',
+                  margin: '0 auto 16px auto'
+                }}>
+                  {/* Right: توقيع المربي المخلص */}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      color: '#1b4d73',
+                      fontSize: '16px',
+                      fontWeight: '800',
+                      marginBottom: '8px'
+                    }}>
+                      <span>توقيع المربي المخلص</span>
+                      <Edit2 size={16} color="#1b4d73" />
+                    </div>
+                    <div style={{ height: '1.5px', background: '#97acc0', width: '100%', margin: '0 auto 8px auto' }} />
+                    <div style={{ color: '#64748b', fontSize: '14px', fontWeight: '700' }}>
+                      {selectedMentor?.name || userData?.name || 'محمد عبدالله جمعة'}
+                    </div>
+                  </div>
+
+                  {/* Left: توقيع ولي الأمر */}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      color: '#1b4d73',
+                      fontSize: '16px',
+                      fontWeight: '800',
+                      marginBottom: '8px'
+                    }}>
+                      <Edit2 size={16} color="#1b4d73" />
+                      <span>توقيع ولي الأمر</span>
+                    </div>
+                    <div style={{ height: '1.5px', background: '#97acc0', width: '100%', margin: '0 auto 8px auto' }} />
+                    <div style={{ color: '#64748b', fontSize: '13px', fontWeight: '500' }}>
+                      للاطلاع على خطة المتابعة والتوصيات المنزلية
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span>منظومة المربي المخلص للرصد التربوي • {schoolDisplayName}</span>
+
+                {/* Date line */}
+                <div style={{
+                  textAlign: 'center',
+                  color: '#64748b',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  marginTop: '18px',
+                  marginBottom: '20px'
+                }}>
+                  ............................ :التاريخ
                 </div>
-                <div>
-                  <span>تاريخ الاعتماد: {reportDateTime}</span>
+
+                {/* Official Copyright & Contact Footer */}
+                <div className="report-footer-line" style={{
+                  borderTop: '1px solid #e2e8f0',
+                  paddingTop: '16px',
+                  textAlign: 'center',
+                  color: '#8490a4',
+                  fontSize: '12px',
+                  lineHeight: '1.8'
+                }}>
+                  <div>جميع الحقوق محفوظة © مركز التحول العلائقي</div>
+                  <div style={{ direction: 'ltr', display: 'inline-block' }}>
+                    relational-shift.com · +966591540056 :للتواصل
+                  </div>
                 </div>
               </div>
 
