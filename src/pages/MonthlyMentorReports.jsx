@@ -1188,18 +1188,10 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
             break-inside: avoid !important;
             width: 100%;
           }
-          .report-pdf-page {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-            width: 100%;
-          }
 
           .report-page-break {
             page-break-before: always !important;
             break-before: page !important;
-            height: 0;
-            margin: 0;
-            padding: 0;
           }
           .avoid-break {
             page-break-inside: avoid !important;
@@ -1565,9 +1557,6 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           .report-page-break {
             page-break-before: always !important;
             break-before: page !important;
-            height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
           }
 
           .report-section {
@@ -1591,11 +1580,9 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
           .report-signatures {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
-            display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 20px !important;
-            margin-top: 16px !important;
-            padding-top: 10px !important;
+            display: block !important;
+            margin-top: 14px !important;
+            padding-top: 8px !important;
           }
 
           /* Official Document Footer Line */
@@ -2949,14 +2936,18 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
               boxShadow: '0 4px 25px rgba(0,0,0,0.04)'
             }}>
               
-              {/* ─── OFFICIAL HEADER (Strictly matched with Image 2 / Al-Asr Yasser) ─── */}
-              <div style={{
-                borderRadius: '16px',
-                overflow: 'hidden',
-                marginBottom: '28px',
-                border: '1px solid #cbdceb',
-                boxShadow: '0 4px 18px rgba(27, 77, 115, 0.08)'
-              }}>
+              {/* ═══════════════════════════════════════════════════════════════
+                  PAGE 1: الترويسة الرسمية + ملخص التقرير (Matches Uploaded PDF Page 1)
+              ═══════════════════════════════════════════════════════════════ */}
+              <div className="report-pdf-page" style={{ marginBottom: '20px' }}>
+                {/* ─── OFFICIAL HEADER (Strictly matched with Image 2 / Al-Asr Yasser) ─── */}
+                <div style={{
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  marginBottom: '20px',
+                  border: '1px solid #cbdceb',
+                  boxShadow: '0 4px 18px rgba(27, 77, 115, 0.08)'
+                }}>
                 {/* Top Dark Blue Bar */}
                 <div style={{
                   background: '#1b4d73',
@@ -3087,10 +3078,6 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                 </div>
               </div>
 
-              {/* ═══════════════════════════════════════════════════════════════
-                  PAGE 1: ملخص التقرير (Matches Uploaded PDF Page 1)
-              ═══════════════════════════════════════════════════════════════ */}
-              <div className="report-pdf-page" style={{ marginBottom: '20px' }}>
                 {/* ملخص التقرير Header & Average */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3098,6 +3085,28 @@ export default function MonthlyMentorReports({ role = 'teacher' }) {
                     <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
                       ملخص التقرير
                     </h3>
+                    {!isPublicViewer && (
+                      <button
+                        type="button"
+                        className="no-print"
+                        onClick={handleGenerateAISummaries}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#6366f1',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          cursor: 'pointer',
+                          marginRight: '8px'
+                        }}
+                      >
+                        <Sparkles size={13} />
+                        <span>إعادة الصياغة بالذكاء الاصطناعي</span>
+                      </button>
+                    )}
                   </div>
                   <div style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>
                     متوسط المواد المقيمة: <strong style={{ color: '#047857' }}>{averagePercentage}%</strong>
