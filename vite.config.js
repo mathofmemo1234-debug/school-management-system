@@ -5,9 +5,12 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// Automatically adapt base path to the active GitHub repository name
-const repoName = process.env.GITHUB_REPOSITORY ? process.env.GITHUB_REPOSITORY.split('/')[1] : 'school-management-system';
-const basePath = repoName ? `/${repoName}/` : './';
+// Adapt base path:
+// - On Vercel or standard root domain: '/'
+// - On GitHub Pages (via GitHub Actions): '/<repo-name>/'
+const isGitHubPages = Boolean(process.env.GITHUB_ACTIONS && process.env.GITHUB_REPOSITORY && !process.env.VERCEL);
+const repoName = isGitHubPages ? process.env.GITHUB_REPOSITORY.split('/')[1] : '';
+const basePath = isGitHubPages && repoName ? `/${repoName}/` : '/';
 
 // https://vite.dev/config/
 export default defineConfig({
