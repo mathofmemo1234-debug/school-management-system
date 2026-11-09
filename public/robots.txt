@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /superadmin/
+Disallow: /supervisor/
+
+Sitemap: https://mathofmemo1234-debug.github.io/school-management-system/sitemap.xml

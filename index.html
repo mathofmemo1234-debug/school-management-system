@@ -5,6 +5,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+    <meta name="robots" content="index, follow" />
+    
     <link rel="icon" type="image/png" href="./default_logo.png" />
     <link rel="apple-touch-icon" href="./default_logo.png" />
     <link rel="manifest" href="./manifest.json" />
@@ -13,11 +15,59 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="مدارس المتقدمة" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="description" content="بوابة الدخول الموحدة لنظام إدارة المدارس المتقدمة للتعلم الذكي بجدة - لوحة تحكم الطلاب والمعلمين والإدارة.">
+    
+    <!-- SEO & Primary Meta Tags -->
+    <title>بوابة شركة المدارس المتقدمة للتعلم الذكي والإدارة المدرسية</title>
+    <meta name="description" content="بوابة الدخول الموحدة لنظام إدارة المدارس المتقدمة للتعلم الذكي - لوحة تحكم متكاملة للطلاب والمعلمين والإدارة وأولياء الأمور والمشرفين التربويين." />
+    <link rel="canonical" href="https://mathofmemo1234-debug.github.io/school-management-system/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="منظومة المدارس المتقدمة للتعلم الذكي" />
+    <meta property="og:url" content="https://mathofmemo1234-debug.github.io/school-management-system/" />
+    <meta property="og:title" content="بوابة شركة المدارس المتقدمة للتعلم الذكي والإدارة المدرسية" />
+    <meta property="og:description" content="بوابة الدخول الموحدة لنظام إدارة المدارس المتقدمة للتعلم الذكي - لوحة تحكم متكاملة للطلاب والمعلمين والإدارة وأولياء الأمور." />
+    <meta property="og:image" content="./default_logo.png" />
+    <meta property="og:locale" content="ar_SA" />
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="بوابة شركة المدارس المتقدمة للتعلم الذكي والإدارة المدرسية" />
+    <meta name="twitter:description" content="بوابة الدخول الموحدة لنظام إدارة المدارس المتقدمة للتعلم الذكي - لوحة تحكم متكاملة للطلاب والمعلمين والإدارة." />
+    <meta name="twitter:image" content="./default_logo.png" />
+
+    <!-- Structured Data (JSON-LD Schema Markup) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "EducationalOrganization",
+          "@id": "https://mathofmemo1234-debug.github.io/school-management-system/#organization",
+          "name": "شركة المدارس المتقدمة للتعلم الذكي",
+          "url": "https://mathofmemo1234-debug.github.io/school-management-system/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://mathofmemo1234-debug.github.io/school-management-system/default_logo.png"
+          },
+          "description": "منظومة المدارس المتقدمة للتعلم الذكي والإدارة المدرسية الشاملة بالمملكة العربية السعودية"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://mathofmemo1234-debug.github.io/school-management-system/#website",
+          "url": "https://mathofmemo1234-debug.github.io/school-management-system/",
+          "name": "منظومة المدارس المتقدمة",
+          "publisher": {
+            "@id": "https://mathofmemo1234-debug.github.io/school-management-system/#organization"
+          }
+        }
+      ]
+    }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <title>بوابة شركة المدارس المتقدمة للتعلم الذكي والإدارة المدرسية</title>
     <script>
       // Global catcher for legacy cached chunks / dynamic import fetch failures
       (function() {
@@ -84,7 +134,28 @@
     </script>
     <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async defer></script>
 
-    <div id="root"></div>
+    <!-- App Root with SEO Static Fallback for Search Crawlers -->
+    <div id="root">
+      <div style="font-family: 'Cairo', sans-serif; max-width: 800px; margin: 40px auto; padding: 24px; text-align: center; color: #1e293b; direction: rtl;">
+        <img src="./default_logo.png" alt="شعار شركة المدارس المتقدمة للتعلم الذكي" width="96" height="96" style="margin-bottom: 16px; border-radius: 12px;" />
+        <h1 style="font-size: 24px; font-weight: 800; color: #0f766e; margin-bottom: 12px;">بوابة شركة المدارس المتقدمة للتعلم الذكي والإدارة المدرسية</h1>
+        <h2 style="font-size: 18px; font-weight: 600; color: #334155; margin-bottom: 16px;">المنظومة التعليمية الرقمية الشاملة والإدارة المدرسية المتكاملة</h2>
+        <p style="font-size: 15px; line-height: 1.8; color: #475569; margin-bottom: 16px;">
+          مرحباً بكم في بوابة المدارس المتقدمة للتعلم الذكي. توفر هذه المنظومة المتطورة بنية تحتية متكاملة لربط كافة أطراف العملية التعليمية عبر لوحات تحكم متخصصة تشمل: إدارة المدارس، الهيئة الإدارية والتعليمية، الطلاب، وأولياء الأمور والمشرفين التربويين، مع متابعة دقيقة لمؤشرات التميز الأكاديمي، سجلات الحضور والغياب، والتقارير الدورية الذكية.
+        </p>
+        <p style="font-size: 13px; color: #64748b;">
+          جاري تحميل واجهة المنظومة التفاعلية...
+        </p>
+      </div>
+    </div>
+
+    <noscript>
+      <div style="font-family: 'Cairo', sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; text-align: center; direction: rtl;">
+        <h2>تنبيه: يتطلب النظام تفعيل الجافاسكريبت</h2>
+        <p>يرجى تفعيل JavaScript في المتصفح للوصول إلى لوحات تحكم المدارس المتقدمة وكافة الخدمات التفاعلية.</p>
+      </div>
+    </noscript>
+
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
